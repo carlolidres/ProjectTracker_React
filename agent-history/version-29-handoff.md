@@ -104,7 +104,7 @@ Read `AGENTS.md` and `agent-history/version-28-handoff.md`, then execute the v28
 
 - Commit: v29: production deployment execution and verification tooling
 - Commit message: v29: production deployment execution and verification tooling
-- Commit hash: _pending_
+- Commit hash: 7e33dd4
 
 ---
 
