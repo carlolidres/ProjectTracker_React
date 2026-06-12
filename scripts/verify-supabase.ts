@@ -82,6 +82,7 @@ const TABLES = [
   "profiles",
   "cnf_projects",
   "support_activities",
+  "pt_notifications",
   "notifications",
   "audit_logs",
   "registry",
@@ -141,7 +142,9 @@ async function checkTables(label: string): Promise<{ ok: boolean; missing: strin
       console.error(`  FAIL  ${table}: auth — ${detail}`);
       failed.push(table);
     } else if (isRlsBlock(error)) {
-      console.log(`  PASS  ${table} (exists; RLS blocks unauthenticated read)`);
+      const rlsLabel =
+        label === "authenticated" ? "exists; RLS blocks authenticated read" : "exists; RLS blocks unauthenticated read";
+      console.log(`  PASS  ${table} (${rlsLabel})`);
       blocked.push(table);
     } else if (!error.message && !error.code) {
       console.error(`  FAIL  ${table}: unreachable — ${detail}`);

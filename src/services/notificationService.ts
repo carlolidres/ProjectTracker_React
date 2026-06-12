@@ -8,7 +8,7 @@ export async function refreshAllNotifications(): Promise<void> {
   const rows = await listActiveProjects();
   const today = getTodayManila();
 
-  await supabase.from("notifications").delete().neq("notification_id", "");
+  await supabase.from("pt_notifications").delete().neq("notification_id", "");
 
   const notifications: Omit<Notification, "created_at">[] = [];
 
@@ -59,14 +59,14 @@ export async function refreshAllNotifications(): Promise<void> {
 
   if (notifications.length) {
     const withTimestamps = notifications.map((n) => ({ ...n, created_at: new Date().toISOString() }));
-    const { error } = await supabase.from("notifications").insert(withTimestamps);
+    const { error } = await supabase.from("pt_notifications").insert(withTimestamps);
     if (error) throw error;
   }
 }
 
 export async function listNotifications(): Promise<Notification[]> {
   const { data, error } = await supabase
-    .from("notifications")
+    .from("pt_notifications")
     .select("*")
     .eq("status", "OPEN")
     .order("created_at", { ascending: false });
@@ -76,7 +76,7 @@ export async function listNotifications(): Promise<Notification[]> {
 
 export async function getNotificationCount(): Promise<number> {
   const { count, error } = await supabase
-    .from("notifications")
+    .from("pt_notifications")
     .select("*", { count: "exact", head: true })
     .eq("status", "OPEN");
   if (error) throw error;

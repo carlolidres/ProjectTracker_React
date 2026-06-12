@@ -1,3 +1,4 @@
+import { normalizeProfile } from "@/lib/roleMapping";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile, UserRole } from "@/types";
 
@@ -22,7 +23,8 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
     .maybeSingle();
 
   if (error) throw error;
-  return data as Profile | null;
+  if (!data) return null;
+  return normalizeProfile(data as Profile);
 }
 
 export async function updateProfileRole(userId: string, role: UserRole) {

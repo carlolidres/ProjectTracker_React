@@ -45,3 +45,6 @@ Thumbs.db
 
 # Cursor debug
 .cursor/debug-*.log
+
+# Supabase CLI temp
+supabase/.temp/
