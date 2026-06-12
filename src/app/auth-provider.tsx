@@ -9,6 +9,7 @@ interface AuthContextValue {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  sessionEpoch: number;
   refreshProfile: () => Promise<void>;
 }
 
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionEpoch, setSessionEpoch] = useState(0);
   const lastUserIdRef = useRef<string | null>(null);
 
   const refreshProfile = async () => {
@@ -59,13 +61,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearAppSessionState();
         setUser(null);
         setProfile(null);
+        setSessionEpoch((current) => current + 1);
         setLoading(false);
         return;
       }
 
-      if (event === "SIGNED_IN" || (previousUserId && previousUserId !== nextUserId)) {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || (previousUserId && previousUserId !== nextUserId)) {
         clearAppSessionState();
         setProfile(null);
+        if (event === "SIGNED_IN") {
+          setSessionEpoch((current) => current + 1);
+        }
       }
 
       lastUserIdRef.current = nextUserId;
@@ -80,8 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, profile, loading, refreshProfile }),
-    [user, profile, loading],
+    () => ({ user, profile, loading, sessionEpoch, refreshProfile }),
+    [user, profile, loading, sessionEpoch],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

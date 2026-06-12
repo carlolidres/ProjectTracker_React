@@ -1,12 +1,31 @@
 import { normalizeProfile } from "@/lib/roleMapping";
-import { clearAppSessionState } from "@/lib/sessionCleanup";
+import {
+  clearAppSessionState,
+  clearSupabaseAuthStorage,
+  redirectToLoginForFreshSession,
+} from "@/lib/sessionCleanup";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile, UserRole } from "@/types";
 
-export async function signIn(email: string, password: string) {
-  await supabase.auth.signOut({ scope: "global" }).catch(() => undefined);
+export async function endUserSession(): Promise<void> {
   clearAppSessionState();
-  return supabase.auth.signInWithPassword({ email, password });
+  await supabase.auth.signOut({ scope: "global" }).catch(() => undefined);
+  clearSupabaseAuthStorage();
+}
+
+export async function signIn(email: string, password: string) {
+  await endUserSession();
+
+  const result = await supabase.auth.signInWithPassword({ email, password });
+  if (result.error) return result;
+
+  if (result.data.session) {
+    await supabase.auth.setSession(result.data.session);
+    await supabase.auth.refreshSession();
+  }
+
+  clearAppSessionState();
+  return result;
 }
 
 export async function signUp(input: {
@@ -28,9 +47,9 @@ export async function signUp(input: {
 }
 
 export async function signOut() {
-  const result = await supabase.auth.signOut({ scope: "global" });
-  clearAppSessionState();
-  return result;
+  await endUserSession();
+  redirectToLoginForFreshSession();
+  return { error: null };
 }
 
 export async function getCurrentUser() {

@@ -8,8 +8,8 @@ import { RegistryProvider } from "@/app/registry-provider";
 import { ThemeProvider } from "@/app/theme-provider";
 
 function SessionScopedRouter() {
-  const { user, loading } = useAuth();
-  const sessionKey = user?.id ?? "anonymous";
+  const { user, loading, sessionEpoch } = useAuth();
+  const sessionKey = `${user?.id ?? "anonymous"}:${sessionEpoch}`;
 
   if (loading) {
     return (

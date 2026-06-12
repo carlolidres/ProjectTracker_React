@@ -17,7 +17,7 @@ import {
 import { Avatar, Button, Drawer, Dropdown, Tooltip, Typography } from "antd";
 import type { MenuProps } from "antd";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ProfileSettingsModal } from "@/components/layout/profile-settings-modal";
 import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
 import { useAuth } from "@/app/auth-provider";
@@ -63,7 +63,6 @@ function filterNavItems(items: NavItem[], role: UserRole | undefined) {
 export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
   const { profile, user } = useAuth();
   const { appTheme, toggleTheme } = useAppTheme();
-  const navigate = useNavigate();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const isCollapsed = state === "collapsed";
   const displayName =
@@ -97,7 +96,6 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
       label: "Sign out",
       onClick: async () => {
         await signOut();
-        navigate("/login", { replace: true, state: null });
       },
     },
   ];

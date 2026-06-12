@@ -8,7 +8,7 @@ import { requestPasswordReset } from "@/services/passwordResetService";
 import type { UserRole } from "@/types";
 
 export function LoginPage() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -27,11 +27,14 @@ export function LoginPage() {
     setError(null);
     setSuccess(null);
     const { error: signInError } = await signIn(values.email, values.password);
-    setSubmitting(false);
     if (signInError) {
+      setSubmitting(false);
       setError(signInError.message);
       return;
     }
+
+    await refreshProfile();
+    setSubmitting(false);
     navigate("/dashboard", { replace: true });
   }
 
