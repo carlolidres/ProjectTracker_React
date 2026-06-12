@@ -48,3 +48,8 @@ Thumbs.db
 
 # Supabase CLI temp
 supabase/.temp/
+
+# Sheet exports (may contain production data)
+exports/*
+!exports/README.md
+!exports/.gitkeep

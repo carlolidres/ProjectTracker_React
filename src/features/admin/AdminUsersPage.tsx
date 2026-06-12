@@ -1,10 +1,15 @@
-import { ReloadOutlined, SaveOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Select, Space, Table, Tag, Typography, message } from "antd";
-import { useCallback, useEffect, useState } from "react";
+import { KeyOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Popconfirm, Select, Space, Table, Tag, Typography, message } from "antd";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/app/auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { listProfiles, updateProfileAccess } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
+import { getProfileShortName } from "@/lib/profileName";
+import {
+  adminCompletePasswordReset,
+  listPendingPasswordResetRequests,
+} from "@/services/passwordResetService";
 import type { Profile, UserRole } from "@/types";
 
 const ROLE_OPTIONS = (Object.entries(ROLE_LABELS) as [UserRole, string][]).map(
@@ -28,6 +33,8 @@ export function AdminUsersPage() {
   const [drafts, setDrafts] = useState<Record<string, AccessDraft>>({});
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [resettingUserId, setResettingUserId] = useState<string | null>(null);
+  const [pendingResetUserIds, setPendingResetUserIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const loadProfiles = useCallback(async () => {
@@ -35,7 +42,14 @@ export function AdminUsersPage() {
     setError(null);
     try {
       const nextProfiles = await listProfiles();
+      let pendingResets: Awaited<ReturnType<typeof listPendingPasswordResetRequests>> = [];
+      try {
+        pendingResets = await listPendingPasswordResetRequests();
+      } catch {
+        pendingResets = [];
+      }
       setProfiles(nextProfiles);
+      setPendingResetUserIds(new Set(pendingResets.map((request) => request.user_id)));
       setDrafts(
         Object.fromEntries(
           nextProfiles.map((profile) => [
@@ -66,6 +80,22 @@ export function AdminUsersPage() {
       ...current,
       [userId]: { ...current[userId], ...patch },
     }));
+  }
+
+  const pendingResetCount = useMemo(() => pendingResetUserIds.size, [pendingResetUserIds]);
+
+  async function handlePasswordReset(profile: Profile) {
+    setResettingUserId(profile.id);
+    setError(null);
+    try {
+      await adminCompletePasswordReset(profile.id);
+      message.success(`Password reset for ${getProfileShortName(profile) || profile.email}`);
+      await loadProfiles();
+    } catch (resetError) {
+      setError(resetError instanceof Error ? resetError.message : "Failed to reset password.");
+    } finally {
+      setResettingUserId(null);
+    }
   }
 
   async function saveAccess(profile: Profile) {
@@ -102,9 +132,6 @@ export function AdminUsersPage() {
       <div className="page-header">
         <div>
           <Typography.Title level={3}>User Management</Typography.Title>
-          <Typography.Text type="secondary">
-            Review signup requests, assign roles, and activate or deactivate accounts.
-          </Typography.Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={() => void loadProfiles()} loading={loading}>
           Refresh
@@ -112,6 +139,14 @@ export function AdminUsersPage() {
       </div>
 
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
+      {pendingResetCount > 0 ? (
+        <Alert
+          type="warning"
+          showIcon
+          message={`${pendingResetCount} password reset request${pendingResetCount === 1 ? "" : "s"} pending review`}
+          style={{ marginBottom: 16 }}
+        />
+      ) : null}
 
       <Card>
         <Table
@@ -122,12 +157,18 @@ export function AdminUsersPage() {
           columns={[
             {
               title: "User",
-              render: (_, profile: Profile) => (
-                <Space direction="vertical" size={0}>
-                  <Typography.Text strong>{profile.full_name || "Unnamed user"}</Typography.Text>
-                  <Typography.Text type="secondary">{profile.email}</Typography.Text>
-                </Space>
-              ),
+              render: (_, profile: Profile) => {
+                const shortName = getProfileShortName(profile) || "Unnamed user";
+                return (
+                  <Space direction="vertical" size={0}>
+                    <Typography.Text strong>{shortName}</Typography.Text>
+                    <Typography.Text type="secondary">{profile.email}</Typography.Text>
+                    {pendingResetUserIds.has(profile.id) ? (
+                      <Tag color="orange">Password reset requested</Tag>
+                    ) : null}
+                  </Space>
+                );
+              },
             },
             {
               title: "Requested Role",
@@ -167,14 +208,34 @@ export function AdminUsersPage() {
             {
               title: "Action",
               render: (_, profile: Profile) => (
-                <Button
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  loading={savingUserId === profile.id}
-                  onClick={() => void saveAccess(profile)}
-                >
-                  Save
-                </Button>
+                <Space direction="vertical" size={8}>
+                  <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    loading={savingUserId === profile.id}
+                    onClick={() => void saveAccess(profile)}
+                    block
+                  >
+                    Save
+                  </Button>
+                  {pendingResetUserIds.has(profile.id) ? (
+                    <Popconfirm
+                      title="Reset password?"
+                      description="This sets the user's password to the default reset password."
+                      okText="Reset password"
+                      onConfirm={() => void handlePasswordReset(profile)}
+                    >
+                      <Button
+                        danger
+                        icon={<KeyOutlined />}
+                        loading={resettingUserId === profile.id}
+                        block
+                      >
+                        Reset Password
+                      </Button>
+                    </Popconfirm>
+                  ) : null}
+                </Space>
               ),
             },
           ]}

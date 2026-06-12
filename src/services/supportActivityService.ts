@@ -1,4 +1,7 @@
+import { collectSupportDateChanges } from "@/lib/dateAdjustmentReview";
+import { rowMatchesDueWindow, supportTargetDays } from "@/lib/fgUrgency";
 import { mapDbToSupport, mapSupportToDb } from "@/lib/mappers";
+import { getNextSupportProjectId } from "@/lib/idGeneration";
 import { supabase } from "@/lib/supabaseClient";
 import { generateId, valueOrEmpty, valueOrNA } from "@/lib/utils";
 import { logAuditDiff, logAuditEntries } from "@/services/auditService";
@@ -29,13 +32,22 @@ export function filterSupportRows(rows: SupportActivity[], filters: SupportActiv
     }
     if (filters.activity_kind && valueOrNA(row.activity_kind) !== filters.activity_kind) return false;
     if (filters.department && valueOrNA(row.Department) !== filters.department) return false;
+    if (filters.due_window) {
+      const days = supportTargetDays(row.Target_Date);
+      if (!rowMatchesDueWindow(days, true, filters.due_window)) return false;
+    }
     return true;
   });
+}
+
+export interface SupportSaveOptions {
+  dateAdjustmentsConfirmed?: boolean;
 }
 
 export async function saveSupportActivity(
   payload: Partial<SupportActivity>,
   userEmail: string,
+  options?: SupportSaveOptions,
 ) {
   const activityId = valueOrNA(payload.activity_id) === "N/A"
     ? generateId("SUP")
@@ -49,7 +61,16 @@ export async function saveSupportActivity(
     .maybeSingle();
 
   const existing = existingData ? mapRow(existingData) : null;
-  const supportProjectId = existing?.project_id ?? generateId("SPR");
+  const requiredDateChanges = collectSupportDateChanges(
+    (existing ?? {}) as Record<string, string | undefined>,
+    payload as Record<string, string | undefined>,
+    { projectId: existing?.project_id ?? payload.project_id, activityId: activityId },
+  );
+  if (requiredDateChanges.length && !options?.dateAdjustmentsConfirmed) {
+    throw new Error("Date adjustments require a documented reason before saving.");
+  }
+
+  const supportProjectId = existing?.project_id ?? (await getNextSupportProjectId());
 
   const row = {
     activity_id: activityId,

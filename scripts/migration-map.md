@@ -86,3 +86,12 @@
 - Convert `Is Active` TRUE/FALSE strings to boolean
 - Parse date strings to ISO timestamps where possible
 - Preserve `project_id`, `batch_instance_id`, `mo_instance_id`, `po_instance_id`
+
+## Run Migration
+
+1. Export sheets to `exports/projects.csv` and `exports/support_activities.csv` (see `exports/README.md`)
+2. Add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local` (never commit)
+3. Validate: `npm run migrate:validate`
+4. Dry run: `npm run migrate:dry-run`
+5. Import: `npm run migrate:import`
+6. Verify: `npm run smoke:supabase`

@@ -6,6 +6,12 @@ export function formatAppDate(value?: string | null): string {
   return parsed.isValid() ? parsed.format("MMM D, YYYY") : value;
 }
 
+export function formatAppMonth(value?: string | null): string {
+  if (!value || value === "N/A") return "-";
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format("MMM YYYY") : value;
+}
+
 export function formatAppDateTime(value?: string | null): string {
   if (!value) return "-";
   const parsed = dayjs(value);

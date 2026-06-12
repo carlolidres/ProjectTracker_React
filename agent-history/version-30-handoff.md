@@ -132,3 +132,6 @@ PASS admin_messages
 - **Instructions:** always add this section at the end of Markdown files to allow reviewers to provide feedback. If none is provided, this section will be skipped.
 - **Reviewers:** @carlo-mauring
 - **Comments:**
+1. I updated the .env.local with my supabse project account and username and password. 
+2. There are existing SQL already migrated on the project, I'll add a reference sql for your context. Access file path here: "C:\Users\Carlo Mauring Lidres\OneDrive\Desktop\Projects\00 Working Projects\ProjectTracker_React\reference\migrationsReference"
+3. Continue your plan "C:\Users\Carlo Mauring Lidres\.cursor\plans\project_tracker_migration_36f9948d.plan.md" and track the progress. Report it to the next handoff version.

@@ -2,12 +2,14 @@ import { Button, Result, Spin } from "antd";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { signOut } from "@/lib/auth";
+import type { UserRole } from "@/types";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  allowedRoles?: UserRole[];
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -40,7 +42,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             type="primary"
             onClick={async () => {
               await signOut();
-              navigate("/login", { replace: true });
+              navigate("/login", { replace: true, state: null });
             }}
           >
             Back to sign in
@@ -50,5 +52,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
+  if (allowedRoles && !allowedRoles.includes(profile.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return children;
 }
+

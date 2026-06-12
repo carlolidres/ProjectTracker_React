@@ -2,7 +2,7 @@ import { BellOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Alert, Badge, Button, Drawer, Empty, List, Space, Spin, Tag, Tooltip, Typography } from "antd";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { formatAppDateTime } from "@/lib/date";
+import { formatAppDateTime, formatAppMonth } from "@/lib/date";
 import { getNotificationCount, listNotifications, refreshAllNotifications } from "@/services/notificationService";
 import type { Notification } from "@/types";
 
@@ -103,7 +103,7 @@ export function NotificationCenter({ open, onOpenChange }: Readonly<Notification
                     <Space direction="vertical" size={4}>
                       <Typography.Text>{notification.message}</Typography.Text>
                       <Typography.Text type="secondary">Project: {notification.project_id}</Typography.Text>
-                      <Typography.Text type="secondary">FG Month: {notification.fg_month}</Typography.Text>
+                      <Typography.Text type="secondary">FG Month: {formatAppMonth(notification.fg_month)}</Typography.Text>
                       <Typography.Text type="secondary">Created: {formatAppDateTime(notification.created_at)}</Typography.Text>
                     </Space>
                   }

@@ -1,19 +1,22 @@
-import { Alert, Button, Card, Form, Input, Select, Space, Typography } from "antd";
+import { Alert, Button, Card, Form, Input, Modal, Select, Space, Typography } from "antd";
 import { useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { signIn, signUp } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
+import { requestPasswordReset } from "@/services/passwordResetService";
 import type { UserRole } from "@/types";
 
 export function LoginPage() {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [isSigningUp, setIsSigningUp] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
+  const [forgotForm] = Form.useForm<{ email: string }>();
 
   if (!loading && user && profile?.status === "active") {
     return <Navigate to="/dashboard" replace />;
@@ -29,8 +32,23 @@ export function LoginPage() {
       setError(signInError.message);
       return;
     }
-    const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
-    navigate(from, { replace: true });
+    navigate("/dashboard", { replace: true });
+  }
+
+  async function onForgotPassword(values: { email: string }) {
+    setForgotSubmitting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await requestPasswordReset(values.email);
+      setSuccess("Password reset request sent to an administrator.");
+      setForgotOpen(false);
+      forgotForm.resetFields();
+    } catch (forgotError) {
+      setError(forgotError instanceof Error ? forgotError.message : "Failed to submit password reset request.");
+    } finally {
+      setForgotSubmitting(false);
+    }
   }
 
   async function onSignUp(values: {
@@ -59,11 +77,11 @@ export function LoginPage() {
     <div className="login-page">
       <Card className="login-card">
         <Typography.Title level={3}>Project Tracker</Typography.Title>
-        <Typography.Paragraph type="secondary">
-          {isSigningUp
-            ? "Request an account. An administrator will review your role before access is activated."
-            : "Sign in with your approved Supabase account to access Project Tracker."}
-        </Typography.Paragraph>
+        {isSigningUp ? (
+          <Typography.Paragraph type="secondary">
+            Request an account. An administrator will review your role before access is activated.
+          </Typography.Paragraph>
+        ) : null}
         {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
         {success ? <Alert type="success" showIcon message={success} style={{ marginBottom: 16 }} /> : null}
         <Form layout="vertical" onFinish={isSigningUp ? onSignUp : onFinish} requiredMark={false}>
@@ -95,7 +113,19 @@ export function LoginPage() {
             {isSigningUp ? "Request account" : "Sign in"}
           </Button>
         </Form>
-        <Space style={{ width: "100%", justifyContent: "center", marginTop: 16 }}>
+        <Space style={{ width: "100%", justifyContent: "center", marginTop: 16 }} wrap>
+          {!isSigningUp ? (
+            <Button
+              type="link"
+              onClick={() => {
+                setForgotOpen(true);
+                setError(null);
+                setSuccess(null);
+              }}
+            >
+              Forgot password?
+            </Button>
+          ) : null}
           <Button
             type="link"
             onClick={() => {
@@ -108,6 +138,33 @@ export function LoginPage() {
           </Button>
         </Space>
       </Card>
+
+      <Modal
+        title="Request password reset"
+        open={forgotOpen}
+        onCancel={() => setForgotOpen(false)}
+        footer={null}
+        destroyOnClose
+      >
+        <Typography.Paragraph type="secondary">
+          Enter your account email. An administrator will review the request and reset your password.
+        </Typography.Paragraph>
+        <Form form={forgotForm} layout="vertical" onFinish={(values) => void onForgotPassword(values)}>
+          <Form.Item
+            label="Email"
+            name="email"
+            rules={[{ required: true, type: "email", message: "Enter your account email" }]}
+          >
+            <Input autoComplete="email" />
+          </Form.Item>
+          <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+            <Button onClick={() => setForgotOpen(false)}>Cancel</Button>
+            <Button type="primary" htmlType="submit" loading={forgotSubmitting}>
+              Send request
+            </Button>
+          </Space>
+        </Form>
+      </Modal>
     </div>
   );
 }

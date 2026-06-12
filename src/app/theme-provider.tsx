@@ -1,5 +1,5 @@
 import { ConfigProvider, theme as antTheme } from "antd";
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 type AppTheme = "light" | "dark";
 
@@ -19,6 +19,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ appTheme, toggleTheme }), [appTheme, toggleTheme]);
 
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", appTheme);
+  }, [appTheme]);
+
   return (
     <ThemeContext.Provider value={value}>
       <ConfigProvider
@@ -27,7 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           token: { colorPrimary: "#1677ff", borderRadius: 8 },
         }}
       >
-        <div data-theme={appTheme}>{children}</div>
+        {children}
       </ConfigProvider>
     </ThemeContext.Provider>
   );

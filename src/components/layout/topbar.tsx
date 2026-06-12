@@ -1,6 +1,7 @@
 import { MenuFoldOutlined, MenuOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
 import { useState } from "react";
+import { FeedbackChat } from "@/components/layout/feedback-chat";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import type { SidebarState } from "@/hooks/use-sidebar-state";
 
@@ -34,9 +35,9 @@ export function Topbar({ sidebarState, onToggleSidebar, onOpenMobileSidebar }: T
       </Tooltip>
       <div className="topbar-title">
         <p className="topbar-title-main">Project Tracker</p>
-        <p className="topbar-title-sub">CNF and support activity monitoring</p>
       </div>
       <div className="topbar-actions">
+        <FeedbackChat />
         <NotificationCenter open={notificationsOpen} onOpenChange={setNotificationsOpen} />
       </div>
     </header>

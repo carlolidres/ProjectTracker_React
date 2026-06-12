@@ -1,7 +1,16 @@
 import { supabase } from "@/lib/supabaseClient";
 import { nowStamp } from "@/lib/date";
+import { auditDisplayValue } from "@/lib/auditFormat";
 import { sanitizeAuditValue } from "@/lib/utils";
 import type { AuditFilters, AuditLog } from "@/types";
+
+function summarizeAuditRow(row: Record<string, unknown>): string {
+  const parts = Object.entries(row)
+    .filter(([, value]) => sanitizeAuditValue(value) !== "")
+    .slice(0, 6)
+    .map(([key, value]) => `${key.replace(/_/g, " ")}: ${auditDisplayValue(value)}`);
+  return parts.join(". ");
+}
 
 export async function logAuditTrail(entry: {
   module: string;
@@ -52,7 +61,7 @@ export async function logAuditDiff(
         fieldName: field,
         oldValue: oldVal,
         newValue: newVal,
-        remarks: `${action} via Project Tracker`,
+        remarks: "Field updated via Project Tracker",
         userEmail,
       });
     }
@@ -76,8 +85,8 @@ export async function logAuditEntries(
       recordId,
       projectId,
       fieldName: "ALL",
-      oldValue: action === "DELETE" ? JSON.stringify(oldRow) : "",
-      newValue: action === "CREATE" ? JSON.stringify(newRow) : "",
+      oldValue: action === "DELETE" ? summarizeAuditRow(oldRow) : "",
+      newValue: action === "CREATE" ? summarizeAuditRow(newRow) : "",
       remarks,
       userEmail,
     });

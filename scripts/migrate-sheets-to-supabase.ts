@@ -3,109 +3,140 @@
  * NEVER commit the service role key.
  *
  * Usage:
- *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/migrate-sheets-to-supabase.ts ./exports/projects.json
+ *   npm run migrate:validate
+ *   npm run migrate:dry-run
+ *   npm run migrate:import
+ *
+ * Or directly:
+ *   npx tsx scripts/migrate-sheets-to-supabase.ts --dry-run exports/projects.csv exports/support.csv
+ *   npx tsx scripts/migrate-sheets-to-supabase.ts exports/projects.csv exports/support.csv
+ *
+ * Environment (from shell or .env.local):
+ *   VITE_SUPABASE_URL or SUPABASE_URL
+ *   SUPABASE_SERVICE_ROLE_KEY
  */
 
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
+import { prepareMigrationRows, readExportFile, summarizePrepared } from "./read-sheet-export";
 
-const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+function loadEnvLocal(): Record<string, string> {
+  const path = resolve(process.cwd(), ".env.local");
+  if (!existsSync(path)) return {};
+  const vars: Record<string, string> = {};
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    vars[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+  }
+  return vars;
+}
 
-if (!url || !serviceKey) {
-  console.error("Missing SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
+const envLocal = loadEnvLocal();
+const url =
+  process.env.SUPABASE_URL ??
+  process.env.VITE_SUPABASE_URL ??
+  envLocal.SUPABASE_URL ??
+  envLocal.VITE_SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? envLocal.SUPABASE_SERVICE_ROLE_KEY;
+
+const args = process.argv.slice(2);
+const dryRun = args.includes("--dry-run");
+const validateOnly = args.includes("--validate");
+const fileArgs = args.filter((arg) => !arg.startsWith("--"));
+
+const defaultProjects = resolve(process.cwd(), "exports/projects.csv");
+const defaultSupport = resolve(process.cwd(), "exports/support_activities.csv");
+const inputFiles =
+  fileArgs.length > 0
+    ? fileArgs.map((file) => resolve(file))
+    : [defaultProjects, defaultSupport].filter((file) => existsSync(file));
+
+if (!validateOnly && (!url || !serviceKey)) {
+  console.error("Missing Supabase credentials.");
+  console.error("Add to .env.local (never commit):");
+  console.error("  SUPABASE_SERVICE_ROLE_KEY=your_service_role_key");
+  console.error("  VITE_SUPABASE_URL=https://byhxwretspcxrrkvovgq.supabase.co");
   process.exit(1);
 }
 
-const supabase = createClient(url, serviceKey);
-
-function cleanValue(value: unknown): string {
-  if (value === null || value === undefined) return "N/A";
-  const text = String(value).trim();
-  return text === "" ? "N/A" : text;
+if (inputFiles.length === 0) {
+  console.error("No export files found.");
+  console.error("Place Google Sheets exports in exports/:");
+  console.error("  exports/projects.csv");
+  console.error("  exports/support_activities.csv");
+  console.error("See exports/README.md for export instructions.");
+  process.exit(1);
 }
 
-function toBool(value: unknown): boolean {
-  const text = String(value ?? "").trim().toUpperCase();
-  return text === "TRUE" || text === "1" || text === "YES";
-}
-
-function mapProjectRow(row: Record<string, unknown>) {
-  return {
-    record_id: cleanValue(row["Record ID"] ?? row.record_id),
-    project_id: cleanValue(row.project_id),
-    project_owner: cleanValue(row.project_owner),
-    activity_type: cleanValue(row.activity_type),
-    client_name: cleanValue(row.client_name),
-    so_no: cleanValue(row.so_no),
-    fg_code: cleanValue(row.fg_code),
-    product_name: cleanValue(row.product_name),
-    batch_instance_id: cleanValue(row.batch_instance_id),
-    unique_batch: cleanValue(row.unique_batch),
-    mo_instance_id: cleanValue(row.mo_instance_id),
-    mo_control_no: cleanValue(row.mo_control_no),
-    po_instance_id: cleanValue(row.po_instance_id),
-    po_control_no: cleanValue(row.po_control_no),
-    fg_month: cleanValue(row.fg_month),
-    business_unit: cleanValue(row.business_unit),
-    updateddocsver: cleanValue(row.updatedDocsVer),
-    cnf_reference: cleanValue(row.cnf_reference),
-    qrmr_ref_no: cleanValue(row.qrmr_ref_no),
-    change_description: cleanValue(row.change_description),
-    cnf_status: cleanValue(row.cnf_status),
-    client_approval_target_date: cleanValue(row.client_approval_target_date),
-    remarks: cleanValue(row.remarks),
-    cnf_entries_json: cleanValue(row.cnf_entries_json) === "N/A" ? "[]" : cleanValue(row.cnf_entries_json),
-    manufacturing_start_week: cleanValue(row.manufacturing_start_week),
-    mo_bmr_po_submission_status: cleanValue(row.mo_bmr_po_submission_status),
-    mo_bmr_po_target_date: cleanValue(row.mo_bmr_po_target_date),
-    mo_bmr_po_activation_status: cleanValue(row.mo_bmr_po_activation_status),
-    mo_bmr_po_activation_date: cleanValue(row.mo_bmr_po_activation_date),
-    protocol_no: cleanValue(row.protocol_no),
-    protocol_status: cleanValue(row.protocol_Status),
-    protocol_target_date: cleanValue(row.protocol_target_date),
-    val_activity: cleanValue(row.Val_Activity),
-    val_stability: cleanValue(row.Val_Stability),
-    val_batch_seq_no: cleanValue(row.Val_Batch_Seq_No),
-    val_strategy: cleanValue(row.Val_Strategy),
-    val_strategy_remarks: cleanValue(row.Val_Strategy_remarks),
-    val_report_no: cleanValue(row.val_report_no),
-    report_sub_status: cleanValue(row.Report_Sub_Status),
-    report_target_date: cleanValue(row.Report_target_Date),
-    ar_availability_date: cleanValue(row.ar_availability_date),
-    packaging_schedule: cleanValue(row.packaging_schedule),
-    final_status: cleanValue(row.final_status),
-    final_status_other: cleanValue(row.final_status_other),
-    created_by: cleanValue(row["Created By"] ?? row.created_by),
-    created_at: row["Created At"] ?? row.created_at ?? new Date().toISOString(),
-    updated_by: cleanValue(row["Updated By"] ?? row.updated_by),
-    updated_at: row["Updated At"] ?? row.updated_at ?? new Date().toISOString(),
-    is_active: toBool(row["Is Active"] ?? row.is_active ?? true),
-  };
+async function upsertChunked(
+  table: "cnf_projects" | "support_activities",
+  rows: Record<string, unknown>[],
+  conflictKey: "record_id" | "activity_id",
+  supabase: ReturnType<typeof createClient>,
+) {
+  const chunkSize = 100;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const { error } = await supabase.from(table).upsert(chunk, { onConflict: conflictKey });
+    if (error) throw error;
+    console.log(`  Upserted ${Math.min(i + chunkSize, rows.length)} / ${rows.length} → ${table}`);
+  }
 }
 
 async function main() {
-  const filePath = process.argv[2];
-  if (!filePath) {
-    console.error("Usage: npx tsx scripts/migrate-sheets-to-supabase.ts <json-export-path>");
+  console.log(`Migration mode: ${validateOnly ? "validate" : dryRun ? "dry-run" : "import"}`);
+  console.log(`Supabase URL: ${url ?? "(not required for validate)"}`);
+  console.log(`Files: ${inputFiles.join(", ")}`);
+
+  const preparedItems = inputFiles.map((file) => {
+    const parsed = readExportFile(file);
+    const prepared = prepareMigrationRows(parsed);
+    summarizePrepared(file, prepared);
+    return prepared;
+  });
+
+  const hasErrors = preparedItems.some((item) => item.errors.length > 0);
+  if (hasErrors) {
+    console.error("\nValidation failed. Fix export files before importing.");
     process.exit(1);
   }
 
-  const raw = JSON.parse(readFileSync(filePath, "utf8")) as Record<string, unknown>[];
-  const mapped = raw.map(mapProjectRow);
-
-  const chunkSize = 100;
-  for (let i = 0; i < mapped.length; i += chunkSize) {
-    const chunk = mapped.slice(i, i + chunkSize);
-    const { error } = await supabase.from("cnf_projects").upsert(chunk, { onConflict: "record_id" });
-    if (error) throw error;
-    console.log(`Migrated ${Math.min(i + chunkSize, mapped.length)} / ${mapped.length}`);
+  if (validateOnly || dryRun) {
+    console.log("\nValidation complete. No data was written.");
+    if (dryRun) console.log("Re-run without --dry-run to import.");
+    return;
   }
 
-  console.log("Migration complete.");
+  const supabase = createClient(url!, serviceKey!);
+
+  for (const item of preparedItems) {
+    if (item.table === "projects") {
+      console.log(`\nImporting ${item.mapped.length} project rows...`);
+      await upsertChunked("cnf_projects", item.mapped, "record_id", supabase);
+    } else {
+      console.log(`\nImporting ${item.mapped.length} support activity rows...`);
+      await upsertChunked("support_activities", item.mapped, "activity_id", supabase);
+    }
+  }
+
+  const projectCount = preparedItems
+    .filter((item) => item.table === "projects")
+    .reduce((sum, item) => sum + item.mapped.length, 0);
+  const supportCount = preparedItems
+    .filter((item) => item.table === "support")
+    .reduce((sum, item) => sum + item.mapped.length, 0);
+
+  console.log("\nMigration complete.");
+  console.log(`  cnf_projects: ${projectCount}`);
+  console.log(`  support_activities: ${supportCount}`);
+  console.log("Next: npm run smoke:supabase && verify counts in the React app.");
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });

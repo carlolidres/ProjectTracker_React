@@ -1,11 +1,18 @@
 import { DownloadOutlined, PlusOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
 import { Alert, Button, Card, Col, Input, Row, Select, Space, Spin, Table, Typography, message } from "antd";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
+import { useDateAdjustment } from "@/app/date-adjustment-provider";
+import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
+import { useRegistry } from "@/app/registry-provider";
 import { AppShell } from "@/components/layout/app-shell";
+import { ROLE_LABELS } from "@/lib/constants";
+import { collectSupportDateChanges } from "@/lib/dateAdjustmentReview";
+import { DUE_WINDOW_FILTER_OPTIONS } from "@/lib/fgUrgency";
 import { formatAppDate } from "@/lib/date";
+import { canArchiveRecords } from "@/lib/roleAccess";
 import { exportSupportToExcel } from "@/services/exportService";
-import { getRegistryBundle } from "@/services/registryService";
 import {
   archiveSupportActivity,
   filterSupportRows,
@@ -33,11 +40,16 @@ const emptyActivity = (): Partial<SupportActivity> => ({
 });
 
 export function SupportActivitiesPage() {
-  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { user, profile } = useAuth();
+  const { registry } = useRegistry();
+  const { promptBatchDateAdjustment } = useDateAdjustment();
+  const meetingViewReadOnly = useMeetingViewReadOnly();
+  const canArchive = canArchiveRecords(profile?.role);
   const [rows, setRows] = useState<SupportActivity[]>([]);
-  const [registry, setRegistry] = useState<Record<string, string[]>>({});
   const [filters, setFilters] = useState<SupportActivityFilters>({});
   const [form, setForm] = useState<Partial<SupportActivity>>(emptyActivity());
+  const baselineFormRef = useRef<Partial<SupportActivity>>(emptyActivity());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,9 +58,7 @@ export function SupportActivitiesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [activities, bundle] = await Promise.all([listActiveSupportActivities(), getRegistryBundle()]);
-      setRows(activities);
-      setRegistry(bundle);
+      setRows(await listActiveSupportActivities());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load support activities");
     } finally {
@@ -60,16 +70,42 @@ export function SupportActivitiesPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const dueWindow = searchParams.get("due_window") ?? undefined;
+    if (dueWindow) {
+      setFilters((current) => ({ ...current, due_window: dueWindow }));
+    }
+  }, [searchParams]);
+
   const filtered = useMemo(() => filterSupportRows(rows, filters), [rows, filters]);
   const isTsd = form.activity_kind === "TSD";
+  const userRoleLabel = profile?.role ? (ROLE_LABELS[profile.role] ?? profile.role) : "Support Activities";
+
+  function loadForm(record: Partial<SupportActivity>) {
+    const next = { ...record };
+    baselineFormRef.current = structuredClone(next);
+    setForm(next);
+  }
 
   async function handleSave() {
     if (!user?.email) return;
     setSaving(true);
     try {
-      await saveSupportActivity(form, user.email);
+      const dateChanges = collectSupportDateChanges(
+        baselineFormRef.current as Record<string, string | undefined>,
+        form as Record<string, string | undefined>,
+        { projectId: form.project_id, activityId: form.activity_id },
+      );
+      if (dateChanges.length) {
+        const approved = await promptBatchDateAdjustment(dateChanges, userRoleLabel);
+        if (!approved) return;
+      }
+
+      await saveSupportActivity(form, user.email, { dateAdjustmentsConfirmed: dateChanges.length > 0 });
       message.success("Support activity saved");
-      setForm(emptyActivity());
+      const cleared = emptyActivity();
+      baselineFormRef.current = cleared;
+      setForm(cleared);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -83,25 +119,33 @@ export function SupportActivitiesPage() {
       <div className="page-header">
         <div>
           <Typography.Title level={3}>Support Activities</Typography.Title>
-          <Typography.Text type="secondary">Track TSD and RnD operational activities.</Typography.Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>Refresh</Button>
           <Button icon={<DownloadOutlined />} onClick={() => exportSupportToExcel(filtered)} disabled={!filtered.length}>
-            Export Excel
+            Export Data to Excel
           </Button>
         </Space>
       </div>
 
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
 
-      <Card title="Add / Edit Activity" style={{ marginBottom: 16 }}
-        extra={<Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={() => void handleSave()}>Save</Button>}
+      <Card
+        title={meetingViewReadOnly ? "Activity Details (read-only)" : "Add / Edit Activity"}
+        style={{ marginBottom: 16 }}
+        extra={
+          meetingViewReadOnly ? null : (
+            <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={() => void handleSave()}>
+              Save
+            </Button>
+          )
+        }
       >
         <Row gutter={[12, 12]}>
           <Col xs={24} md={6}>
             <Select
               style={{ width: "100%" }}
+              disabled={meetingViewReadOnly}
               value={form.activity_kind as ActivityKind | undefined}
               options={[{ label: "TSD", value: "TSD" }, { label: "RnD", value: "RnD" }]}
               onChange={(activity_kind) => setForm((f) => ({ ...f, activity_kind: activity_kind as ActivityKind }))}
@@ -112,6 +156,7 @@ export function SupportActivitiesPage() {
               allowClear
               placeholder="Department"
               style={{ width: "100%" }}
+              disabled={meetingViewReadOnly}
               value={form.Department || undefined}
               options={(registry.department ?? []).map((v) => ({ label: v, value: v }))}
               onChange={(Department) => setForm((f) => ({ ...f, Department }))}
@@ -119,22 +164,40 @@ export function SupportActivitiesPage() {
           </Col>
           {isTsd ? (
             <>
-              <Col xs={24} md={6}><Input placeholder="Material" value={form.Material} onChange={(e) => setForm((f) => ({ ...f, Material: e.target.value }))} /></Col>
-              <Col xs={24} md={6}><Input placeholder="Line" value={form.Line} onChange={(e) => setForm((f) => ({ ...f, Line: e.target.value }))} /></Col>
-              <Col xs={24} md={6}><Input placeholder="Bulk" value={form.Bulk} onChange={(e) => setForm((f) => ({ ...f, Bulk: e.target.value }))} /></Col>
-              <Col xs={24} md={6}><Input placeholder="Product User" value={form.Product_User} onChange={(e) => setForm((f) => ({ ...f, Product_User: e.target.value }))} /></Col>
+              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Material" value={form.Material} onChange={(e) => setForm((f) => ({ ...f, Material: e.target.value }))} /></Col>
+              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Line" value={form.Line} onChange={(e) => setForm((f) => ({ ...f, Line: e.target.value }))} /></Col>
+              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Bulk" value={form.Bulk} onChange={(e) => setForm((f) => ({ ...f, Bulk: e.target.value }))} /></Col>
+              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Product User" value={form.Product_User} onChange={(e) => setForm((f) => ({ ...f, Product_User: e.target.value }))} /></Col>
             </>
           ) : (
             <>
-              <Col xs={24} md={6}><Input placeholder="Principal" value={form.Principal} onChange={(e) => setForm((f) => ({ ...f, Principal: e.target.value }))} /></Col>
-              <Col xs={24} md={6}><Input placeholder="Product" value={form.Product} onChange={(e) => setForm((f) => ({ ...f, Product: e.target.value }))} /></Col>
-              <Col xs={24} md={6}><Input placeholder="Line" value={form.Line} onChange={(e) => setForm((f) => ({ ...f, Line: e.target.value }))} /></Col>
+              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Principal" value={form.Principal} onChange={(e) => setForm((f) => ({ ...f, Principal: e.target.value }))} /></Col>
+              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Product" value={form.Product} onChange={(e) => setForm((f) => ({ ...f, Product: e.target.value }))} /></Col>
+              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Line" value={form.Line} onChange={(e) => setForm((f) => ({ ...f, Line: e.target.value }))} /></Col>
             </>
           )}
-          <Col xs={24} md={6}><Input placeholder="Target Date" value={form.Target_Date} onChange={(e) => setForm((f) => ({ ...f, Target_Date: e.target.value }))} /></Col>
-          <Col xs={24} md={6}><Input placeholder="Planning Schedule" value={form.Planning_Schedule} onChange={(e) => setForm((f) => ({ ...f, Planning_Schedule: e.target.value }))} /></Col>
+          <Col xs={24} md={6}>
+            <Input
+              disabled={meetingViewReadOnly}
+              placeholder="Target Date"
+              value={form.Target_Date}
+              onChange={(e) => setForm((current) => ({ ...current, Target_Date: e.target.value }))}
+            />
+          </Col>
+          <Col xs={24} md={6}>
+            <Input
+              disabled={meetingViewReadOnly}
+              placeholder="Planning Schedule"
+              value={form.Planning_Schedule}
+              onChange={(e) => setForm((current) => ({ ...current, Planning_Schedule: e.target.value }))}
+            />
+          </Col>
         </Row>
-        <Button icon={<PlusOutlined />} style={{ marginTop: 12 }} onClick={() => setForm(emptyActivity())}>Clear Form</Button>
+        {meetingViewReadOnly ? null : (
+          <Button icon={<PlusOutlined />} style={{ marginTop: 12 }} onClick={() => loadForm(emptyActivity())}>
+            Clear Form
+          </Button>
+        )}
       </Card>
 
       <Card>
@@ -146,6 +209,16 @@ export function SupportActivitiesPage() {
             <Select allowClear placeholder="Kind" style={{ width: "100%" }} value={filters.activity_kind}
               options={[{ label: "TSD", value: "TSD" }, { label: "RnD", value: "RnD" }]}
               onChange={(activity_kind) => setFilters((f) => ({ ...f, activity_kind }))}
+            />
+          </Col>
+          <Col xs={24} md={4}>
+            <Select
+              allowClear
+              placeholder="Target Date Window"
+              style={{ width: "100%" }}
+              value={filters.due_window}
+              options={DUE_WINDOW_FILTER_OPTIONS.map((option) => ({ label: option.label, value: option.value }))}
+              onChange={(due_window) => setFilters((f) => ({ ...f, due_window }))}
             />
           </Col>
         </Row>
@@ -162,13 +235,23 @@ export function SupportActivitiesPage() {
               { title: "Updated", dataIndex: "updated_at", render: (v) => formatAppDate(v) },
               {
                 title: "Actions",
-                render: (_, record) => (
-                  <Space>
-                    <Button type="link" onClick={() => setForm(record)}>Edit</Button>
-                    <Button type="link" danger onClick={() => user?.email && archiveSupportActivity(record.activity_id, user.email).then(() => load())}>
-                      Archive
-                    </Button>
-                  </Space>
+                render: (_: unknown, record: SupportActivity) => (
+                  meetingViewReadOnly ? (
+                    <Button type="link" onClick={() => loadForm(record)}>View</Button>
+                  ) : (
+                    <Space>
+                      <Button type="link" onClick={() => loadForm(record)}>Edit</Button>
+                      {canArchive ? (
+                        <Button
+                          type="link"
+                          danger
+                          onClick={() => user?.email && archiveSupportActivity(record.activity_id, user.email).then(() => load())}
+                        >
+                          Archive
+                        </Button>
+                      ) : null}
+                    </Space>
+                  )
                 ),
               },
             ]}

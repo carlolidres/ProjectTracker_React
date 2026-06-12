@@ -73,6 +73,7 @@ Before making any change, the coding agent must:
 7. Identify unfinished items.
 8. Confirm the planned work before coding.
 9. Do not start coding until the applicable baseline, latest handoff, and relevant .cursor/rules/ files have been reviewed.
+10. Always track the project progress based on the plan "C:\Users\Carlo Mauring Lidres\OneDrive\Desktop\Projects\00 Working Projects\ProjectTracker_React\.cursor\plan\project_tracker_migration_36f9948d.plan.md"
 
 Example:
 

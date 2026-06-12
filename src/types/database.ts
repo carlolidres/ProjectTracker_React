@@ -55,11 +55,20 @@ export interface DashboardData {
   };
   cnfStatusCounts: Record<string, number>;
   finalStatusCounts: Record<string, number>;
-  dueDateCounts: Record<string, number>;
+  dueDateCounts: {
+    overdue: number;
+    today: number;
+    within3: number;
+    within7: number;
+    within15: number;
+    within30: number;
+    beyond30: number;
+  };
   pendingRoleCounts: Record<string, number>;
   worklist: WorklistItem[];
   recentRecords: RecentRecord[];
   monthlyTrend: MonthlyTrendItem[];
+  fgDeliveryMetrics: FgDeliveryMetrics;
   supportSummary: SupportSummary;
   recentSupportActivities: SupportActivitySummary[];
   generatedAt: string;
@@ -79,6 +88,8 @@ export interface WorklistItem {
   priorityRank: number;
   incompleteCount: number;
   nextAction: string;
+  focusGroup: string;
+  fgSort?: number;
 }
 
 export interface RecentRecord {
@@ -94,9 +105,15 @@ export interface RecentRecord {
 }
 
 export interface MonthlyTrendItem {
-  month: string;
-  open: number;
-  closed: number;
+  monthKey: string;
+  label: string;
+  count: number;
+}
+
+export interface FgDeliveryMetrics {
+  onTime: number;
+  late: number;
+  total: number;
 }
 
 export interface SupportSummary {

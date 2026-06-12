@@ -1,8 +1,11 @@
 import { normalizeProfile } from "@/lib/roleMapping";
+import { clearAppSessionState } from "@/lib/sessionCleanup";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile, UserRole } from "@/types";
 
 export async function signIn(email: string, password: string) {
+  await supabase.auth.signOut({ scope: "global" }).catch(() => undefined);
+  clearAppSessionState();
   return supabase.auth.signInWithPassword({ email, password });
 }
 
@@ -25,7 +28,9 @@ export async function signUp(input: {
 }
 
 export async function signOut() {
-  return supabase.auth.signOut();
+  const result = await supabase.auth.signOut({ scope: "global" });
+  clearAppSessionState();
+  return result;
 }
 
 export async function getCurrentUser() {

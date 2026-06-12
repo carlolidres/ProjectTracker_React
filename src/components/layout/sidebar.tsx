@@ -12,16 +12,21 @@ import {
   ToolOutlined,
   TeamOutlined,
   UserOutlined,
+  ReadOutlined,
 } from "@ant-design/icons";
 import { Avatar, Button, Drawer, Dropdown, Tooltip, Typography } from "antd";
 import type { MenuProps } from "antd";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ProfileSettingsModal } from "@/components/layout/profile-settings-modal";
 import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
 import { useAuth } from "@/app/auth-provider";
 import { useAppTheme } from "@/app/theme-provider";
 import type { SidebarState } from "@/hooks/use-sidebar-state";
 import { signOut } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
+import { getProfileDisplayName, getProfileInitials } from "@/lib/profileName";
+import { canAccessRoute } from "@/lib/roleAccess";
 import { cn } from "@/lib/utils";
 import type { NavItem, UserRole } from "@/types";
 
@@ -30,12 +35,13 @@ const navItems: NavItem[] = [
   { label: "Projects", href: "/projects", icon: FileTextOutlined },
   { label: "Projects Database", href: "/projects/database", icon: DatabaseOutlined },
   { label: "Support Activities", href: "/support-activities", icon: ToolOutlined },
+  { label: "Lessons Learned", href: "/lessons-learned", icon: ReadOutlined },
+  { label: "Audit Trail", href: "/audit-trail", icon: AuditOutlined },
 ];
 
 const adminNavItems: NavItem[] = [
-  { label: "Audit Trail", href: "/audit-trail", icon: AuditOutlined },
-  { label: "Archived", href: "/archived", icon: InboxOutlined },
-  { label: "Registry", href: "/registry", icon: SettingOutlined },
+  { label: "Archived", href: "/archived", icon: InboxOutlined, roles: ["admin"] },
+  { label: "Registry", href: "/registry", icon: SettingOutlined, roles: ["admin"] },
   { label: "User Management", href: "/admin/users", icon: TeamOutlined, roles: ["admin"] },
 ];
 
@@ -48,24 +54,36 @@ interface SidebarProps {
 }
 
 function filterNavItems(items: NavItem[], role: UserRole | undefined) {
-  return items.filter((item) => !item.roles || (role ? item.roles.includes(role) : false));
+  return items.filter((item) => {
+    if (item.roles && (!role || !item.roles.includes(role))) return false;
+    return canAccessRoute(role, item.href);
+  });
 }
 
 export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
   const { profile, user } = useAuth();
   const { appTheme, toggleTheme } = useAppTheme();
   const navigate = useNavigate();
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const isCollapsed = state === "collapsed";
-  const displayName = user?.user_metadata?.full_name ?? user?.email ?? "User";
+  const displayName =
+    getProfileDisplayName(profile)
+    || (typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "")
+    || profile?.email
+    || user?.email
+    || "User";
   const roleLabel = profile?.role ? ROLE_LABELS[profile.role] ?? profile.role : "Account";
-  const initials = displayName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part: string) => part[0]?.toUpperCase())
-    .join("");
+  const initials = getProfileInitials(profile);
+  const avatarUrl = profile?.avatar_url
+    ?? (typeof user?.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : undefined);
 
   const accountItems: MenuProps["items"] = [
+    {
+      key: "profile",
+      icon: <UserOutlined />,
+      label: "Profile",
+      onClick: () => setProfileModalOpen(true),
+    },
     {
       key: "theme",
       icon: appTheme === "dark" ? <SunOutlined /> : <MoonOutlined />,
@@ -79,7 +97,7 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
       label: "Sign out",
       onClick: async () => {
         await signOut();
-        navigate("/login", { replace: true });
+        navigate("/login", { replace: true, state: null });
       },
     },
   ];
@@ -94,7 +112,6 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
         </Link>
         <div className="sidebar-label sidebar-brand-text">
           <Typography.Text className="sidebar-brand-title">Project Tracker</Typography.Text>
-          <Typography.Paragraph className="sidebar-brand-subtitle">CNF implementation workflow</Typography.Paragraph>
         </div>
         <Button
           type="text"
@@ -111,32 +128,37 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
         ))}
       </nav>
 
-      <Dropdown menu={{ items: accountItems }} trigger={["click"]} placement="topLeft">
-        <Tooltip title={isCollapsed ? `${displayName} - ${roleLabel}` : undefined} placement="right">
-          <button
-            type="button"
-            className={cn("sidebar-user-button", isCollapsed && "sidebar-user-button-collapsed")}
-            aria-label={`Open account menu for ${displayName}, ${roleLabel}`}
-          >
-            <Avatar
-              className="sidebar-user-avatar"
-              size={38}
-              icon={<UserOutlined />}
+      <div className="sidebar-footer">
+        <Dropdown menu={{ items: accountItems }} trigger={["click"]} placement="topLeft">
+          <Tooltip title={isCollapsed ? `${displayName} - ${roleLabel}` : undefined} placement="right">
+            <button
+              type="button"
+              className={cn("sidebar-user-button", isCollapsed && "sidebar-user-button-collapsed")}
+              aria-label={`Open account menu for ${displayName}, ${roleLabel}`}
             >
-              {initials}
-            </Avatar>
-            <div className="sidebar-label sidebar-user-text">
-              <p className="sidebar-user-name">{displayName}</p>
-              <p className="sidebar-user-role">{roleLabel}</p>
-            </div>
-          </button>
-        </Tooltip>
-      </Dropdown>
+              <Avatar
+                className="sidebar-user-avatar"
+                size={isCollapsed ? 36 : 38}
+                src={avatarUrl}
+                icon={<UserOutlined />}
+              >
+                {initials}
+              </Avatar>
+              <div className="sidebar-label sidebar-user-text">
+                <p className="sidebar-user-name">{displayName}</p>
+                <p className="sidebar-user-role">{roleLabel}</p>
+              </div>
+            </button>
+          </Tooltip>
+        </Dropdown>
+        <p className="sidebar-credit sidebar-label">Created by: Carlo M. Lidres</p>
+      </div>
     </div>
   );
 
   return (
     <>
+      <ProfileSettingsModal open={profileModalOpen} onClose={() => setProfileModalOpen(false)} />
       <aside className={cn("sidebar-shell sidebar-desktop", isCollapsed && "sidebar-shell-collapsed")}>{content}</aside>
       <Drawer
         placement="left"

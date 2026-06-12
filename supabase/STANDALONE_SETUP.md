@@ -30,6 +30,15 @@ Run via SQL editor or `supabase db push` on a linked **empty** project:
 | 3 | `supabase/migrations/007_standalone_grants.sql` | Table GRANTs for PostgREST |
 | 4 | `supabase/migrations/008_standalone_open_access.sql` | Open authenticated access (matches GAS) |
 | 5 | `supabase/migrations/009_auth_admin_approval.sql` | Signup approval, active-user RLS, Admin user management |
+| 6 | `supabase/migrations/010_profile_settings.sql` | Profile display settings |
+| 7 | `supabase/migrations/011_password_reset_requests.sql` | Password reset requests |
+| 8 | `supabase/migrations/012_po_order_fields.sql` | PO order quantity and UoM fields |
+| 9 | `supabase/migrations/013_app_feedback.sql` | App feedback table |
+| 10 | `supabase/migrations/014_app_feedback_policy_fix.sql` | Feedback RLS fix |
+| 11 | `supabase/migrations/015_app_feedback_block_admin_insert.sql` | Feedback insert policy |
+| 12 | `supabase/migrations/016_registry_admin_only.sql` | Registry admin-only writes |
+| 13 | `supabase/migrations/017_lessons_learned.sql` | Lessons learned (date adjustments) |
+| 14 | `supabase/migrations/018_lesson_id.sql` | Human-readable lesson IDs |
 
 **Do not apply** `003`–`006` (co-hosting / CNF Tracker only).
 
@@ -100,6 +109,20 @@ Remove `SUPABASE_SERVICE_ROLE_KEY` from `.env.local` after seeding if it is no l
 ```powershell
 .\scripts\setup-github.ps1
 ```
+
+### 8. Deploy to GitHub Pages
+
+1. Commit and push to `main`:
+   ```powershell
+   git add -A
+   git commit -m "v36: complete migration parity and deployment readiness"
+   git push -u origin main
+   ```
+2. GitHub Actions (`.github/workflows/deploy.yml`) builds and deploys automatically.
+3. Live site: `https://carlolidres.github.io/ProjectTracker_React/`
+4. Re-run deploy manually: GitHub → Actions → **Deploy to GitHub Pages** → Run workflow.
+
+Full deployment checklist: `agent-history/version-36-handoff.md` § GitHub Deployment Instructions.
 
 ## Sheet data import (later)
 

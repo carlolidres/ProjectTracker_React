@@ -39,7 +39,6 @@ export function ArchivedPage() {
       <div className="page-header">
         <div>
           <Typography.Title level={3}>Archived</Typography.Title>
-          <Typography.Text type="secondary">Inactive project and support activity records.</Typography.Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>Refresh</Button>
       </div>

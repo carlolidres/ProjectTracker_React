@@ -17,6 +17,7 @@ export function SidebarNavItem({ item, state, onNavigate }: SidebarNavItemProps)
   const link = (
     <NavLink
       to={item.href}
+      end={item.href === "/projects"}
       onClick={onNavigate}
       className={({ isActive }) =>
         cn("sidebar-nav-item", isCollapsed && "sidebar-nav-item-collapsed", isActive && "sidebar-nav-item-active")

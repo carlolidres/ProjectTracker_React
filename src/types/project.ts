@@ -14,6 +14,9 @@ export interface PoControl {
   fg_month: string;
   business_unit: string;
   updatedDocsVer: string;
+  order_quantity: string;
+  uom: string;
+  prod_ver: string;
   cnf_reference: string;
   qrmr_ref_no: string;
   change_description: string;
@@ -85,6 +88,9 @@ export interface ProjectRow {
   fg_month: string;
   business_unit: string;
   updatedDocsVer: string;
+  order_quantity: string;
+  uom: string;
+  prod_ver: string;
   cnf_reference: string;
   qrmr_ref_no: string;
   change_description: string;
@@ -127,4 +133,6 @@ export interface ProjectFilters {
   final_status?: string;
   fg_month?: string;
   fg_year?: string;
+  due_window?: string;
+  pending_role?: string;
 }

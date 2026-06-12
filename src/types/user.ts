@@ -13,6 +13,10 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string | null;
+  first_name: string | null;
+  middle_initial: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
   role: UserRole;
   requested_role: UserRole | null;
   status: "pending" | "active" | "inactive";

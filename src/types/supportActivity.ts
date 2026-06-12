@@ -28,4 +28,5 @@ export interface SupportActivityFilters {
   search?: string;
   activity_kind?: string;
   department?: string;
+  due_window?: string;
 }

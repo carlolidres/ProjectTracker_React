@@ -82,7 +82,6 @@ const TABLES = [
   "profiles",
   "cnf_projects",
   "support_activities",
-  "pt_notifications",
   "notifications",
   "audit_logs",
   "registry",

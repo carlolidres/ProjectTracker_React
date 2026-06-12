@@ -1,0 +1,281 @@
+import dayjs from "dayjs";
+import type { DashboardData, Notification } from "@/types";
+
+const now = dayjs();
+
+function iso(daysAgo = 0) {
+  return now.subtract(daysAgo, "day").toISOString();
+}
+
+function fgMonth(monthsAhead: number) {
+  return now.add(monthsAhead, "month").format("YYYY-MM-01");
+}
+
+export function getSandboxDashboardData(): DashboardData {
+  const worklist = [
+    {
+      recordId: "sandbox-wl-1",
+      project_id: "P-2026-0142",
+      product_name: "Atorvastatin 20mg",
+      client_name: "Acme Pharma",
+      po_control_no: "PO-88421",
+      fg_month: fgMonth(-1),
+      cnf_status: "Client Approval",
+      final_status: "OPEN",
+      daysRemaining: -12,
+      severity: "overdue",
+      priorityRank: 0,
+      incompleteCount: 3,
+      focusGroup: "PP",
+      nextAction: "Complete PP protocol fields",
+    },
+    {
+      recordId: "sandbox-wl-2",
+      project_id: "P-2026-0138",
+      product_name: "Metformin 500mg",
+      client_name: "Global Health",
+      po_control_no: "PO-88390",
+      fg_month: fgMonth(0),
+      cnf_status: "Routing",
+      final_status: "OPEN",
+      daysRemaining: 0,
+      severity: "critical",
+      priorityRank: 1,
+      incompleteCount: 2,
+      focusGroup: "TSD",
+      nextAction: "Submit TSD validation package",
+    },
+    {
+      recordId: "sandbox-wl-3",
+      project_id: "P-2026-0125",
+      product_name: "Omeprazole 40mg",
+      client_name: "NovaCare",
+      po_control_no: "PO-88211",
+      fg_month: fgMonth(1),
+      cnf_status: "CNF Creation",
+      final_status: "OPEN",
+      daysRemaining: 18,
+      severity: "high",
+      priorityRank: 2,
+      incompleteCount: 4,
+      focusGroup: "QC",
+      nextAction: "Finalize QC checklist",
+    },
+    {
+      recordId: "sandbox-wl-4",
+      project_id: "P-2026-0110",
+      product_name: "Losartan 50mg",
+      client_name: "MediCore",
+      po_control_no: "PO-88045",
+      fg_month: fgMonth(2),
+      cnf_status: "Approved",
+      final_status: "OPEN",
+      daysRemaining: 42,
+      severity: "moderate",
+      priorityRank: 3,
+      incompleteCount: 1,
+      focusGroup: "AM/BM/PL",
+      nextAction: "Await client sign-off",
+    },
+    {
+      recordId: "sandbox-wl-5",
+      project_id: "P-2026-0098",
+      product_name: "Amlodipine 5mg",
+      client_name: "Sunrise Labs",
+      po_control_no: "PO-87902",
+      fg_month: fgMonth(3),
+      cnf_status: "Approved",
+      final_status: "OPEN",
+      daysRemaining: 68,
+      severity: "low",
+      priorityRank: 4,
+      incompleteCount: 0,
+      focusGroup: "AM/BM/PL",
+      nextAction: "Monitor project readiness",
+    },
+  ];
+
+  const recentRecords = [
+    {
+      recordId: "sandbox-rc-1",
+      project_id: "P-2026-0142",
+      client_name: "Acme Pharma",
+      product_name: "Atorvastatin 20mg",
+      cnf_reference: "CNF-2026-0421",
+      cnf_status: "Client Approval",
+      final_status: "OPEN",
+      fg_month: fgMonth(-1),
+      updatedAt: iso(0),
+    },
+    {
+      recordId: "sandbox-rc-2",
+      project_id: "P-2026-0138",
+      client_name: "Global Health",
+      product_name: "Metformin 500mg",
+      cnf_reference: "CNF-2026-0390",
+      cnf_status: "Routing",
+      final_status: "OPEN",
+      fg_month: fgMonth(0),
+      updatedAt: iso(1),
+    },
+    {
+      recordId: "sandbox-rc-3",
+      project_id: "P-2026-0091",
+      client_name: "Vertex Bio",
+      product_name: "Ibuprofen 200mg",
+      cnf_reference: "CNF-2026-0312",
+      cnf_status: "Approved",
+      final_status: "CLOSED",
+      fg_month: fgMonth(-2),
+      updatedAt: iso(2),
+    },
+    {
+      recordId: "sandbox-rc-4",
+      project_id: "P-2026-0084",
+      client_name: "Pacific Rx",
+      product_name: "Cetirizine 10mg",
+      cnf_reference: "CNF-2026-0288",
+      cnf_status: "CNF Creation",
+      final_status: "OPEN",
+      fg_month: fgMonth(1),
+      updatedAt: iso(3),
+    },
+    {
+      recordId: "sandbox-rc-5",
+      project_id: "P-2026-0077",
+      client_name: "Horizon Med",
+      product_name: "Paracetamol 500mg",
+      cnf_reference: "CNF-2026-0261",
+      cnf_status: "Approved",
+      final_status: "CANCELLED",
+      fg_month: fgMonth(-3),
+      updatedAt: iso(5),
+    },
+  ];
+
+  const monthlyTrend = Array.from({ length: 12 }, (_, index) => {
+    const month = now.subtract(11 - index, "month").startOf("month");
+    return {
+      monthKey: month.format("YYYY-MM"),
+      label: month.format("MMM"),
+      count: [2, 4, 3, 6, 5, 8, 7, 9, 11, 10, 12, 14][index] ?? 4,
+    };
+  });
+
+  return {
+    cards: {
+      totalProjects: 24,
+      totalRecords: 48,
+      totalOpen: 32,
+      totalClosed: 14,
+      overdue: 6,
+      dueWithin7: 4,
+      pendingCnf: 11,
+      pendingProtocol: 7,
+      pendingReport: 5,
+      pendingPP: 8,
+      pendingTSD: 6,
+      pendingVAL: 4,
+      pendingQC: 3,
+      pendingAM: 5,
+    },
+    cnfStatusCounts: {
+      "CNF Creation": 9,
+      Routing: 12,
+      "Client Approval": 14,
+      Approved: 13,
+    },
+    finalStatusCounts: {
+      OPEN: 32,
+      CLOSED: 14,
+      CANCELLED: 2,
+      Others: 0,
+    },
+    dueDateCounts: {
+      overdue: 6,
+      today: 3,
+      within3: 8,
+      within7: 12,
+      within15: 18,
+      within30: 24,
+      beyond30: 9,
+    },
+    pendingRoleCounts: {
+      "AM/BM/PL": 5,
+      PP: 8,
+      TSD: 6,
+      VAL: 4,
+      QC: 3,
+    },
+    worklist,
+    recentRecords,
+    monthlyTrend,
+    fgDeliveryMetrics: {
+      onTime: 10,
+      late: 4,
+      total: 14,
+    },
+    supportSummary: {
+      total: 18,
+      TSD: 9,
+      RnD: 9,
+      overdue: 3,
+      dueSoon: 5,
+    },
+    recentSupportActivities: [
+      {
+        activity_id: "sandbox-sa-1",
+        activity_kind: "TSD",
+        Department: "Technical Services",
+        Target_Date: fgMonth(0),
+        updated_at: iso(0),
+      },
+      {
+        activity_id: "sandbox-sa-2",
+        activity_kind: "RnD",
+        Department: "Research & Development",
+        Target_Date: fgMonth(1),
+        updated_at: iso(2),
+      },
+    ],
+    generatedAt: now.toISOString(),
+  };
+}
+
+export function getSandboxNotifications(): Notification[] {
+  return [
+    {
+      notification_id: "sandbox-n-1",
+      project_id: "P-2026-0142",
+      record_id: "sandbox-wl-1",
+      fg_month: fgMonth(-1),
+      severity: "overdue",
+      title: "FG Month overdue",
+      message: "Atorvastatin 20mg (PO-88421) is 12 days past FG Month.",
+      status: "OPEN",
+      created_at: iso(0),
+    },
+    {
+      notification_id: "sandbox-n-2",
+      project_id: "P-2026-0138",
+      record_id: "sandbox-wl-2",
+      fg_month: fgMonth(0),
+      severity: "critical",
+      title: "Due today",
+      message: "Metformin 500mg requires TSD validation package today.",
+      status: "OPEN",
+      created_at: iso(1),
+    },
+    {
+      notification_id: "sandbox-n-3",
+      project_id: "P-2026-0125",
+      record_id: "sandbox-wl-3",
+      fg_month: fgMonth(1),
+      severity: "high",
+      title: "Pending QC fields",
+      message: "Omeprazole 40mg has incomplete QC checklist items.",
+      status: "OPEN",
+      created_at: iso(2),
+    },
+  ];
+}

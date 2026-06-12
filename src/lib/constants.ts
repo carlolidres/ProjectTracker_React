@@ -14,11 +14,14 @@ export const DEFAULT_REGISTRY: Record<string, string[]> = {
   final_status: ["OPEN", "CLOSED", "CANCELLED", "Others"],
   department: ["DPM", "LPM", "DPP", "LPP", "CO", "COS", "TOP", "STEROIDS", "CEPHA"],
   doc_status: ["In-process", "Routing", "Client Approval", "Approved"],
+  uom: ["BXs", "BTs", "Sachets", "Unit", "Tubes", "Blisters", "Strips", "Packs", "Units", "Pcs"],
+  date_adjustment_reason: ["Materials", "Client", "Operations", "Failed Testing", "Others"],
 };
 
 export const AM_FIELDS = [
   "project_owner", "activity_type", "client_name", "so_no", "fg_code", "product_name",
   "unique_batch", "mo_control_no", "po_control_no", "fg_month", "business_unit", "updatedDocsVer",
+  "order_quantity", "uom", "prod_ver",
 ];
 
 export const PP_FIELDS = ["manufacturing_start_week", "packaging_schedule", "final_status"];

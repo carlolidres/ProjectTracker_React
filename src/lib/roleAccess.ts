@@ -7,25 +7,43 @@ export interface RouteAccess {
 
 export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/dashboard", roles: "all" },
-  { path: "/projects", roles: ["am_bm_pl", "pp", "tsd", "val", "qc", "admin"] },
+  { path: "/projects", roles: "all" },
   { path: "/projects/database", roles: "all" },
-  { path: "/support-activities", roles: ["tsd", "val", "admin", "view", "am_bm_pl"] },
-  { path: "/audit-trail", roles: ["admin", "view"] },
+  { path: "/support-activities", roles: "all" },
+  { path: "/lessons-learned", roles: "all" },
+  { path: "/audit-trail", roles: "all" },
   { path: "/archived", roles: ["admin"] },
   { path: "/registry", roles: ["admin"] },
+  { path: "/admin/users", roles: ["admin"] },
 ];
+
+export function isAdminRole(role: UserRole | undefined): boolean {
+  return role === "admin";
+}
+
+export function canArchiveRecords(role: UserRole | undefined): boolean {
+  return isAdminRole(role);
+}
+
+export function canManageRegistry(role: UserRole | undefined): boolean {
+  return isAdminRole(role);
+}
 
 export function canAccessRoute(role: UserRole | undefined, path: string): boolean {
   if (!role) return false;
-  if (role === "admin") return true;
-  const rule = ROUTE_ACCESS.find((entry) => path.startsWith(entry.path));
-  if (!rule) return true;
-  if (rule.roles === "all") return true;
-  return rule.roles.includes(role);
+  const entry = ROUTE_ACCESS.find((item) => path === item.path || path.startsWith(`${item.path}/`));
+  if (!entry) return true;
+  if (entry.roles === "all") return true;
+  return entry.roles.includes(role);
+}
+
+export function isViewerRole(role: UserRole | undefined): boolean {
+  return role === "view";
 }
 
 export function canEditProjectFields(role: UserRole, fieldGroup: "am" | "pp" | "tsd" | "val" | "qc"): boolean {
   if (role === "admin") return true;
+  if (role === "view") return false;
   const map: Record<string, UserRole[]> = {
     am: ["am_bm_pl"],
     pp: ["pp"],

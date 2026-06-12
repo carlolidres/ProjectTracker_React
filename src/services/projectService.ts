@@ -1,13 +1,17 @@
 import { CNF_ENTRY_KEYS, NA_VALUE } from "@/lib/constants";
+import { collectProjectDateChanges } from "@/lib/dateAdjustmentReview";
 import { monthYearMatches } from "@/lib/date";
+import { projectRowFgDays, rowMatchesDueWindow } from "@/lib/fgUrgency";
+import { compareProjectPriority, hasMissingFieldsForGroup, type FocusGroup } from "@/lib/projectPriority";
 import { mapDbToProject, mapProjectToDb } from "@/lib/mappers";
+import { getNextProjectId } from "@/lib/idGeneration";
 import { supabase } from "@/lib/supabaseClient";
 import {
   generateHierarchyId,
-  generateProjectId,
   generateRecordId,
   idsEqual,
   isActiveValue,
+  isOpenFinalStatus,
   valueOrNA,
 } from "@/lib/utils";
 import { logAuditDiff, logAuditEntries } from "@/services/auditService";
@@ -95,6 +99,9 @@ function extractPoFields(row: ProjectRow): PoControl {
     fg_month: row.fg_month,
     business_unit: row.business_unit,
     updatedDocsVer: row.updatedDocsVer,
+    order_quantity: row.order_quantity,
+    uom: row.uom,
+    prod_ver: row.prod_ver,
     cnf_reference: row.cnf_reference,
     qrmr_ref_no: row.qrmr_ref_no,
     change_description: row.change_description,
@@ -195,6 +202,9 @@ function toDbRow(line: Record<string, unknown>, meta: { userEmail: string; now: 
     fg_month: normalizeProjectValue(line.fg_month),
     business_unit: normalizeProjectValue(line.business_unit),
     updatedDocsVer: normalizeProjectValue(line.updatedDocsVer),
+    order_quantity: normalizeProjectValue(line.order_quantity),
+    uom: normalizeProjectValue(line.uom),
+    prod_ver: normalizeProjectValue(line.prod_ver),
     cnf_reference: normalizeProjectValue(line.cnf_reference),
     qrmr_ref_no: normalizeProjectValue(line.qrmr_ref_no),
     change_description: normalizeProjectValue(line.change_description),
@@ -253,7 +263,7 @@ export async function getProjectById(projectId: string): Promise<ProjectHierarch
 }
 
 export function filterProjectRows(rows: ProjectRow[], filters: ProjectFilters): ProjectRow[] {
-  return rows.filter((row) => {
+  const filtered = rows.filter((row) => {
     const search = filters.search?.toLowerCase();
     if (search) {
       const blob = [
@@ -270,12 +280,42 @@ export function filterProjectRows(rows: ProjectRow[], filters: ProjectFilters): 
     if (filters.fg_month || filters.fg_year) {
       if (!monthYearMatches(row.fg_month, filters.fg_month, filters.fg_year)) return false;
     }
+    if (filters.due_window) {
+      const days = projectRowFgDays(row);
+      const isOpen = isOpenFinalStatus(row.final_status);
+      if (!rowMatchesDueWindow(days, isOpen, filters.due_window)) return false;
+    }
+    if (filters.pending_role) {
+      const isOpen = isOpenFinalStatus(row.final_status);
+      if (!isOpen || !hasMissingFieldsForGroup(row, filters.pending_role as FocusGroup)) return false;
+    }
     return true;
   });
+
+  return [...filtered].sort(compareProjectPriority);
+}
+
+export interface ProjectSaveOptions {
+  dateAdjustmentsConfirmed?: boolean;
+}
+
+function assertDateAdjustmentsConfirmed(
+  baseline: ProjectHierarchy | null,
+  payload: ProjectHierarchy,
+  options?: ProjectSaveOptions,
+) {
+  if (!baseline) return;
+  const requiredChanges = collectProjectDateChanges(baseline, payload);
+  if (requiredChanges.length && !options?.dateAdjustmentsConfirmed) {
+    throw new Error("Date adjustments require a documented reason before saving.");
+  }
 }
 
 export async function saveProject(payload: ProjectHierarchy, userEmail: string) {
-  const projectId = valueOrNA(payload.project_id) === NA_VALUE ? generateProjectId() : payload.project_id.trim();
+  const projectId =
+    valueOrNA(payload.project_id) === NA_VALUE
+      ? await getNextProjectId()
+      : payload.project_id.trim();
   const lines = flattenProjectPayload({ ...payload, project_id: projectId }, projectId);
   if (!lines.length) throw new Error("At least one PO control line is required.");
 
@@ -292,7 +332,12 @@ export async function saveProject(payload: ProjectHierarchy, userEmail: string) 
   return { project_id: projectId, records: dbRows };
 }
 
-export async function updateProject(projectId: string, payload: ProjectHierarchy, userEmail: string) {
+export async function updateProject(
+  projectId: string,
+  payload: ProjectHierarchy,
+  userEmail: string,
+  options?: ProjectSaveOptions,
+) {
   const { data: existingData, error: fetchError } = await supabase
     .from("cnf_projects")
     .select("*")
@@ -302,6 +347,9 @@ export async function updateProject(projectId: string, payload: ProjectHierarchy
 
   const existing = (existingData ?? []).map(mapDbRow);
   if (!existing.length) throw new Error(`Project ${projectId} not found.`);
+
+  const existingHierarchy = buildProjectHierarchy(existing);
+  assertDateAdjustmentsConfirmed(existingHierarchy, payload, options);
 
   const lines = flattenProjectPayload(payload, projectId);
   if (!lines.length) throw new Error("At least one PO control line is required.");
