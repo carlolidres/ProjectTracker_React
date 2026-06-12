@@ -32,23 +32,23 @@ export const HEADER_FIELDS: ProjectFieldDef[] = [
   { key: "project_owner", label: "Project Owner", type: "text", role: "AM/BM/PL", tooltip: "Project owner from Account Management, Business Management, or Planning." },
   { key: "activity_type", label: "Activity Type", type: "select", role: "AM/BM/PL", registry: "activity_type", tooltip: "Select PILOT/TRIAL, TRC, or VAL/VER." },
   { key: "client_name", label: "Client Name", type: "text", role: "AM/BM/PL", tooltip: "Client or principal name." },
-  { key: "fg_code", label: "FG Code", type: "numeric", role: "AM/BM/PL", tooltip: "Finished goods code (numeric)." },
+  { key: "fg_code", label: "FG Code", type: "alphanumeric", role: "AM/BM/PL", tooltip: "Finished goods code (letters, numbers, hyphens)." },
   { key: "product_name", label: "Product Name", type: "text", role: "AM/BM/PL", span: 3, tooltip: "Product or project name." },
 ];
 
 export const BATCH_FIELDS: ProjectFieldDef[] = [
-  { key: "unique_batch", label: "Unique Batch", type: "numeric", role: "AM/BM/PL", tooltip: "Unique batch number (numeric)." },
+  { key: "unique_batch", label: "Unique Batch", type: "alphanumeric", role: "AM/BM/PL", tooltip: "Unique batch identifier (e.g. 2026BAKS-1)." },
 ];
 
 export const MO_FIELDS: ProjectFieldDef[] = [
-  { key: "mo_control_no", label: "MO Control No.", type: "numeric", role: "AM/BM/PL", tooltip: "Manufacturing order control number (numeric)." },
+  { key: "mo_control_no", label: "MO Control No.", type: "alphanumeric", role: "AM/BM/PL", tooltip: "Manufacturing order control number (alphanumeric)." },
 ];
 
 export const PROJECT_LEVEL_PO_FIELDS = new Set(["so_no"]);
 
 export const PO_FIELDS: ProjectFieldDef[] = [
-  { key: "so_no", label: "SO No.", type: "numeric", role: "AM/BM/PL", tooltip: "Sales order number (numeric)." },
-  { key: "po_control_no", label: "PO Control No.", type: "numeric", role: "AM/BM/PL", required: true, tooltip: "PO control number (numeric)." },
+  { key: "so_no", label: "SO No.", type: "alphanumeric", role: "AM/BM/PL", tooltip: "Sales order number (alphanumeric)." },
+  { key: "po_control_no", label: "PO Control No.", type: "alphanumeric", role: "AM/BM/PL", required: true, tooltip: "PO control number (alphanumeric)." },
   {
     key: "fg_month",
     label: "FG Month",
@@ -61,9 +61,9 @@ export const PO_FIELDS: ProjectFieldDef[] = [
   {
     key: "prod_ver",
     label: "Prod. Ver.",
-    type: "numeric",
+    type: "alphanumeric",
     role: "AM/BM/PL",
-    tooltip: "Product version (numeric value only).",
+    tooltip: "Product version (alphanumeric).",
   },
   {
     key: "order_quantity",
