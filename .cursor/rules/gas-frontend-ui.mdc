@@ -1,0 +1,61 @@
+---
+description: Client UI patterns for Script.html, Index.html, and Style.html
+globs: "{Script.html,Index.html,Style.html}"
+alwaysApply: false
+---
+
+# Frontend UI (GAS HTML Service)
+
+## Structure
+
+- `Index.html` — static DOM skeleton, nav, page containers, element IDs referenced by `Script.html`.
+- `Script.html` — all client behavior; use `runServer()` wrapper around `google.script.run`.
+- `Style.html` — CSS only; keep responsive grid fixes here.
+
+When adding UI, add the DOM node in `Index.html`, wire behavior in `Script.html`, style in `Style.html`.
+
+## State and Writes
+
+After any successful save/update/archive, call `syncDataAfterWrite_()` — do not only invalidate flags without reloading dashboard/database views.
+
+```javascript
+// ✅ GOOD
+runServer('saveProject', [payload], function () {
+  syncDataAfterWrite_();
+  showToast('Saved.', 'success');
+});
+
+// ❌ BAD — stale lists after write
+AppState.loaded.database = false;
+```
+
+Key client caches: `AppState.projectRows`, `AppState.supportRows`, `AppState.dashboardData`.
+
+## Forms and Hierarchy
+
+- Build controls from field config arrays (`HEADER_FIELDS`, `PO_FIELDS`, etc.).
+- Key expanded/collapsed UI state by instance IDs, not batch/MO/PO display values.
+- Guard destructive actions (`Clear`) with confirmation modals.
+- Use semantic chart colors from `CHART_CONFIGS`, not enumeration index.
+
+## Filters and Search
+
+- Empty search must match all rows; never normalize empty input to `N/A`.
+- Exports (`exportDatabaseExcel`, `exportSupportExcel`) must use the same filtered row set shown in the table.
+
+## Responsive Layout
+
+For grids and dashboard cards that overflow with real data:
+
+```css
+grid-template-columns: repeat(N, minmax(0, 1fr));
+/* nested children */
+min-width: 0;
+```
+
+Test desktop and mobile with long product names and populated charts.
+
+## Do Not
+
+- Expose raw audit JSON to users — render business-readable summaries.
+- Add page-specific sheet-read or transport workarounds; fix shared helpers in `Code.gs` instead.

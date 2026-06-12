@@ -1,0 +1,130 @@
+export interface CnfEntry {
+  cnf_reference: string;
+  qrmr_ref_no: string;
+  change_description: string;
+  cnf_status: string;
+  client_approval_target_date: string;
+  remarks: string;
+}
+
+export interface PoControl {
+  record_id?: string;
+  po_instance_id?: string;
+  po_control_no: string;
+  fg_month: string;
+  business_unit: string;
+  updatedDocsVer: string;
+  cnf_reference: string;
+  qrmr_ref_no: string;
+  change_description: string;
+  cnf_status: string;
+  client_approval_target_date: string;
+  remarks: string;
+  cnf_entries?: CnfEntry[];
+  cnf_entries_json?: string;
+  manufacturing_start_week: string;
+  mo_bmr_po_submission_status: string;
+  mo_bmr_po_target_date: string;
+  mo_bmr_po_activation_status: string;
+  mo_bmr_po_activation_date: string;
+  protocol_no: string;
+  protocol_Status: string;
+  protocol_target_date: string;
+  Val_Activity: string;
+  Val_Stability: string;
+  Val_Batch_Seq_No: string;
+  Val_Strategy: string;
+  Val_Strategy_remarks: string;
+  val_report_no: string;
+  Report_Sub_Status: string;
+  Report_target_Date: string;
+  ar_availability_date: string;
+  packaging_schedule: string;
+  final_status: string;
+  final_status_other: string;
+}
+
+export interface MoControl {
+  mo_instance_id?: string;
+  mo_control_no: string;
+  po_controls: PoControl[];
+}
+
+export interface BatchControl {
+  batch_instance_id?: string;
+  unique_batch: string;
+  mo_controls: MoControl[];
+}
+
+export interface ProjectHierarchy {
+  project_id: string;
+  project_owner: string;
+  activity_type: string;
+  client_name: string;
+  so_no: string;
+  fg_code: string;
+  product_name: string;
+  batches: BatchControl[];
+}
+
+export interface ProjectRow {
+  record_id: string;
+  project_id: string;
+  project_owner: string;
+  activity_type: string;
+  client_name: string;
+  so_no: string;
+  fg_code: string;
+  product_name: string;
+  batch_instance_id: string;
+  unique_batch: string;
+  mo_instance_id: string;
+  mo_control_no: string;
+  po_instance_id: string;
+  po_control_no: string;
+  fg_month: string;
+  business_unit: string;
+  updatedDocsVer: string;
+  cnf_reference: string;
+  qrmr_ref_no: string;
+  change_description: string;
+  cnf_status: string;
+  client_approval_target_date: string;
+  remarks: string;
+  cnf_entries_json: string;
+  manufacturing_start_week: string;
+  mo_bmr_po_submission_status: string;
+  mo_bmr_po_target_date: string;
+  mo_bmr_po_activation_status: string;
+  mo_bmr_po_activation_date: string;
+  protocol_no: string;
+  protocol_Status: string;
+  protocol_target_date: string;
+  Val_Activity: string;
+  Val_Stability: string;
+  Val_Batch_Seq_No: string;
+  Val_Strategy: string;
+  Val_Strategy_remarks: string;
+  val_report_no: string;
+  Report_Sub_Status: string;
+  Report_target_Date: string;
+  ar_availability_date: string;
+  packaging_schedule: string;
+  final_status: string;
+  final_status_other: string;
+  created_by: string;
+  created_at: string;
+  updated_by: string;
+  updated_at: string;
+  is_active: boolean;
+}
+
+export interface ProjectFilters {
+  search?: string;
+  owner?: string;
+  activity_type?: string;
+  cnf_status?: string;
+  final_status?: string;
+  fg_month?: string;
+  fg_year?: string;
+}

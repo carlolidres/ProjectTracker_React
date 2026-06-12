@@ -1,0 +1,346 @@
+---
+
+description: Project Tracker migration from Google Apps Script to GitHub Pages UI + Supabase
+alwaysApply: true
+-----------------
+
+# Project Tracker — Migration Context
+
+This project is migrating an existing functioning Google Apps Script + Google Sheets web app into a modern web application using:
+
+* React
+* TypeScript
+* Vite
+* GitHub Pages for frontend hosting
+* Supabase PostgreSQL for database, authentication, and row-level security
+
+The existing Google Apps Script application is the functional reference system. The goal is not to preserve the Apps Script architecture, but to faithfully migrate its working business logic, UI behavior, data structure, dashboard behavior, forms, audit trail, and reports into the new React + Supabase architecture.
+
+## Current Legacy Source
+
+The legacy application consists of:
+
+* `Code.gs` — Google Apps Script backend, sheet I/O, ID generation, audit logging, exports
+* `Index.html` — shell markup and page sections
+* `Script.html` — client-side logic using `google.script.run`
+* `Style.html` — application CSS
+* Google Sheets — current database/source of records
+
+Use these files as the migration reference only. Do not continue building new functionality using `google.script.run`, Apps Script HTML service, or Google Sheets as the primary database unless specifically requested.
+
+## Target Architecture
+
+The target application shall use:
+
+* React components for UI pages, forms, tables, dashboards, modals, and navigation
+* TypeScript for type safety
+* Vite for development and build
+* Supabase PostgreSQL as the primary database
+* Supabase Auth for user login and role-based access
+* Supabase Row Level Security for data protection
+* GitHub Pages for static frontend deployment
+
+Do not introduce backend server frameworks unless explicitly requested. The application should remain a static frontend connected directly to Supabase.
+
+## Migration Objective
+
+The objective is to migrate the working Google Apps Script app into a GitHub Pages + Supabase system while preserving the current business workflow.
+
+The migration should prioritize:
+
+1. Database schema design in Supabase
+2. Migration of Google Sheets data into Supabase tables
+3. React UI recreation of the current forms, dashboard, database views, registry, audit trail, and support activities
+4. Replacement of `google.script.run` calls with Supabase client queries and mutations
+5. Role-based access control using Supabase Auth and RLS
+6. Export functions from Supabase-filtered data
+7. Stable deployment to GitHub Pages
+
+## Important Migration Rule
+
+Do not simply convert files line-by-line.
+
+Instead, translate the legacy behavior into clean React + Supabase architecture.
+
+Use the Apps Script app as the functional specification, not as the target structure.
+
+## Recommended Project Structure
+
+Use this structure unless the existing project already has a cleaner equivalent:
+
+```text
+src/
+  app/
+    App.tsx
+    router.tsx
+
+  components/
+    layout/
+    forms/
+    tables/
+    dashboard/
+    modals/
+    common/
+
+  features/
+    projects/
+    support-activities/
+    dashboard/
+    database/
+    audit-trail/
+    registry/
+    auth/
+    reports/
+
+  lib/
+    supabaseClient.ts
+    constants.ts
+    helpers.ts
+
+  types/
+    database.ts
+    project.ts
+    supportActivity.ts
+    user.ts
+
+  services/
+    projectService.ts
+    supportActivityService.ts
+    dashboardService.ts
+    auditService.ts
+    exportService.ts
+
+  styles/
+    globals.css
+```
+
+## Environment Variables
+
+Use Vite environment variables only.
+
+Required environment variables:
+
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_BASE_PATH=
+```
+
+For GitHub Pages deployment, `VITE_BASE_PATH` should match the repository name.
+
+Example:
+
+```env
+VITE_BASE_PATH=/ProjectTracker_React/
+```
+
+Never commit `.env.local`.
+
+Provide `.env.example` instead.
+
+Never expose or use the Supabase service role key in the frontend.
+
+## Supabase Database Principles
+
+Supabase should become the source of truth.
+
+Use normalized tables where practical, but preserve the business hierarchy:
+
+```text
+Project → Batch → MO → PO → CNF / Support / Validation / QC / TSD records
+```
+
+Use stable IDs as keys. Do not use editable labels as primary keys.
+
+Recommended ID principles:
+
+* `project_id` or `cnf_project_id` should identify the main project record
+* `batch_instance_id` should identify each batch instance
+* `mo_instance_id` should identify each MO instance
+* `po_instance_id` should identify each PO instance
+* Use UUIDs or controlled generated IDs for database primary keys
+* Keep human-readable project numbers separate from internal database IDs
+
+## Core Tables to Consider
+
+The migration should evaluate and implement tables such as:
+
+```text
+profiles
+cnf_projects
+cnf_batches
+cnf_mos
+cnf_pos
+support_activities
+audit_logs
+notifications
+registry
+```
+
+Additional tables may be created if required by the legacy workflow.
+
+## Required Functional Areas
+
+The migrated app should include:
+
+* Login and authentication
+* Role-based navigation
+* Project entry form
+* Support activity form
+* Project database view
+* Support activity database view
+* Dashboard and KPI cards
+* CNF status distribution
+* Support activity overview
+* Registry
+* Audit trail
+* Export to Excel or CSV
+* Clear/reset buttons on forms
+* Search, sort, and filter functions
+* Responsive layout for desktop-first use
+
+## UI Migration Rules
+
+Preserve the working behavior of the current app, but improve maintainability.
+
+When rebuilding UI:
+
+* Use reusable components
+* Avoid duplicated form logic
+* Keep spacing consistent
+* Prevent dashboard cards from overflowing
+* Use stable chart colors that do not change on refresh
+* Ensure forms have proper spacing between labels, inputs, and sections
+* Use clear loading, success, warning, and error states
+* Use modals or confirmation prompts where the legacy system required review
+
+## Data Migration Rules
+
+When migrating from Google Sheets:
+
+1. Inspect the existing sheet headers
+2. Map each sheet column to a Supabase column
+3. Preserve existing records
+4. Preserve existing project identifiers where applicable
+5. Clean obvious display-only values such as `N/A` before persistence when appropriate
+6. Convert dates into proper date or timestamp fields
+7. Convert boolean-like values into actual booleans where appropriate
+8. Validate migrated records against the React UI
+
+Do not assume that Google Sheet column names are already ideal database column names. Create a clear mapping.
+
+## Legacy Logic Replacement
+
+Replace Apps Script logic as follows:
+
+```text
+google.script.run backend calls → Supabase client queries/mutations
+Google Sheets records → Supabase tables
+Apps Script include() → React components/imports
+Apps Script audit writes → Supabase audit_logs insert
+Apps Script export → frontend export service from filtered Supabase data
+Apps Script dashboard aggregation → Supabase queries or frontend computed metrics
+```
+
+## Audit Trail
+
+Audit logging is mandatory.
+
+For create, update, delete, archive, and status changes, record:
+
+* affected table
+* affected record ID
+* action type
+* old values
+* new values
+* user ID
+* user email
+* timestamp
+
+Audit values must be readable and useful for review, not only raw technical IDs.
+
+## Security Rules
+
+Use Supabase Auth and RLS.
+
+Do not rely only on frontend hiding of buttons or pages.
+
+Frontend role checks are for user experience only. Database protection must be enforced through Supabase policies.
+
+Never place service role keys, database passwords, or private credentials in frontend code.
+
+## Coding Standards
+
+Use TypeScript types for all major records.
+
+Avoid `any` unless temporarily required during migration, and document why.
+
+Use service files for database operations instead of placing Supabase queries directly inside large UI components.
+
+Prefer small, focused components.
+
+Avoid large monolithic files.
+
+## Verification
+
+Before considering a migration task complete:
+
+1. Run TypeScript checks.
+2. Run Vite build.
+3. Confirm GitHub Pages base path works.
+4. Test Supabase connection.
+5. Test create, read, update, delete/archive behavior.
+6. Test dashboard calculations with populated data.
+7. Test export using filtered records.
+8. Test role-based access.
+9. Test long labels, duplicate values, dates, empty values, and boolean values.
+10. Confirm audit trail entries are created correctly.
+
+## Commands
+
+Use the project’s actual package manager. Common commands:
+
+```bash
+npm install
+npm run dev
+npm run build
+npm run preview
+```
+
+If using GitHub Pages, confirm that `vite.config.ts` uses the correct base path.
+
+Example:
+
+```ts
+export default defineConfig({
+  base: process.env.VITE_BASE_PATH || "/ProjectTracker_React/",
+});
+```
+
+## Agent Workflow
+
+Before coding:
+
+1. Read the current project files.
+2. Identify whether the task relates to migration, UI, database, Supabase, deployment, or legacy reference.
+3. Check existing implementation before creating new files.
+4. Preserve the intended business behavior of the working Apps Script app.
+5. Avoid unnecessary rewrites when a targeted fix is sufficient.
+
+After coding:
+
+1. Summarize changed files.
+2. State what was migrated or fixed.
+3. State what was verified.
+4. State remaining risks or next steps.
+5. Do not claim success unless build or checks were actually run.
+
+## Priority
+
+The highest priority is successful migration from the working Google Apps Script tracker into a maintainable React + Supabase application deployed on GitHub Pages.
+
+Do not optimize for preserving Apps Script architecture.
+
+Do not continue using Google Sheets as the main database unless explicitly requested.
+
+Do not introduce unrelated frameworks or backend services unless explicitly approved.

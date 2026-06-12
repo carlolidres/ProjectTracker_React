@@ -1,0 +1,56 @@
+---
+description: Google Apps Script backend and Google Sheets data rules
+globs: Code.gs
+alwaysApply: false
+---
+
+# Backend Data Layer (`Code.gs`)
+
+## Spreadsheet Binding
+
+- Use the explicit spreadsheet ID from `PROJECT_TRACKER_SPREADSHEET_ID` / script properties.
+- Never silently create or fall back to another workbook.
+- Throw errors that name the expected sheet, accepted aliases, and available tabs.
+
+## Sheets and Headers
+
+- Resolve tabs via `SHEET_ALIASES` (e.g. `Projects`, `Project Database` → `PROJECTS`).
+- Match headers with normalized names; preserve physical column indexes when mapping rows.
+- Use `alignSheetHeaders_()` when canonical column order matters; test on production-shaped sheets first.
+- Ignore blank header columns during mapping, but do not drop unnamed physical columns before `rowToObject_`.
+
+## Read / Write Pipeline
+
+Every client-facing read must pass through transport sanitization:
+
+```javascript
+// ✅ GOOD — safe for google.script.run
+return rows.map(function (row) {
+  return sanitizeRecordForTransport_(row.data);
+});
+
+// ❌ BAD — native Date/boolean/object can break the bridge
+return rows.map(function (row) { return row.data; });
+```
+
+Trace "saved but not visible" through: write → flush → read → map → serialize → client handler → filter → render.
+
+## Normalization (Separate Concerns)
+
+| Purpose | Rule |
+|---|---|
+| Display | Blank → `N/A` in UI only |
+| Persistence | Store empty string or canonical value, not display tokens |
+| Search | Empty query → `''`, never `N/A` |
+| Transport | Dates as formatted strings; booleans as `'TRUE'`/`'FALSE'` |
+
+## IDs and Audit
+
+- Generate system IDs on the backend only (`PROJ-YYYY-###`, `SPROJ-YYYY-###`, record IDs).
+- Validate payloads and required IDs before accessing sheets or properties.
+- Log audit entries with human-readable field names and old/new values.
+
+## Public API Functions
+
+- Guard against manual Apps Script editor calls with missing arguments.
+- Return structured diagnostics, not opaque failures.

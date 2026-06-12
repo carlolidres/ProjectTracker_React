@@ -1,0 +1,28 @@
+---
+alwaysApply: false
+---
+# Folder Structure Template
+Adhere to this structure:
+
+src/
+├── api/
+│   ├── generated/   # Orval generated files (DO NOT EDIT MANUALLY)
+│   ├── client.ts    # Axios instance & Interceptors
+│   └── model/       # Manual Zod schemas (if not generated)
+├── components/
+│   ├── ui/          # Generic, reusable UI components
+│   ├── features/    # Domain-specific components
+│   └── layout/      # Layout wrappers
+├── hooks/           # Custom hooks (non-API)
+├── lib/             # Utility libraries (Zod, DOMPurify, formatters)
+├── locales/         # i18n configurations
+├── routes/          # TanStack Router file routes
+├── stores/          # React Contexts (Theme, Auth)
+├── types/           # Global TypeScript types (that are not API models)
+└── main.tsx         # Entry point
+
+# Response Guidelines for AI
+1.  **Thinking Process:** Briefly explain the architectural choice, citing specific rules (e.g., "Using Orval generated hook for type safety...").
+2.  **Code generation:** Include necessary imports. Use Tailwind v4 syntax.
+3.  **Refactoring:** Prioritize removing `useEffect`, adopting `useOptimistic`, and leveraging Orval hooks.
+4.  **Dependencies:** If a new library is needed, suggest installing via `pnpm add`.

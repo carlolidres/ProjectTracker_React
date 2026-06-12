@@ -1,0 +1,1078 @@
+<script>
+  const fields = [
+    'Doc Tracer #', 'Equipment/Product', 'Category', 'IL-Tag', 'Status', 'Sent/Routing To',
+    'Email', 'Date Sent', 'Report/Protocol', 'Batch No.', 'Client Name', 'Department',
+    'Prepared By', 'Date Prepared', 'Checked By', 'Date Checked', 'Target Completion Date', 'Remarks'
+  ];
+  const requiredFields = ['Doc Tracer #','Equipment/Product','Category','Status','Sent/Routing To','Report/Protocol','Batch No.','Client Name','Department','Prepared By','Date Prepared','Checked By','Date Checked'];
+  const optionalNAFields = ['IL-Tag', 'Remarks'];
+  const registryMap = {
+    'Status': 'Status',
+    'Sent/Routing To': 'Sent / Routing',
+    'Report/Protocol': 'Report / Protocol',
+    'Client Name': 'Client',
+    'Category': 'Category',
+    'Department': 'Department',
+    'Prepared By': 'Prepared by',
+    'Checked By': 'Checked by'
+  };
+  const statusPalette = {
+    'routing': { color: '#f59e0b', background: '#fff0c2', text: '#8a5400', border: '#ffd86e' },
+    'completed': { color: '#10b981', background: '#d6f7e8', text: '#08734d', border: '#8ce8b6' },
+    'fullysigned': { color: '#10b981', background: '#d6f7e8', text: '#08734d', border: '#8ce8b6' },
+    'forscanning': { color: '#8b5cf6', background: '#eee5ff', text: '#6941a8', border: '#d7c4ff' },
+    'sent': { color: '#22c55e', background: '#dcfce7', text: '#166534', border: '#a7f3c5' },
+    'inedms': { color: '#3b82f6', background: '#dbeafe', text: '#1d4f9a', border: '#b7cdfb' },
+    'returnedto': { color: '#64748b', background: '#eef3f6', text: '#475b68', border: '#d4e0e6' },
+    'cancelled': { color: '#ef4444', background: '#ffdada', text: '#b42318', border: '#ffaaa7' },
+    'blank': { color: '#94a3b8', background: '#f1f5f9', text: '#475569', border: '#d4dee8' }
+  };
+  const statusOrder = ['Routing', 'Completed', 'Fully Signed', 'For Scanning', 'Sent', 'In EDMS', 'Returned to', 'Cancelled', 'Blank'];
+  let state = { documents: [], registries: {}, dashboard: {}, user: '' };
+  let selectedRegistryType = 'Status';
+  let activePage = 'dashboard';
+  let refreshInProgress = false;
+  let lastDataSignature = '';
+  let currentRecordTracker = '';
+  let currentRecordStatus = '';
+  let signatoriesDraft = [];
+  let saveInProgress = false;
+  let signInProgress = false;
+  let loadingSequence = 0;
+  let loadingRequests = [];
+  const processingLocks = {};
+  const AUTO_REFRESH_MS = 15000;
+
+  document.querySelectorAll('.nav').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
+  load();
+  setInterval(() => refreshAppData(), AUTO_REFRESH_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshAppData();
+  });
+
+  function load() {
+    const operation = beginOperation('load', 'Loading dashboard data...');
+    google.script.run.withSuccessHandler(data => {
+      state = data;
+      lastDataSignature = getDataSignature(data);
+      renderUserBox(data.user);
+      renderAll();
+      endOperation(operation);
+    }).withFailureHandler(err => {
+      endOperation(operation);
+      showError(err);
+    }).getAppData();
+  }
+
+  function refreshAppData(options = {}) {
+    if (refreshInProgress || document.hidden) return;
+    refreshInProgress = true;
+    const operation = beginOperation('refresh', activePage === 'dashboard' ? 'Refreshing dashboard...' : 'Refreshing records...');
+    google.script.run.withSuccessHandler(data => {
+      refreshInProgress = false;
+      const nextSignature = getDataSignature(data);
+      if (nextSignature === lastDataSignature) {
+        endOperation(operation);
+        return;
+      }
+
+      state = data;
+      lastDataSignature = nextSignature;
+      renderUserBox(data.user);
+      refreshVisiblePage();
+      endOperation(operation);
+    }).withFailureHandler(err => {
+      refreshInProgress = false;
+      endOperation(operation);
+      showError(err);
+    }).getAppData();
+  }
+
+  function refreshVisiblePage() {
+    if (activePage === 'dashboard') renderDashboard();
+    if (activePage === 'database') renderDatabase(true);
+    if (activePage === 'audit') renderAudit();
+    if (activePage === 'registry') renderRegistry();
+  }
+
+  function renderAll() {
+    renderDashboard();
+    renderRouting();
+    renderDatabase();
+    renderAudit();
+    renderRegistry();
+  }
+
+  function showPage(page) {
+    activePage = page;
+    document.querySelectorAll('.page,.nav').forEach(el => el.classList.remove('active'));
+    document.getElementById(page).classList.add('active');
+    document.querySelector(`[data-page="${page}"]`).classList.add('active');
+    if (page === 'audit') renderAudit();
+  }
+
+  function renderDashboard() {
+    const d = state.dashboard || {};
+    document.getElementById('dashboard').innerHTML = `
+      <h1>Dashboard</h1><p class="muted">Real-time validation routing overview</p>
+      <div class="cards">
+        ${card('TOTAL', d.total, 'file', 'tone-teal')}${card('ROUTING', d.routing, 'send', 'tone-yellow')}${card('FOR SCANNING', d.forScanning, 'scan', 'tone-purple')}
+        ${card('SENT', d.sent, 'check', 'tone-green')}${card('IN EDMS', d.inEdms, 'archive', 'tone-blue')}${card('CANCELLED', d.cancelled, 'x', 'tone-red')}
+        ${card('OVERDUE', d.overdue, 'alert', 'tone-orange')}${card('AVG. AGING', `${d.avgAging}d`, 'clock', 'tone-cyan')}
+      </div>
+      <div class="grid2 dashboard-top">
+        <div class="panel status-panel"><h2>Documents by Status</h2><div class="panel-body">${statusDonut(d.statusCounts)}</div></div>
+        <div class="panel kpi-panel"><h2>Individual KPI</h2>${kpiTable(d.kpi || [])}</div>
+      </div>
+      <div class="grid2 dashboard-lists">
+        <div class="panel scroll-panel" tabindex="0"><h2>Recently Updated Documents</h2>${docTable(d.recent, ['Routing Tracker #','Doc Tracer #','Equipment/Product','Status','Sent/Routing To','Date Sent'])}</div>
+        <div class="panel scroll-panel" tabindex="0"><h2>Active Routing Documents</h2>${docTable(d.active, ['Routing Tracker #','Doc Tracer #','Equipment/Product','Status','Sent/Routing To','Date Sent'])}</div>
+      </div>`;
+    bindScrollablePanels();
+  }
+
+  function renderRouting(record = {}) {
+    currentRecordTracker = record['Routing Tracker #'] || '';
+    currentRecordStatus = record.Status || '';
+    signatoriesDraft = normalizeClientSignatories(record.Signatories, record['Sent/Routing To'], currentRecordStatus);
+    document.getElementById('routing').innerHTML = `
+      <h1>Document Routing</h1><p class="muted">Register documents and track ordered signatories</p>
+      <div class="grid2">
+        <div class="panel"><h2>Document Routing Form</h2>
+          ${currentRecordTracker ? `<div class="tracker-callout">Tracker <button class="tracker-link" onclick="loadTracker('${escapeJs(currentRecordTracker)}')">${escapeHtml(currentRecordTracker)}</button></div>` : ''}
+          <div class="formgrid">${fields.map(f => inputFor(f, record[f])).join('')}</div>
+          <div class="actions"><button class="primary" onclick="submitForm()" ${saveInProgress ? 'disabled' : ''}>${saveInProgress ? 'Saving...' : 'Submit'}</button><button class="secondary" onclick="renderRouting()" ${saveInProgress ? 'disabled' : ''}>Clear</button></div>
+        </div>
+        <div class="panel"><h2>Signatories Tracker</h2>
+          <div id="signatoriesPanel"></div>
+        </div>
+      </div>`;
+    renderSignatoriesPanel();
+    syncSentRoutingToActiveSignatory();
+    applyDefaultNAFields(document.getElementById('routing'));
+  }
+
+  function renderDatabase(keepFilters = false) {
+    const docs = state.documents;
+    const filters = keepFilters ? getDatabaseFilters() : {};
+    document.getElementById('database').innerHTML = `
+      <h1>Database</h1><p class="muted">${docs.length} records</p>
+      <div class="panel database-panel">
+        <div class="toolbar database-toolbar">
+          <div class="search-field"><label>Global search</label><input id="dbSearch" placeholder="Search all fields..." oninput="filterDatabase()"></div>
+          <div><label>Status</label>${filterSelect('dbStatus', 'All Statuses', state.registries.Status)}</div>
+          <div><label>Client</label>${filterSelect('dbClient', 'All Clients', state.registries.Client)}</div>
+          <div><label>Department</label>${filterSelect('dbDept', 'All Departments', state.registries.Department)}</div>
+          <button class="secondary" onclick="exportCsv()">Export CSV</button>
+        </div>
+        <div id="dbTable"></div>
+      </div>`;
+    setDatabaseFilters(filters);
+    filterDatabase(false);
+  }
+
+  function renderAudit() {
+    if (processingLocks.audit) return;
+    const operation = beginOperation('audit', 'Loading audit trail...');
+    google.script.run.withSuccessHandler(rows => {
+      document.getElementById('audit').innerHTML = `<h1>Audit Trail</h1><p class="muted">Create, update, and registry activity</p><div class="panel">${docTable(rows, ['Timestamp','User','Action','Doc Tracer #','Details'])}</div>`;
+      endOperation(operation);
+    }).withFailureHandler(err => {
+      endOperation(operation);
+      showError(err);
+    }).getAuditTrail();
+  }
+
+  function renderRegistry() {
+    const types = Object.keys(state.registries);
+    document.getElementById('registry').innerHTML = `
+      <h1>Registry / Master Data</h1><p class="muted">Manage dropdown values for forms and status</p>
+      <div class="panel registry-panel">
+        <div class="registry-toolbar">
+          <div><label>Registry type</label><select id="regType" onchange="setRegistryType(this.value)">${types.map(t => `<option ${t === selectedRegistryType ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+          <div><label>Dropdown value</label><input id="regValue" placeholder="Add new value" onkeydown="if(event.key === 'Enter') addRegistry()"></div>
+          <button class="primary" onclick="addRegistry()">Add value</button>
+        </div>
+        <div id="registryList"></div>
+      </div>`;
+    drawRegistryList();
+  }
+
+  function inputFor(field, value = '') {
+    const required = requiredFields.includes(field);
+    const cls = field === 'Equipment/Product' || field === 'Remarks' || field === 'Target Completion Date' || field === 'Department' ? 'wide' : '';
+    const label = `<label>${field}${required ? ' *' : ''}</label>`;
+    const naAttrs = isOptionalNAField(field) ? ` data-na-field="true"` : '';
+    const naClass = isOptionalNAField(field) && normalizeOptionalFieldValue(value) === 'n/a' ? ' is-na' : '';
+    if (field === 'Remarks') return `<div class="${cls}">${label}<textarea id="${id(field)}"${naAttrs} class="${naClass.trim()}">${escapeHtml(normalizeOptionalFieldValue(value))}</textarea></div>`;
+    if (registryMap[field]) {
+      const changeHandler = field === 'Status'
+        ? ' onchange="handleStatusChange(this.value)"'
+        : field === 'Sent/Routing To'
+          ? ' onchange="handleSentRoutingToChange(this.value)"'
+          : '';
+      return `<div class="${cls}">${label}<select id="${id(field)}"${changeHandler}><option value="">Select ${field}</option>${options(state.registries[registryMap[field]], value)}</select></div>`;
+    }
+    const type = field.includes('Date') ? 'date' : field === 'Email' ? 'email' : 'text';
+    return `<div class="${cls}">${label}<input id="${id(field)}" type="${type}" value="${escapeHtml(isOptionalNAField(field) ? normalizeOptionalFieldValue(value) : value)}" placeholder="${field}"${naAttrs} class="${naClass.trim()}"></div>`;
+  }
+
+  function submitForm() {
+    if (processingLocks.save) return;
+    const payload = {};
+    const status = currentRecordStatus || val(id('Status'));
+    if (String(status || '').toLowerCase() === 'routing' && !syncFirstSignatoryFromSentRoutingTo({ showValidation: true, render: true })) return;
+    applyStatusRules(status);
+    if (String(status || '').toLowerCase() === 'routing') syncFirstSignatoryFromSentRoutingTo({ render: false });
+    else syncSentRoutingToActiveSignatory();
+    const formValues = fields.reduce((map, field) => {
+      map[field] = document.getElementById(id(field));
+      return map;
+    }, {});
+    fields.forEach(field => {
+      const input = formValues[field];
+      payload[field] = isOptionalNAField(field) ? normalizeOptionalFieldValue(input.value) : input.value;
+    });
+    payload.__originalTracker = currentRecordTracker;
+    payload['Routing Tracker #'] = currentRecordTracker;
+    payload.Signatories = collectSignatoriesFromUi();
+    if (String(payload.Status || '').toLowerCase() === 'routing' && !payload.Signatories.length) {
+      showToast('Add at least one valid signatory before saving a Routing document.', 'error');
+      return;
+    }
+    const invalidNames = payload.Signatories.filter(item => !isAllowedSignatoryName(item.Name));
+    if (invalidNames.length) {
+      showToast('Signatory names must be selected from Sent/Routing To.', 'error');
+      return;
+    }
+    saveInProgress = true;
+    renderRouting({ ...payload, Signatories: payload.Signatories });
+    const operation = beginOperation('save', 'Saving document routing record...', '#routing');
+    google.script.run.withSuccessHandler(data => {
+      saveInProgress = false;
+      state = data;
+      lastDataSignature = getDataSignature(data);
+      renderAll();
+      showPage(activePage);
+      endOperation(operation);
+      showToast('Document routing record saved successfully.', 'success');
+    }).withFailureHandler(err => {
+      saveInProgress = false;
+      renderRouting({ ...payload, Signatories: payload.Signatories });
+      endOperation(operation);
+      showError(err, 'The document routing record could not be saved. Please review the form and try again.');
+    }).saveDocument(payload);
+  }
+
+  function loadTracker(tracker) {
+    const key = `tracker-${tracker}`;
+    if (processingLocks[key]) return;
+    const operation = beginOperation(key, 'Loading routing record...', `#${activePage}`);
+    google.script.run.withSuccessHandler(record => {
+      renderRouting(record);
+      showPage('routing');
+      endOperation(operation);
+    }).withFailureHandler(err => {
+      endOperation(operation);
+      showError(err);
+    }).getDocumentByTracer(tracker);
+  }
+
+  function handleStatusChange(status) {
+    const previousStatus = currentRecordStatus;
+    currentRecordStatus = status;
+    if (String(status || '').toLowerCase() === 'cancelled') {
+      signatoriesDraft = [];
+      const sentField = document.getElementById(id('Sent/Routing To'));
+      if (sentField) sentField.value = '';
+      renderSignatoriesPanel();
+      showToast('Cancelled status clears the Signatories Tracker for this form.', 'info');
+      return;
+    }
+    if (String(status || '').toLowerCase() === 'routing' && !syncFirstSignatoryFromSentRoutingTo({ showValidation: true, render: false })) {
+      const statusField = document.getElementById(id('Status'));
+      currentRecordStatus = previousStatus || '';
+      if (statusField) statusField.value = currentRecordStatus;
+      return;
+    }
+    applyStatusRules(status);
+    if (String(status || '').toLowerCase() === 'routing') syncFirstSignatoryFromSentRoutingTo({ render: true });
+  }
+
+  function handleSentRoutingToChange() {
+    if (String(currentRecordStatus || val(id('Status')) || '').toLowerCase() !== 'routing') return;
+    syncFirstSignatoryFromSentRoutingTo({ showValidation: true, render: true });
+  }
+
+  function filterDatabase(showIndicator = true) {
+    const loadingToken = showIndicator ? showLoading('Applying database filters...') : null;
+    const q = val('dbSearch').toLowerCase(), status = val('dbStatus'), client = val('dbClient'), dept = val('dbDept');
+    const rows = state.documents.filter(doc =>
+      (!q || Object.values(doc).join(' ').toLowerCase().includes(q)) &&
+      (!status || doc.Status === status) &&
+      (!client || doc['Client Name'] === client) &&
+      (!dept || doc.Department === dept)
+    );
+    document.getElementById('dbTable').innerHTML = docTable(rows, ['Routing Tracker #','Doc Tracer #','Equipment/Product','Category','IL-Tag','Status','Sent/Routing To','Email','Date Sent','Report/Protocol','Client Name','Department']);
+    if (loadingToken) setTimeout(() => hideLoading(loadingToken), 180);
+  }
+
+  function renderSignatoriesPanel() {
+    const panel = document.getElementById('signatoriesPanel');
+    if (!panel) return;
+    applyStatusRules(currentRecordStatus || val(id('Status')), false);
+    panel.innerHTML = `
+      <div class="signatory-list">
+        ${signatoriesDraft.map((item, index) => signatoryRow(item, index)).join('') || '<p class="muted compact">No signatories added.</p>'}
+      </div>
+      <div class="actions signatory-actions">
+        <button class="secondary" onclick="addSignatory()">Add Signatory</button>
+      </div>
+      <p class="muted compact">Signatory names must be selected from Sent/Routing To. Only the active signatory can be marked signed.</p>`;
+  }
+
+  function signatoryRow(item, index) {
+    const isRouting = String(currentRecordStatus || '').toLowerCase() === 'routing';
+    const canSign = currentRecordTracker && isRouting && item.Status === 'Active';
+    const signed = item.Status === 'Signed';
+    const lockFirstRoutingName = isRouting && index === 0 && !signed;
+    const forwardedValue = toDateTimeLocalValue(item['Date/time forwarded']);
+    const signedValue = toDateTimeLocalValue(item['Date/time signed']);
+    const forwardedDisplay = formatDisplayDateTime(item['Date/time forwarded']);
+    const signedDisplay = formatDisplayDateTime(item['Date/time signed']);
+    return `<div class="signatory-row">
+      <div class="signatory-head">
+        <strong>#${index + 1}</strong>
+        <select onchange="updateSignatory(${index}, 'Status', this.value)" disabled>
+          ${['Pending','Active','Signed'].map(status => `<option ${status === item.Status ? 'selected' : ''}>${status}</option>`).join('')}
+        </select>
+      </div>
+      <label>Signatory/Approver Name</label>
+      <select onchange="updateSignatory(${index}, 'Name', this.value)" ${signed || lockFirstRoutingName ? 'disabled' : ''}>
+        <option value="">Select signatory</option>${options(getAllowedSignatoryNames(), item.Name || '')}
+      </select>
+      <div class="signatory-meta">
+        <div><label>Date/time forwarded</label><input type="datetime-local" value="${escapeHtml(forwardedValue)}" readonly><div class="date-display">${escapeHtml(forwardedDisplay || 'Not forwarded')}</div></div>
+        <div><label>Date/time signed</label><input type="datetime-local" value="${escapeHtml(signedValue)}" readonly><div class="date-display">${escapeHtml(signedDisplay || 'Not signed')}</div></div>
+      </div>
+      <div class="signatory-meta">
+        <div><label>Duration pending/signing time</label><input value="${escapeHtml(item['Duration pending/signing time'] || '')}" readonly></div>
+        <div class="signatory-buttons">
+          <button class="primary" onclick="markSignatorySigned(${signatoryOrderValue(item.Order, index + 1)})" ${canSign && !signInProgress ? '' : 'disabled'}>${signInProgress && canSign ? 'Signing...' : 'Signed'}</button>
+          <button class="secondary icon-btn" title="Remove signatory" onclick="removeSignatory(${index})" ${signed ? 'disabled' : ''}>x</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function addSignatory() {
+    const isRouting = String(currentRecordStatus || val(id('Status')) || '').toLowerCase() === 'routing';
+    signatoriesDraft.push({ Name: '', Order: signatoriesDraft.length + 1, Status: isRouting && !signatoriesDraft.length ? 'Active' : 'Pending', 'Date/time forwarded': isRouting && !signatoriesDraft.length ? nowDateTimeValue() : '', 'Date/time signed': '', 'Duration pending/signing time': '' });
+    renderSignatoriesPanel();
+    syncSentRoutingToActiveSignatory();
+  }
+
+  function removeSignatory(index) {
+    signatoriesDraft.splice(index, 1);
+    signatoriesDraft = signatoriesDraft.map((item, idx) => ({ ...item, Order: idx + 1 }));
+    if (signatoriesDraft.length && !signatoriesDraft.some(item => item.Status === 'Active') && !signatoriesDraft.some(item => item.Status === 'Signed')) signatoriesDraft[0].Status = 'Active';
+    renderSignatoriesPanel();
+    syncSentRoutingToActiveSignatory();
+  }
+
+  function updateSignatory(index, key, value) {
+    if (key === 'Name' && value && !isAllowedSignatoryName(value)) {
+      showToast('Choose a signatory from Sent/Routing To.', 'error');
+      return;
+    }
+    signatoriesDraft[index][key] = value;
+    if (key === 'Name') syncSentRoutingToActiveSignatory();
+  }
+
+  function updateSignatoryDate(index, key, value) {
+    signatoriesDraft[index][key] = fromDateTimeLocalValue(value);
+    renderSignatoriesPanel();
+  }
+
+  function syncSentRoutingToActiveSignatory() {
+    const status = String(currentRecordStatus || val(id('Status')) || '').toLowerCase();
+    if (status !== 'routing') return;
+
+    const active = signatoriesDraft.find(item => item.Status === 'Active') || signatoriesDraft[0];
+    const sentField = document.getElementById(id('Sent/Routing To'));
+    if (sentField && active && active.Name) setFieldValue(sentField, active.Name);
+  }
+
+  function syncFirstSignatoryFromSentRoutingTo(options = {}) {
+    const status = String(currentRecordStatus || val(id('Status')) || '').toLowerCase();
+    if (status !== 'routing') return true;
+
+    const sentField = document.getElementById(id('Sent/Routing To'));
+    const selectedName = String(sentField ? sentField.value : '').trim();
+    if (!selectedName) {
+      if (options.showValidation) showToast('Please select the first routing recipient in Sent/Routing To before setting this document to Routing.', 'error');
+      return false;
+    }
+
+    const canonicalName = getCanonicalAllowedSignatoryName(selectedName);
+    if (!canonicalName) {
+      if (options.showValidation) showToast('Choose the first routing recipient from Sent/Routing To.', 'error');
+      return false;
+    }
+    if (sentField) setFieldValue(sentField, canonicalName);
+
+    const first = signatoriesDraft[0];
+    const signingStarted = signatoriesDraft.some(item => item.Status === 'Signed' || !!item['Date/time signed']);
+    if (signingStarted) {
+      syncSentRoutingToActiveSignatory();
+      if (options.showValidation && first && first.Name !== canonicalName) {
+        showToast('Signing has already started, so the first signatory will not be changed.', 'info');
+      }
+      return true;
+    }
+
+    const previousName = first && first.Name ? first.Name : '';
+    const forwardedAt = previousName && previousName !== canonicalName ? nowDateTimeValue() : (first && first['Date/time forwarded']) || nowDateTimeValue();
+    const nextFirst = {
+      ...(first || {}),
+      Name: canonicalName,
+      Order: 1,
+      Status: 'Active',
+      'Date/time forwarded': forwardedAt,
+      'Date/time signed': '',
+      'Duration pending/signing time': ''
+    };
+    const rest = signatoriesDraft.slice(first ? 1 : 0).map((item, index) => ({
+      ...item,
+      Order: index + 2,
+      Status: item.Status === 'Active' ? 'Pending' : item.Status
+    }));
+    signatoriesDraft = [nextFirst].concat(rest);
+
+    if (options.render) renderSignatoriesPanel();
+    return true;
+  }
+
+  function setFieldValue(field, value) {
+    if (field.tagName === 'SELECT' && !Array.from(field.options).some(option => option.value === value || option.text === value)) return;
+    field.value = value;
+  }
+
+  function collectSignatoriesFromUi() {
+    return signatoriesDraft
+      .map((item, index) => ({ ...item, Order: index + 1, Name: String(item.Name || '').trim() }))
+      .filter(item => item.Name && isAllowedSignatoryName(item.Name));
+  }
+
+  function markSignatorySigned(order) {
+    if (processingLocks.sign) return;
+    if (!currentRecordTracker) {
+      showToast('Save the routing document before signing.', 'error');
+      return;
+    }
+    if (String(currentRecordStatus || '').toLowerCase() !== 'routing') {
+      showToast('This document is not in Routing status, so it cannot be signed.', 'error');
+      return;
+    }
+    order = signatoryOrderValue(order, 0);
+    const signer = signatoriesDraft.find(item => signatoryOrderValue(item.Order, 0) === order);
+    const signerName = signer && signer.Name ? signer.Name : 'this signatory';
+    const hasNext = signatoriesDraft.some(item => signatoryOrderValue(item.Order, 0) > order && item.Status !== 'Signed');
+    const message = hasNext
+      ? `Has ${signerName} signed this document? If you confirm, the signed date/time will be recorded and the document will move to the next signatory.`
+      : `Has ${signerName} signed this document? If you confirm, the signed date/time will be recorded and the document status will be completed.`;
+    showConfirm({
+      title: 'Mark signatory as signed?',
+      message,
+      confirmText: 'Yes, mark as signed',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        signInProgress = true;
+        renderSignatoriesPanel();
+        const operation = beginOperation('sign', 'Marking signatory as signed...', '#routing');
+        google.script.run.withSuccessHandler(result => {
+          signInProgress = false;
+          const data = result.appData || result;
+          state = data;
+          lastDataSignature = getDataSignature(data);
+          const record = state.documents.find(doc => doc['Routing Tracker #'] === currentRecordTracker);
+          renderDashboard();
+          renderDatabase(true);
+          renderRouting(record || {});
+          showPage('routing');
+          endOperation(operation);
+          if (result.final) {
+            showToast(`${result.signedName || signerName} has been marked as signed. Routing is complete and the document is now ${result.status || 'completed'}.`, 'success');
+          } else {
+            showToast(`${result.signedName || signerName} has been marked as signed. The document has been forwarded to ${result.nextName || 'the next signatory'}.`, 'success');
+          }
+        }).withFailureHandler(err => {
+          signInProgress = false;
+          renderSignatoriesPanel();
+          endOperation(operation);
+          showError(err, 'The signatory could not be marked as signed. Please refresh the record and try again.');
+        }).signDocumentSignatory(currentRecordTracker, order);
+      }
+    });
+  }
+
+  function addRegistry() {
+    if (processingLocks.registry) return;
+    selectedRegistryType = val('regType') || selectedRegistryType;
+    const value = val('regValue').trim();
+    if (!value) {
+      showToast('Enter a dropdown value before adding it.', 'error');
+      return;
+    }
+    const operation = beginOperation('registry', 'Updating registry values...', '#registry');
+    google.script.run.withSuccessHandler(data => {
+      state = data; lastDataSignature = getDataSignature(data); renderRegistry(); renderRouting(); showPage(activePage); endOperation(operation); showToast('Registry value added.', 'success');
+    }).withFailureHandler(err => {
+      endOperation(operation);
+      showError(err);
+    }).addRegistryValue(val('regType'), val('regValue'));
+  }
+
+  function deleteRegistry(type, value) {
+    if (processingLocks.registry) return;
+    selectedRegistryType = type;
+    showConfirm({
+      title: 'Remove registry value?',
+      message: `Remove "${value}" from ${type}? Existing saved records will remain unchanged.`,
+      confirmText: 'Remove value',
+      cancelText: 'Cancel',
+      danger: true,
+      onConfirm: () => {
+        const operation = beginOperation('registry', 'Updating registry values...', '#registry');
+        google.script.run.withSuccessHandler(data => {
+          state = data; lastDataSignature = getDataSignature(data); renderRegistry(); renderRouting(); showPage(activePage); endOperation(operation); showToast('Registry value removed.', 'success');
+        }).withFailureHandler(err => {
+          endOperation(operation);
+          showError(err);
+        }).deleteRegistryValue(type, value);
+      }
+    });
+  }
+
+  function setRegistryType(type) {
+    selectedRegistryType = type;
+    drawRegistryList();
+  }
+
+  function drawRegistryList() {
+    const type = val('regType') || selectedRegistryType;
+    selectedRegistryType = type;
+    const values = state.registries[type] || [];
+    document.getElementById('registryList').innerHTML = values.length ? values.map(value =>
+      `<div class="registryRow"><span>${escapeHtml(value)}</span><button class="danger" onclick="deleteRegistry('${escapeJs(type)}','${escapeJs(value)}')">Delete</button></div>`
+    ).join('') : '<div class="registry-empty">No dropdown values have been added for this registry type.</div>';
+  }
+
+  function exportCsv() {
+    if (processingLocks.export) return;
+    const operation = beginOperation('export', 'Preparing database export...', '.database-panel');
+    const headers = Object.keys(state.documents[0] || {});
+    const rows = [headers].concat(state.documents.map(doc => headers.map(h => doc[h] || '')));
+    const csv = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    link.download = 'vrms-database.csv';
+    link.click();
+    setTimeout(() => endOperation(operation), 250);
+  }
+
+  function docTable(rows, headers) {
+    if (!rows.length) return '<p class="muted">No records found.</p>';
+    return `<div class="table-wrap"><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${headers.map(h => `<td>${cellFor(row, h)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+
+  function cellFor(row, header) {
+    if (header === 'Status') return badge(row[header]);
+    if (header === 'Details') return `<span class="audit-detail">${formatAuditDetails(row)}</span>`;
+    if (header === 'Routing Tracker #') {
+      const tracker = row[header] || '';
+      return tracker ? `<button class="tracker-link" onclick="loadTracker('${escapeJs(tracker)}')">${escapeHtml(tracker)}</button>` : '';
+    }
+    return escapeHtml(row[header]);
+  }
+
+  function statusKey(value) {
+    return String(value || 'Blank').trim().replace(/[^a-z0-9]/gi, '').toLowerCase() || 'blank';
+  }
+
+  function statusStyle(value) {
+    return statusPalette[statusKey(value)] || statusPalette.blank;
+  }
+
+  function statusSortValue(value) {
+    const key = statusKey(value);
+    const index = statusOrder.findIndex(status => statusKey(status) === key);
+    return index === -1 ? statusOrder.length : index;
+  }
+
+  function statusDonut(counts = {}) {
+    const entries = Object.keys(counts)
+      .map(status => ({ status, count: Number(counts[status]) || 0 }))
+      .sort((a, b) => statusSortValue(a.status) - statusSortValue(b.status) || a.status.localeCompare(b.status));
+    const total = entries.reduce((sum, item) => sum + item.count, 0);
+    const radius = 78;
+    const circumference = 2 * Math.PI * radius;
+    const gap = entries.length > 1 ? 8 : 0;
+    let offset = 0;
+    const segments = entries.map(item => {
+      const length = total ? (item.count / total) * circumference : 0;
+      const visibleLength = Math.max(0, length - Math.min(gap, length * 0.42));
+      const segment = `<circle class="donut-segment" cx="105" cy="105" r="${radius}" fill="none" stroke="${statusStyle(item.status).color}" stroke-width="28" stroke-linecap="round" stroke-dasharray="${visibleLength.toFixed(2)} ${(circumference - visibleLength).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"></circle>`;
+      offset += length;
+      return segment;
+    });
+    return `<div class="donut-wrap">
+      <div class="donut">
+        <svg viewBox="0 0 210 210" aria-hidden="true">
+          <circle class="donut-track" cx="105" cy="105" r="${radius}" fill="none"></circle>
+          <g transform="rotate(-90 105 105)">${segments.join('')}</g>
+        </svg>
+        <div><strong>${total}</strong><span>Total</span></div>
+      </div>
+      <div class="donut-legend">${entries.map(item => `
+        <button class="legend-row" onclick="filterDashboardStatus('${escapeJs(item.status)}')">
+          <span style="background:${statusStyle(item.status).color}"></span><b>${escapeHtml(item.status)}</b><em>${item.count}</em>
+        </button>`).join('')}</div>
+    </div>`;
+  }
+
+  function kpiTable(rows = []) {
+    if (!rows.length) return '<p class="muted compact">No signatory performance data yet.</p>';
+    return `<div class="kpi-table-wrap"><table class="kpi-table">
+      <thead><tr><th>Signatory</th><th>Signed</th><th>Avg. Duration</th><th>Pending</th><th>Completed</th></tr></thead>
+      <tbody>${rows.map(row => `<tr>
+        <td>${escapeHtml(row.name)}</td>
+        <td>${escapeHtml(row.signed || 0)}</td>
+        <td>${escapeHtml(row.avgDuration || 'N/A')}</td>
+        <td>${escapeHtml(row.pending || 0)}</td>
+        <td>${escapeHtml(row.completed || 0)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  function filterDashboardStatus(status) {
+    showPage('database');
+    setTimeout(() => {
+      if (document.getElementById('dbStatus')) document.getElementById('dbStatus').value = status;
+      filterDatabase();
+    }, 0);
+  }
+
+  function normalizeClientSignatories(value, fallbackName, status) {
+    let rows = [];
+    if (Array.isArray(value)) rows = value;
+    if (!rows.length && value) {
+      try { rows = JSON.parse(value); } catch (err) { rows = []; }
+    }
+    if (!rows.length && fallbackName && String(status || '').toLowerCase() === 'routing') {
+      rows = [{ Name: fallbackName, Order: 1, Status: 'Active', 'Date/time forwarded': '', 'Date/time signed': '', 'Duration pending/signing time': '' }];
+    }
+    return rows.map((item, index) => ({
+      Name: clientSignatoryNameValue(item),
+      Order: clientSignatoryOrderValue(item, index + 1),
+      Status: normalizeClientSignatoryStatus(clientSignatoryValue(item, ['Status', 'status', 'state', 'routingStatus', 'signatoryStatus', 'approvalStatus']) || 'Pending'),
+      'Date/time forwarded': clientSignatoryValue(item, ['Date/time forwarded', 'dateTimeForwarded', 'dateForwarded', 'forwardedAt', 'forwarded', 'Forwarded At', 'Date Forwarded', 'date/time forwarded']),
+      'Date/time signed': clientSignatoryValue(item, ['Date/time signed', 'dateTimeSigned', 'dateSigned', 'signedAt', 'signed', 'Signed At', 'Date Signed', 'date/time signed']),
+      'Duration pending/signing time': item['Duration pending/signing time'] || item.duration || ''
+    })).sort((a, b) => signatoryOrderValue(a.Order, 0) - signatoryOrderValue(b.Order, 0));
+  }
+
+  function clientSignatoryValue(item, aliases) {
+    for (let i = 0; i < aliases.length; i++) {
+      if (Object.prototype.hasOwnProperty.call(item, aliases[i]) && item[aliases[i]] !== null && item[aliases[i]] !== undefined && String(item[aliases[i]]).trim() !== '') {
+        return item[aliases[i]];
+      }
+    }
+    return '';
+  }
+
+  function clientSignatoryNameValue(item) {
+    return clientSignatoryValue(item, [
+      'Name',
+      'name',
+      'Signatory/Approver Name',
+      'Signatory/approver name',
+      'Signatory/approver Name',
+      'signatoryApproverName',
+      'signatoryName',
+      'approverName',
+      'approver',
+      'signatory',
+      'userName',
+      'user',
+      'displayName',
+      'email',
+      'Email',
+      'userId',
+      'User ID'
+    ]);
+  }
+
+  function clientSignatoryOrderValue(item, fallback) {
+    const raw = clientSignatoryValue(item, [
+      'Order',
+      'order',
+      'Sequence',
+      'sequence',
+      'Seq',
+      'seq',
+      'Level',
+      'level',
+      'Index',
+      'index',
+      'signatoryIndex',
+      'signatoryOrder',
+      'routingSequence',
+      'routingLevel'
+    ]);
+    const normalized = signatoryOrderValue(raw, 0);
+    return normalized > 0 ? normalized : fallback;
+  }
+
+  function normalizeClientSignatoryStatus(value) {
+    const text = String(value || '').trim().toLowerCase();
+    if (text === 'signed' || text === 'completed' || text === 'complete') return 'Signed';
+    if (text === 'active' || text === 'current' || text === 'routing') return 'Active';
+    return 'Pending';
+  }
+
+  function signatoryOrderValue(value, fallback) {
+    const text = String(value || '').trim();
+    const match = text.match(/\d+/);
+    const number = Number(match ? match[0] : value);
+    return number > 0 ? number : fallback;
+  }
+
+  function toDateTimeLocalValue(value) {
+    const date = parseClientDate(value);
+    if (!date) return '';
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function fromDateTimeLocalValue(value) {
+    if (!value) return '';
+    const date = parseClientDate(value);
+    if (!date) return '';
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+  }
+
+  function formatDisplayDateTime(value) {
+    const date = parseClientDate(value);
+    if (!date) return '';
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    let hours = date.getHours();
+    const suffix = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${pad(date.getDate())} ${months[date.getMonth()]} ${date.getFullYear()} ${pad(hours)}:${pad(date.getMinutes())} ${suffix}`;
+  }
+
+  function parseClientDate(value) {
+    if (!value) return null;
+    if (value instanceof Date && !isNaN(value)) return value;
+    const text = String(value).trim();
+    let match = text.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4]), Number(match[5]), Number(match[6] || 0));
+    match = text.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})(?:\s+(\d{1,2}):(\d{2})\s*(AM|PM))?$/i);
+    if (match) {
+      const months = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+      let hours = Number(match[4] || 0);
+      const ampm = String(match[6] || '').toUpperCase();
+      if (ampm === 'PM' && hours < 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      return new Date(Number(match[3]), months[match[2].toLowerCase()], Number(match[1]), hours, Number(match[5] || 0), 0);
+    }
+    const date = new Date(text);
+    return isNaN(date) ? null : date;
+  }
+
+  function pad(value) {
+    return String(value).padStart(2, '0');
+  }
+
+  function bindScrollablePanels() {
+    document.querySelectorAll('.scroll-panel').forEach(panel => {
+      panel.addEventListener('keydown', event => {
+        const keys = ['ArrowDown','ArrowUp','ArrowRight','ArrowLeft'];
+        if (!keys.includes(event.key)) return;
+        const step = event.key === 'ArrowLeft' || event.key === 'ArrowRight' ? 42 : 34;
+        if (event.key === 'ArrowDown') panel.scrollTop += step;
+        if (event.key === 'ArrowUp') panel.scrollTop -= step;
+        if (event.key === 'ArrowRight') panel.scrollLeft += step;
+        if (event.key === 'ArrowLeft') panel.scrollLeft -= step;
+        event.preventDefault();
+      });
+    });
+  }
+
+  function card(label, value, icon, tone) { return `<div class="card"><span>${label}</span><strong>${value}</strong><div class="card-icon ${tone}">${iconSvg(icon)}</div></div>`; }
+  function renderUserBox(user) {
+    const box = document.getElementById('userBox');
+    if (box) box.innerHTML = `<div><span class="user-name">${escapeHtml(user || 'User')}</span><span class="user-role">ADMIN</span></div>`;
+  }
+  function iconSvg(name) {
+    const icons = {
+      file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H8a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M10 13h4"/><path d="M10 17h4"/></svg>',
+      send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9z"/></svg>',
+      scan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 3H5a2 2 0 0 0-2 2v2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 12h8"/></svg>',
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-5"/></svg>',
+      archive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg>',
+      x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
+      alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+      clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+    };
+    return icons[name] || icons.file;
+  }
+  function badge(value) {
+    const style = statusStyle(value);
+    return `<span class="badge" style="background:${style.background};color:${style.text};border-color:${style.border}">${escapeHtml(value || 'Blank')}</span>`;
+  }
+  function options(values = [], selected = '') { return values.map(v => `<option ${v === selected ? 'selected' : ''}>${escapeHtml(v)}</option>`).join(''); }
+  function filterSelect(idValue, label, values = []) { return `<select id="${idValue}" onchange="filterDatabase()"><option value="">${label}</option>${options(values)}</select>`; }
+  function getDatabaseFilters() { return { q: val('dbSearch'), status: val('dbStatus'), client: val('dbClient'), dept: val('dbDept') }; }
+  function setDatabaseFilters(filters = {}) {
+    if (document.getElementById('dbSearch')) document.getElementById('dbSearch').value = filters.q || '';
+    if (document.getElementById('dbStatus')) document.getElementById('dbStatus').value = filters.status || '';
+    if (document.getElementById('dbClient')) document.getElementById('dbClient').value = filters.client || '';
+    if (document.getElementById('dbDept')) document.getElementById('dbDept').value = filters.dept || '';
+  }
+  function getAllowedSignatoryNames() {
+    return state.registries['Sent / Routing'] || [];
+  }
+  function isOptionalNAField(field) {
+    return optionalNAFields.includes(field);
+  }
+  function normalizeOptionalFieldValue(value) {
+    return String(value || '').trim() || 'n/a';
+  }
+  function applyDefaultNAFields(container) {
+    if (!container) return;
+    container.querySelectorAll('[data-na-field="true"]').forEach(field => {
+      if (!String(field.value || '').trim()) field.value = 'n/a';
+      field.classList.toggle('is-na', normalizeOptionalFieldValue(field.value).toLowerCase() === 'n/a');
+      field.addEventListener('focus', () => {
+        if (String(field.value || '').trim().toLowerCase() === 'n/a') {
+          field.value = '';
+          field.classList.remove('is-na');
+        }
+      });
+      field.addEventListener('blur', () => {
+        field.value = normalizeOptionalFieldValue(field.value);
+        field.classList.toggle('is-na', field.value.toLowerCase() === 'n/a');
+      });
+      field.addEventListener('input', () => {
+        field.classList.toggle('is-na', String(field.value || '').trim().toLowerCase() === 'n/a');
+      });
+    });
+  }
+  function getCanonicalAllowedSignatoryName(name) {
+    const value = String(name || '').trim().toLowerCase();
+    return getAllowedSignatoryNames().find(item => String(item).trim().toLowerCase() === value) || '';
+  }
+  function isAllowedSignatoryName(name) {
+    return !!getCanonicalAllowedSignatoryName(name);
+  }
+  function applyStatusRules(status, shouldRender = true) {
+    const key = String(status || '').toLowerCase();
+    if (key === 'cancelled') {
+      signatoriesDraft = [];
+      if (shouldRender) renderSignatoriesPanel();
+      return;
+    }
+    if (key !== 'routing') return;
+
+    signatoriesDraft = signatoriesDraft.map((item, index) => ({ ...item, Order: index + 1 }));
+    const firstOpen = signatoriesDraft.find(item => item.Status !== 'Signed');
+    signatoriesDraft.forEach(item => {
+      if (item.Status !== 'Signed') item.Status = firstOpen && item.Order === firstOpen.Order ? 'Active' : 'Pending';
+    });
+    if (firstOpen && !firstOpen['Date/time forwarded']) firstOpen['Date/time forwarded'] = nowDateTimeValue();
+    if (shouldRender) renderSignatoriesPanel();
+  }
+  function nowDateTimeValue() {
+    const date = new Date();
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+  }
+  function formatAuditDetails(row) {
+    const details = String(row.Details || '');
+    const user = row.User || 'Unknown user';
+    const timestamp = row.Timestamp ? formatDisplayDateTime(row.Timestamp) : '';
+    if (!details) return escapeHtml(`${row.Action || 'Audit entry'} by ${user}${timestamp ? ' on ' + timestamp : ''}.`);
+    const trimmed = details.trim();
+    if (trimmed.charAt(0) === '{') {
+      try {
+        const changes = JSON.parse(trimmed);
+        const lines = Object.keys(changes).filter(key => key !== 'Updated At' && key !== 'Updated By').map(key => {
+          const change = changes[key] || {};
+          return `${friendlyFieldName(key)} was changed from ${plainAuditValue(change.from)} to ${plainAuditValue(change.to)} by ${user}${timestamp ? ' on ' + timestamp : ''}.`;
+        });
+        return escapeHtml(lines.join(' ') || `${row.Action || 'Audit entry'} by ${user}${timestamp ? ' on ' + timestamp : ''}.`);
+      } catch (err) {
+        return escapeHtml(`${row.Action || 'Audit entry'} was recorded by ${user}${timestamp ? ' on ' + timestamp : ''}.`);
+      }
+    }
+    return escapeHtml(trimmed.replace(/\s+/g, ' '));
+  }
+  function friendlyFieldName(field) {
+    const labels = {
+      'Doc Tracer #': 'Document tracer',
+      'Routing Tracker #': 'Routing tracker',
+      'Sent/Routing To': 'Sent/Routing To',
+      'Signatories': 'Signatories Tracker',
+      'Total Routing Duration': 'Total routing duration',
+      'Routing Completed At': 'Routing completed at',
+      'Date Sent': 'Date sent',
+      'Report/Protocol': 'Report/protocol',
+      'Batch No.': 'Batch number',
+      'Client Name': 'Client name',
+      'Prepared By': 'Prepared by',
+      'Date Prepared': 'Date prepared',
+      'Checked By': 'Checked by',
+      'Date Checked': 'Date checked',
+      'Target Completion Date': 'Target completion date'
+    };
+    return labels[field] || field;
+  }
+  function plainAuditValue(value) {
+    const text = String(value || '').trim();
+    if (!text) return 'blank';
+    if (text.charAt(0) === '[' || text.charAt(0) === '{') return 'updated';
+    return `"${text}"`;
+  }
+  function getDataSignature(data) { return JSON.stringify({ documents: data.documents, registries: data.registries, dashboard: data.dashboard }); }
+  function id(field) { return field.replace(/[^a-z0-9]/gi, '_'); }
+  function val(elementId) { const el = document.getElementById(elementId); return el ? el.value : ''; }
+  function beginOperation(key, message, selector) {
+    if (key && processingLocks[key]) return null;
+    if (key) processingLocks[key] = true;
+    const token = showLoading(message || 'Processing...');
+    if (selector) setProcessingState(selector, true);
+    return { key, token, selector };
+  }
+  function endOperation(operation) {
+    if (!operation) return;
+    if (operation.selector) setProcessingState(operation.selector, false);
+    hideLoading(operation.token);
+    if (operation.key) delete processingLocks[operation.key];
+  }
+  function showLoading(message) {
+    const token = ++loadingSequence;
+    loadingRequests.push({ token });
+    updateLoadingIndicator();
+    return token;
+  }
+  function hideLoading(token) {
+    if (token) loadingRequests = loadingRequests.filter(item => item.token !== token);
+    else loadingRequests.pop();
+    updateLoadingIndicator();
+  }
+  function updateLoadingIndicator() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (!overlay) return;
+    const current = loadingRequests[loadingRequests.length - 1];
+    if (current) {
+      overlay.classList.remove('error');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-busy', 'true');
+    } else {
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-busy', 'false');
+    }
+  }
+  function showLoadingError() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('show');
+    overlay.classList.add('error');
+    overlay.setAttribute('aria-busy', 'false');
+    clearTimeout(overlay._errorTimer);
+    overlay._errorTimer = setTimeout(() => overlay.classList.remove('error'), 900);
+  }
+  function setProcessingState(selector, isProcessing) {
+    const root = document.querySelector(selector);
+    if (!root) return;
+    root.querySelectorAll('button, input, select, textarea').forEach(control => {
+      if (isProcessing) {
+        control.dataset.wasDisabled = control.disabled ? 'true' : 'false';
+        control.disabled = true;
+        return;
+      }
+      if (control.dataset.wasDisabled === 'false') control.disabled = false;
+      delete control.dataset.wasDisabled;
+    });
+  }
+  function showError(err, fallback = 'Something went wrong. Please try again.') {
+    const raw = String((err && err.message) || err || '');
+    console.error(err);
+    const knownMessages = [
+      'Add at least one signatory',
+      'Document Tracer Number is required',
+      'Document already existing',
+      'Routing tracker cannot be changed',
+      'Routing tracker already existing',
+      'This document is no longer in Routing status',
+      'has already been marked as signed',
+      'Only the current active signatory',
+      'No document found',
+      'Invalid signatory sequence',
+      'Signatory sequence not found',
+      'Signatory/Approver Name',
+      'Registry values',
+      'Value is required'
+    ];
+    const message = knownMessages.some(text => raw.indexOf(text) !== -1) ? raw : fallback;
+    showLoadingError();
+    showToast(message, 'error');
+  }
+  function showToast(msg, tone = 'info') {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.innerHTML = `<div class="toast-card ${tone}" role="status" tabindex="-1"><strong>${tone === 'error' ? 'Needs attention' : tone === 'success' ? 'Success' : 'Notice'}</strong><p>${escapeHtml(msg)}</p></div>`;
+    el.classList.add('show');
+    const card = el.querySelector('.toast-card');
+    if (card) card.focus();
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 3600);
+  }
+  function showConfirm({ title, message, confirmText, cancelText, onConfirm, danger }) {
+    const existing = document.getElementById('modalOverlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'modalOverlay';
+    overlay.className = 'modal-overlay show';
+    overlay.innerHTML = `
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
+        <h3 id="modalTitle">${escapeHtml(title || 'Confirm action')}</h3>
+        <p>${escapeHtml(message || '')}</p>
+        <div class="modal-actions">
+          <button class="secondary" data-action="cancel">${escapeHtml(cancelText || 'Cancel')}</button>
+          <button class="${danger ? 'danger-solid' : 'primary'}" data-action="confirm">${escapeHtml(confirmText || 'Confirm')}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelector('[data-action="cancel"]').addEventListener('click', close);
+    overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => {
+      close();
+      if (typeof onConfirm === 'function') onConfirm();
+    });
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) close();
+    });
+    overlay.addEventListener('keydown', event => {
+      if (event.key === 'Escape') close();
+      if (event.key !== 'Tab') return;
+      const buttons = Array.from(overlay.querySelectorAll('button'));
+      const first = buttons[0], last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { last.focus(); event.preventDefault(); }
+      if (!event.shiftKey && document.activeElement === last) { first.focus(); event.preventDefault(); }
+    });
+    setTimeout(() => overlay.querySelector('.modal-box').focus(), 0);
+  }
+  function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+  function escapeJs(value) { return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+</script>

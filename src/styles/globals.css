@@ -1,0 +1,202 @@
+:root {
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 72px;
+  --topbar-height: 64px;
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+  --primary: #1677ff;
+}
+
+[data-theme="dark"] {
+  --bg: #0f1419;
+  --surface: #1a1f26;
+  --border: #2a3441;
+  --text: #f3f4f6;
+  --muted: #9ca3af;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  min-height: 100%;
+  font-family: Inter, Segoe UI, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-root {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  padding: 24px;
+  flex: 1;
+}
+
+.sidebar-shell {
+  width: var(--sidebar-width);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  flex-shrink: 0;
+}
+
+.sidebar-shell-collapsed { width: var(--sidebar-collapsed-width); }
+
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px 12px;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.sidebar-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sidebar-brand-title { display: block; font-weight: 700; }
+.sidebar-brand-subtitle { margin: 0 !important; color: var(--muted); font-size: 12px; }
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.sidebar-nav-item:hover { background: rgba(22, 119, 255, 0.08); }
+.sidebar-nav-item-active { background: rgba(22, 119, 255, 0.14); color: var(--primary); font-weight: 600; }
+.sidebar-nav-item-collapsed { justify-content: center; padding-inline: 8px; }
+.sidebar-nav-item-collapsed .sidebar-label { display: none; }
+
+.sidebar-collapsed .sidebar-brand-text,
+.sidebar-collapsed .sidebar-user-text { display: none; }
+
+.sidebar-user-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.sidebar-user-button-collapsed { justify-content: center; }
+.sidebar-user-name { margin: 0; font-weight: 600; font-size: 14px; }
+.sidebar-user-role { margin: 0; color: var(--muted); font-size: 12px; }
+
+.topbar {
+  height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.topbar-title-main { margin: 0; font-weight: 700; }
+.topbar-title-sub { margin: 0; color: var(--muted); font-size: 12px; }
+.topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.page-loading, .notification-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 240px;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-card { width: 100%; max-width: 420px; }
+
+.distribution-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.mobile-only { display: none; }
+.desktop-only { display: inline-flex; }
+
+@media (max-width: 960px) {
+  .sidebar-desktop { display: none; }
+  .mobile-only { display: inline-flex; }
+  .desktop-only { display: none; }
+  .app-content { padding: 16px; }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
