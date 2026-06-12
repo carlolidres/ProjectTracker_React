@@ -20,9 +20,17 @@ export function normalizeUserRole(rawRole: string | null | undefined): UserRole 
 }
 
 export function normalizeProfile(profile: Profile): Profile {
+  const status =
+    profile.status === "active" || profile.status === "pending"
+      ? profile.status
+      : "inactive";
+
   return {
     ...profile,
     role: normalizeUserRole(profile.role),
-    status: profile.status === "active" ? "active" : "inactive",
+    requested_role: profile.requested_role
+      ? normalizeUserRole(profile.requested_role)
+      : null,
+    status,
   };
 }

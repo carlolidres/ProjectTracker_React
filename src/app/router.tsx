@@ -8,6 +8,7 @@ import { SupportActivitiesPage } from "@/features/support-activities/SupportActi
 import { AuditTrailPage } from "@/features/audit-trail/AuditTrailPage";
 import { ArchivedPage } from "@/features/archived/ArchivedPage";
 import { RegistryPage } from "@/features/registry/RegistryPage";
+import { AdminUsersPage } from "@/features/admin/AdminUsersPage";
 
 export function AppRouter() {
   return (
@@ -21,6 +22,7 @@ export function AppRouter() {
       <Route path="/audit-trail" element={<ProtectedRoute><AuditTrailPage /></ProtectedRoute>} />
       <Route path="/archived" element={<ProtectedRoute><ArchivedPage /></ProtectedRoute>} />
       <Route path="/registry" element={<ProtectedRoute><RegistryPage /></ProtectedRoute>} />
+      <Route path="/admin/users" element={<ProtectedRoute><AdminUsersPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

@@ -10,6 +10,7 @@ import {
   SettingOutlined,
   SunOutlined,
   ToolOutlined,
+  TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { Avatar, Button, Drawer, Dropdown, Tooltip, Typography } from "antd";
@@ -20,7 +21,6 @@ import { useAuth } from "@/app/auth-provider";
 import { useAppTheme } from "@/app/theme-provider";
 import type { SidebarState } from "@/hooks/use-sidebar-state";
 import { signOut } from "@/lib/auth";
-import { canAccessRoute } from "@/lib/roleAccess";
 import { ROLE_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { NavItem, UserRole } from "@/types";
@@ -36,7 +36,10 @@ const adminNavItems: NavItem[] = [
   { label: "Audit Trail", href: "/audit-trail", icon: AuditOutlined },
   { label: "Archived", href: "/archived", icon: InboxOutlined },
   { label: "Registry", href: "/registry", icon: SettingOutlined },
+  { label: "User Management", href: "/admin/users", icon: TeamOutlined, roles: ["admin"] },
 ];
+
+const allNavItems: NavItem[] = [...navItems, ...adminNavItems];
 
 interface SidebarProps {
   state: SidebarState;
@@ -45,7 +48,7 @@ interface SidebarProps {
 }
 
 function filterNavItems(items: NavItem[], role: UserRole | undefined) {
-  return items.filter((item) => canAccessRoute(role, item.href));
+  return items.filter((item) => !item.roles || (role ? item.roles.includes(role) : false));
 }
 
 export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
@@ -81,10 +84,7 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
     },
   ];
 
-  const visibleNavItems = [
-    ...filterNavItems(navItems, profile?.role),
-    ...filterNavItems(adminNavItems, profile?.role),
-  ];
+  const visibleNavItems = filterNavItems(allNavItems, profile?.role);
 
   const content = (
     <div className="sidebar-inner">

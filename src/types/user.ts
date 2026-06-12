@@ -14,7 +14,10 @@ export interface Profile {
   email: string;
   full_name: string | null;
   role: UserRole;
-  status: "active" | "inactive";
+  requested_role: UserRole | null;
+  status: "pending" | "active" | "inactive";
+  approved_by: string | null;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
 }

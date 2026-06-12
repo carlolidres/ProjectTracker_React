@@ -66,7 +66,7 @@ async function main() {
   }
 
   await check("read cnf_projects", () => supabase.from("cnf_projects").select("record_id").limit(1));
-  await check("read pt_notifications", () => supabase.from("pt_notifications").select("notification_id").limit(1));
+  await check("read notifications", () => supabase.from("notifications").select("notification_id").limit(1));
   await check("read registry", () => supabase.from("registry").select("id").limit(1));
 
   const testId = `SMK-${Date.now()}`;
@@ -93,8 +93,8 @@ async function main() {
       }),
     );
 
-    await check("insert pt_notifications", () =>
-      supabase.from("pt_notifications").insert({
+    await check("insert notifications", () =>
+      supabase.from("notifications").insert({
         notification_id: `NTF-${Date.now()}`,
         project_id: testId,
         record_id: testId,

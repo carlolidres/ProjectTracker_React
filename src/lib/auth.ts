@@ -6,6 +6,24 @@ export async function signIn(email: string, password: string) {
   return supabase.auth.signInWithPassword({ email, password });
 }
 
+export async function signUp(input: {
+  email: string;
+  password: string;
+  fullName: string;
+  requestedRole: UserRole;
+}) {
+  return supabase.auth.signUp({
+    email: input.email,
+    password: input.password,
+    options: {
+      data: {
+        full_name: input.fullName,
+        requested_role: input.requestedRole,
+      },
+    },
+  });
+}
+
 export async function signOut() {
   return supabase.auth.signOut();
 }
@@ -27,10 +45,22 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
   return normalizeProfile(data as Profile);
 }
 
-export async function updateProfileRole(userId: string, role: UserRole) {
-  return supabase.from("profiles").update({ role, updated_at: new Date().toISOString() }).eq("id", userId);
+export async function updateProfileAccess(
+  userId: string,
+  role: UserRole,
+  status: Profile["status"],
+) {
+  const { data, error } = await supabase.rpc("admin_update_user_access", {
+    target_user_id: userId,
+    next_role: role,
+    next_status: status,
+  });
+  if (error) throw error;
+  return normalizeProfile(data as Profile);
 }
 
-export async function listProfiles() {
-  return supabase.from("profiles").select("*").order("email");
+export async function listProfiles(): Promise<Profile[]> {
+  const { data, error } = await supabase.from("profiles").select("*").order("created_at");
+  if (error) throw error;
+  return (data ?? []).map((profile) => normalizeProfile(profile as Profile));
 }
