@@ -80,12 +80,41 @@ async function main() {
   );
 
   if (inserted) {
+    await check("insert audit_logs", () =>
+      supabase.from("audit_logs").insert({
+        user_email: userData.user!.email ?? email,
+        module: "Smoke Test",
+        action: "CREATE",
+        record_id: testId,
+        project_id: testId,
+        field_name: "smoke",
+        old_value: "",
+        new_value: "ok",
+      }),
+    );
+
+    await check("insert pt_notifications", () =>
+      supabase.from("pt_notifications").insert({
+        notification_id: `NTF-${Date.now()}`,
+        project_id: testId,
+        record_id: testId,
+        fg_month: "N/A",
+        severity: "medium",
+        title: "Smoke test",
+        message: "Automated smoke test notification",
+        status: "OPEN",
+      }),
+    );
+
     await check("delete cnf_projects smoke row", () =>
       supabase.from("cnf_projects").delete().eq("record_id", testId),
     );
   }
 
+  await check("read audit_logs", () => supabase.from("audit_logs").select("audit_id").limit(1));
+
   await supabase.auth.signOut();
+  console.log("\nSmoke test complete.");
 }
 
 main().catch((err) => {
