@@ -128,9 +128,9 @@ Implement the full Project Tracker migration execution plan: bootstrap React/Vit
 
 ## Git Traceability
 
-- Commit: _pending — user has not requested commit yet_
-- Commit message: _pending_
-- Commit hash: _pending_
+- Commit: v28: full React + Supabase migration
+- Commit message: v28: full React + Supabase migration
+- Commit hash: 6a4c1e3
 
 ---
 

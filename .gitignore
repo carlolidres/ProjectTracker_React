@@ -1,18 +1,38 @@
 # Dependencies
 node_modules/
+jspm_packages/
 
 # Build
 dist/
 build/
+.next
+out
+.nuxt
+.output
 
 # Environment
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # Logs
+logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript / Vite cache
+*.tsbuildinfo
+.vite/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Coverage / test
+coverage
+*.lcov
+.nyc_output
 
 # Editor
 .vscode/*
