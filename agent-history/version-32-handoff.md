@@ -84,7 +84,7 @@ Continue interrupted v31 plan steps: GitHub secrets sync, commit, push, deploy v
 
 - Commit: v32: expand smoke test and record production deploy verification
 - Commit message: v32: expand smoke test and record production deploy verification
-- Commit hash: *(pending)*
+- Commit hash: 955af6a
 
 Related v31 commits:
 - `e87c506` — v31: align co-hosted Supabase schema and verify authenticated access
