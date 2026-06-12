@@ -95,7 +95,7 @@ Smoke test user: `carlolidres@gmail.com` (role `Admin` → normalized to `admin`
 
 - Commit: v31: align co-hosted Supabase schema and verify authenticated access
 - Commit message: v31: align co-hosted Supabase schema and verify authenticated access
-- Commit hash: 1cbf1af
+- Commit hash: e87c506
 
 ---
 
