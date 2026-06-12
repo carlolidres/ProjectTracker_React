@@ -162,9 +162,9 @@ Build note: Vite reports the existing large JavaScript chunk warning.
 
 ## Git Traceability
 
-- Commit: *(pending)*
+- Commit: `v35: add signup and admin user approval`
 - Commit message: `v35: add signup and admin user approval`
-- Commit hash: *(pending)*
+- Commit hash: `24aaaef`
 
 ---
 
