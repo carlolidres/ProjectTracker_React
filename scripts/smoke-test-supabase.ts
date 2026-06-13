@@ -69,11 +69,12 @@ async function main() {
   await check("read notifications", () => supabase.from("notifications").select("notification_id").limit(1));
   await check("read registry", () => supabase.from("registry").select("id").limit(1));
 
-  const testId = `SMK-${Date.now()}`;
+  const testRecordId = `REC-SMOKE-${Date.now()}`;
+  const testProjectId = `PROJ-SMOKE-${Date.now()}`;
   const inserted = await check("insert cnf_projects", () =>
     supabase.from("cnf_projects").insert({
-      record_id: testId,
-      project_id: testId,
+      record_id: testRecordId,
+      project_id: testProjectId,
       project_owner: "Smoke Test",
       is_active: true,
     }),
@@ -85,8 +86,8 @@ async function main() {
         user_email: userData.user!.email ?? email,
         module: "Smoke Test",
         action: "CREATE",
-        record_id: testId,
-        project_id: testId,
+        record_id: testRecordId,
+        project_id: testProjectId,
         field_name: "smoke",
         old_value: "",
         new_value: "ok",
@@ -96,8 +97,8 @@ async function main() {
     await check("insert notifications", () =>
       supabase.from("notifications").insert({
         notification_id: `NTF-${Date.now()}`,
-        project_id: testId,
-        record_id: testId,
+        project_id: testProjectId,
+        record_id: testRecordId,
         fg_month: "N/A",
         severity: "medium",
         title: "Smoke test",
@@ -107,7 +108,7 @@ async function main() {
     );
 
     await check("delete cnf_projects smoke row", () =>
-      supabase.from("cnf_projects").delete().eq("record_id", testId),
+      supabase.from("cnf_projects").delete().eq("record_id", testRecordId),
     );
   }
 

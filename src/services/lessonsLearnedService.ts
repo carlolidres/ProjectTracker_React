@@ -1,5 +1,5 @@
+import { getNextLessonIds } from "@/lib/idGeneration";
 import { supabase } from "@/lib/supabaseClient";
-import { generateId } from "@/lib/utils";
 import type { DateFieldChange } from "@/lib/dateAdjustmentReview";
 import {
   LESSON_CATEGORY_DATE_ADJUSTMENT,
@@ -17,8 +17,10 @@ export async function saveDateAdjustmentLessons(
 ): Promise<void> {
   if (!changes.length) return;
 
-  const rows = changes.map((change) => ({
-    lesson_id: generateId("LL"),
+  const lessonIds = await getNextLessonIds(changes.length);
+
+  const rows = changes.map((change, index) => ({
+    lesson_id: lessonIds[index],
     user_id: userId,
     user_email: userEmail,
     user_role: userRole,

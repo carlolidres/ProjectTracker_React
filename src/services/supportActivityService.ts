@@ -1,9 +1,9 @@
 import { collectSupportDateChanges } from "@/lib/dateAdjustmentReview";
 import { rowMatchesDueWindow, supportTargetDays } from "@/lib/fgUrgency";
 import { mapDbToSupport, mapSupportToDb } from "@/lib/mappers";
-import { getNextSupportProjectId } from "@/lib/idGeneration";
+import { getNextSupportActivityId, getNextSupportProjectId } from "@/lib/idGeneration";
 import { supabase } from "@/lib/supabaseClient";
-import { generateId, valueOrEmpty, valueOrNA } from "@/lib/utils";
+import { valueOrEmpty, valueOrNA } from "@/lib/utils";
 import { logAuditDiff, logAuditEntries } from "@/services/auditService";
 import type { SupportActivity, SupportActivityFilters } from "@/types";
 
@@ -50,7 +50,7 @@ export async function saveSupportActivity(
   options?: SupportSaveOptions,
 ) {
   const activityId = valueOrNA(payload.activity_id) === "N/A"
-    ? generateId("SUP")
+    ? getNextSupportActivityId()
     : String(payload.activity_id).trim();
   const now = new Date().toISOString();
 

@@ -77,6 +77,7 @@ export function ArchivedPage() {
                   dataSource={support}
                   pagination={{ pageSize: 20 }}
                   columns={[
+                    { title: "Project ID", dataIndex: "project_id" },
                     { title: "Activity ID", dataIndex: "activity_id" },
                     { title: "Kind", dataIndex: "activity_kind" },
                     { title: "Department", dataIndex: "Department" },
