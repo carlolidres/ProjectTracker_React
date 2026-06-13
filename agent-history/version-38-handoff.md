@@ -49,7 +49,7 @@ The Ant Design `Drawer` body sized to content (~712px) instead of the viewport. 
 ## Git Traceability
 
 - Commit message: `v38: fix mobile sidebar drawer full viewport height`
-- Commit hash: `f409668`
+- Commit hash: `a9a0ad1`
 
 ---
 
