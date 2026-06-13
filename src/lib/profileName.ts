@@ -47,6 +47,10 @@ export function getProfileNameParts(profile: Profile | null | undefined): Profil
   return parseFullName(profile.full_name);
 }
 
+export function getProfileFirstName(profile: Profile | null | undefined): string {
+  return getProfileNameParts(profile).firstName;
+}
+
 export function getProfileShortName(profile: Profile | null | undefined): string {
   const parts = getProfileNameParts(profile);
   const shortName = [parts.firstName, parts.lastName].filter(Boolean).join(" ");

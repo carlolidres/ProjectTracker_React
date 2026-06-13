@@ -51,7 +51,8 @@ import {
 } from "@/lib/projectFormFields";
 import { ROLE_LABELS } from "@/lib/constants";
 import { collectProjectDateChanges } from "@/lib/dateAdjustmentReview";
-import { canArchiveRecords, canCopyCnfFromProject, canEditProjectFields, isViewerRole } from "@/lib/roleAccess";
+import { canArchiveRecords, canCopyCnfFromProject, canEditProjectFields, isAdminRole, isViewerRole } from "@/lib/roleAccess";
+import { getProfileFirstName } from "@/lib/profileName";
 import {
   cloneBatchDefaults,
   getCanonicalCnfEntryCount,
@@ -73,7 +74,7 @@ import {
   saveProject,
   updateProject,
 } from "@/services/projectService";
-import type { BatchControl, CnfEntry, MoControl, PoControl, ProjectHierarchy, ProjectSummaryForCnfCopy } from "@/types";
+import type { BatchControl, CnfEntry, MoControl, PoControl, ProjectHierarchy, ProjectSummaryForCnfCopy, Profile } from "@/types";
 
 function emptyCnfEntry(): CnfEntry {
   return {
@@ -215,6 +216,28 @@ function emptyProject(): ProjectHierarchy {
   };
 }
 
+function withDefaultProjectOwner(project: ProjectHierarchy, profile: Profile | null | undefined): ProjectHierarchy {
+  if (isAdminRole(profile?.role) || !isMissingValue(project.project_owner)) {
+    return project;
+  }
+  const firstName = getProfileFirstName(profile);
+  return firstName ? { ...project, project_owner: firstName } : project;
+}
+
+function applyProjectOwnerSavePolicy(
+  project: ProjectHierarchy,
+  profile: Profile | null | undefined,
+  isNew: boolean,
+  baseline: ProjectHierarchy,
+): ProjectHierarchy {
+  if (isAdminRole(profile?.role)) return project;
+  if (isNew) {
+    const firstName = getProfileFirstName(profile);
+    return firstName ? { ...project, project_owner: firstName } : project;
+  }
+  return { ...project, project_owner: baseline.project_owner };
+}
+
 export function ProjectEntryPage() {
   const { modal } = App.useApp();
   const { user, profile } = useAuth();
@@ -247,12 +270,13 @@ export function ProjectEntryPage() {
   );
   const canEditHeaderFields = canEditProjectFields(profile?.role ?? "view", "am");
   const canUseCnfCopy = canCopyCnfFromProject(profile?.role) && !viewOnly;
+  const canEditProjectOwner = isAdminRole(profile?.role) && canEditHeaderFields && !viewOnly;
 
   const allCollapseKeys = useMemo(() => collectAllCollapseKeys(project), [project]);
 
   async function prepareNewProject() {
     const nextId = await getNextProjectId();
-    const next = { ...emptyProject(), project_id: nextId };
+    const next = withDefaultProjectOwner({ ...emptyProject(), project_id: nextId }, profile);
     baselineProjectRef.current = structuredClone(next);
     setProject(next);
     setSavedFgMonths({});
@@ -282,8 +306,9 @@ export function ProjectEntryPage() {
             activeTab: draft.activeTab,
           });
           syncProjectCnfEntryCounts(draft.project);
-          baselineProjectRef.current = structuredClone(draft.project);
-          setProject(draft.project);
+          const restored = withDefaultProjectOwner(draft.project, profile);
+          baselineProjectRef.current = structuredClone(restored);
+          setProject(restored);
           setSavedFgMonths(collectSavedFgMonths(draft.project));
           setOpenKeys(draft.openKeys);
           setActiveTab(draft.activeTab);
@@ -308,6 +333,14 @@ export function ProjectEntryPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (projectIdParam || loading || isAdminRole(profile?.role)) return;
+    setProject((current) => {
+      const next = withDefaultProjectOwner(current, profile);
+      return next.project_owner === current.project_owner ? current : next;
+    });
+  }, [profile?.first_name, profile?.role, projectIdParam, loading, profile]);
 
   useEffect(() => {
     if (projectIdParam || !user?.id || loading) return;
@@ -506,11 +539,12 @@ export function ProjectEntryPage() {
       }
 
       const isNew = !projectIdParam;
+      const payload = applyProjectOwnerSavePolicy(project, profile, isNew, baselineProjectRef.current);
       if (isNew) {
-        const result = await saveProject(project, user.email);
+        const result = await saveProject(payload, user.email);
         message.success(`Project ${result.project_id} created`);
       } else {
-        await updateProject(project.project_id, project, user.email, {
+        await updateProject(payload.project_id, payload, user.email, {
           dateAdjustmentsConfirmed: dateChanges.length > 0,
         });
         message.success("Project updated");
@@ -677,17 +711,26 @@ export function ProjectEntryPage() {
         <div className="project-form-body">
           <div className="project-header-section">
             <div className="project-form-grid">
-              {HEADER_FIELDS.map((field) => (
-                <ProjectFieldControl
-                  key={field.key}
-                  field={field}
-                  value={String(project[field.key as keyof ProjectHierarchy] ?? "")}
-                  readOnly={viewOnly && field.type !== "readonly"}
-                  disabled={field.type === "readonly" || (!canEditHeaderFields && !viewOnly)}
-                  registry={registry}
-                  onChange={(value) => updateProjectHead(field.key as keyof ProjectHierarchy, value)}
-                />
-              ))}
+              {HEADER_FIELDS.map((field) => {
+                const isProjectOwnerField = field.key === "project_owner";
+                return (
+                  <ProjectFieldControl
+                    key={field.key}
+                    field={field}
+                    value={String(project[field.key as keyof ProjectHierarchy] ?? "")}
+                    readOnly={
+                      (viewOnly && field.type !== "readonly") ||
+                      (isProjectOwnerField && !canEditProjectOwner)
+                    }
+                    disabled={
+                      field.type === "readonly" ||
+                      (isProjectOwnerField ? false : !canEditHeaderFields && !viewOnly)
+                    }
+                    registry={registry}
+                    onChange={(value) => updateProjectHead(field.key as keyof ProjectHierarchy, value)}
+                  />
+                );
+              })}
             </div>
           </div>
 
