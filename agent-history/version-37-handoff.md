@@ -77,7 +77,7 @@ Collapsed expanded forms after restore proved **full remount/reload** — `openK
 ## Git Traceability
 
 - Commit message: `v37: preserve form drafts across minimize-triggered reloads`
-- Commit hash: `7e74430`
+- Commit hash: `4293b79`
 
 ---
 
