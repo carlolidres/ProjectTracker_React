@@ -27,4 +27,4 @@ Commit the updated `.cursor/rules/graphify.mdc` that prefers Grep + small Read f
 ## Git Traceability
 
 - Commit message: `v44: token-efficient graphify cursor rule`
-- Commit hash: *(pending)*
+- Commit hash: `ea4d271`
