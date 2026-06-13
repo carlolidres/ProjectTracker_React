@@ -10,10 +10,10 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, initializing } = useAuth();
   const location = useLocation();
 
-  if (loading || (user && !profile)) {
+  if (initializing || (user && !profile)) {
     return (
       <div className="page-loading">
         <Spin size="large" aria-label="Loading session" />

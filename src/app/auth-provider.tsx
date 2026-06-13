@@ -8,7 +8,7 @@ import type { Profile } from "@/types";
 interface AuthContextValue {
   user: User | null;
   profile: Profile | null;
-  loading: boolean;
+  initializing: boolean;
   sessionEpoch: number;
   refreshProfile: () => Promise<void>;
 }
@@ -23,34 +23,27 @@ async function loadSessionProfile(user: User | null): Promise<Profile | null> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
   const [sessionEpoch, setSessionEpoch] = useState(0);
   const lastUserIdRef = useRef<string | null>(null);
 
   const refreshProfile = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) throw error;
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
 
-      const currentUser = data.user ?? null;
-      const nextUserId = currentUser?.id ?? null;
-      if (lastUserIdRef.current && nextUserId && lastUserIdRef.current !== nextUserId) {
-        clearAppSessionState();
-        setProfile(null);
-      }
-
-      lastUserIdRef.current = nextUserId;
-      setUser(currentUser);
-      setProfile(await loadSessionProfile(currentUser));
-    } finally {
-      setLoading(false);
+    const currentUser = data.user ?? null;
+    const nextUserId = currentUser?.id ?? null;
+    if (lastUserIdRef.current && nextUserId && lastUserIdRef.current !== nextUserId) {
+      clearAppSessionState();
+      setSessionEpoch((current) => current + 1);
     }
+
+    lastUserIdRef.current = nextUserId;
+    setUser(currentUser);
+    setProfile(await loadSessionProfile(currentUser));
   };
 
   useEffect(() => {
-    void refreshProfile();
-
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       const nextUser = session?.user ?? null;
       const nextUserId = nextUser?.id ?? null;
@@ -62,32 +55,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setProfile(null);
         setSessionEpoch((current) => current + 1);
-        setLoading(false);
+        setInitializing(false);
         return;
       }
 
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || (previousUserId && previousUserId !== nextUserId)) {
+      // Tab/window focus can refresh the JWT without changing the signed-in user.
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        lastUserIdRef.current = nextUserId;
+        setUser(nextUser);
+        return;
+      }
+
+      const userChanged = Boolean(previousUserId && previousUserId !== nextUserId);
+      if (event === "SIGNED_IN" || userChanged) {
         clearAppSessionState();
         setProfile(null);
-        if (event === "SIGNED_IN") {
-          setSessionEpoch((current) => current + 1);
-        }
+        setSessionEpoch((current) => current + 1);
       }
 
       lastUserIdRef.current = nextUserId;
       setUser(nextUser);
-      setLoading(true);
-      void loadSessionProfile(nextUser)
-        .then(setProfile)
-        .finally(() => setLoading(false));
+
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || userChanged) {
+        setInitializing(true);
+        void loadSessionProfile(nextUser)
+          .then(setProfile)
+          .finally(() => setInitializing(false));
+      }
     });
 
     return () => subscription.subscription.unsubscribe();
   }, []);
 
   const value = useMemo(
-    () => ({ user, profile, loading, sessionEpoch, refreshProfile }),
-    [user, profile, loading, sessionEpoch],
+    () => ({ user, profile, initializing, sessionEpoch, refreshProfile }),
+    [user, profile, initializing, sessionEpoch],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -98,4 +100,3 @@ export function useAuth() {
   if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 }
-

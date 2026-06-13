@@ -8,7 +8,7 @@ import { requestPasswordReset } from "@/services/passwordResetService";
 import type { UserRole } from "@/types";
 
 export function LoginPage() {
-  const { user, profile, loading, refreshProfile } = useAuth();
+  const { user, profile, initializing, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -18,7 +18,7 @@ export function LoginPage() {
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
   const [forgotForm] = Form.useForm<{ email: string }>();
 
-  if (!loading && user && profile?.status === "active") {
+  if (!initializing && user && profile?.status === "active") {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -33,7 +33,7 @@ export function LoginPage() {
       return;
     }
 
-    await refreshProfile();
+      await refreshProfile();
     setSubmitting(false);
     navigate("/dashboard", { replace: true });
   }

@@ -8,10 +8,10 @@ import { RegistryProvider } from "@/app/registry-provider";
 import { ThemeProvider } from "@/app/theme-provider";
 
 function SessionScopedRouter() {
-  const { user, loading, sessionEpoch } = useAuth();
+  const { user, initializing, sessionEpoch } = useAuth();
   const sessionKey = `${user?.id ?? "anonymous"}:${sessionEpoch}`;
 
-  if (loading) {
+  if (initializing) {
     return (
       <div className="page-loading">
         <Spin size="large" aria-label="Loading session" />
