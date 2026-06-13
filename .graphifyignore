@@ -1,0 +1,35 @@
+# Ignore everything first
+*
+
+# Allow folders so Graphify can still walk the project tree
+!*/
+
+# Allow code/config/database files only
+!*.ts
+!*.tsx
+!*.js
+!*.jsx
+!*.mjs
+!*.cjs
+!*.css
+!*.scss
+!*.less
+!*.json
+!*.jsonc
+!*.sql
+!*.ps1
+!*.sh
+!*.bat
+!*.yml
+!*.yaml
+!*.toml
+
+# Keep these ignored even if folders are allowed
+node_modules/
+dist/
+build/
+coverage/
+graphify-out/
+.git/
+.cursor/
+.vscode/

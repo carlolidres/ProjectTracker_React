@@ -53,3 +53,7 @@ supabase/.temp/
 exports/*
 !exports/README.md
 !exports/.gitkeep
+
+# Graphify generated knowledge graph (local tooling)
+graphify-out/
+_graphify_code_only/

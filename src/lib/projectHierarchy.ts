@@ -61,7 +61,8 @@ export function clonePoForAdd(referencePo: PoControl, cnfCount: number): PoContr
   delete clone.record_id;
   clone.po_instance_id = generateHierarchyId("PO");
   clone.po_control_no = "";
-  clone.cnf_entries = buildEmptyCnfEntries(cnfCount);
+  clone.fg_month = "";
+  resizeCnfEntries(clone, cnfCount);
   clearPoLevelCnfFields(clone);
   return clone;
 }
