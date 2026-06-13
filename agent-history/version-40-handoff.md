@@ -45,7 +45,7 @@ Implement **Copy CNF Entries from Another Project** in the CNF Entries section o
 
 - **Supabase migration 019** must be applied manually before the feature works in production
 - End-to-end manual QA against live Supabase data (copy, propagate, unlink, save validation)
-- Git commit and GitHub Pages deploy (not requested this session)
+- Git commit and GitHub Pages deploy — committed as v40; push triggers Actions deploy
 
 ---
 
@@ -57,8 +57,8 @@ Implement **Copy CNF Entries from Another Project** in the CNF Entries section o
 
 ## Git Traceability
 
-- Commit message: *(pending — user has not requested commit)*
-- Commit hash: *(pending)*
+- Commit message: `v40: linked copy CNF entries from mother project`
+- Commit hash: `5951a00`
 
 ---
 
@@ -80,5 +80,5 @@ Implement **Copy CNF Entries from Another Project** in the CNF Entries section o
 
 1. Run migration 019 on Supabase.
 2. Manual QA copy → propagate → unlink → save validation flows.
-3. Commit as `v40: linked copy CNF entries from mother project` and deploy when ready.
+3. Commit as `v40: linked copy CNF entries from mother project` and deploy when ready. **Done** (`5951a00`).
 4. Consider debouncing blocked-edit audit logs if users click many read-only fields rapidly.
