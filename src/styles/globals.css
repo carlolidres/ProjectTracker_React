@@ -411,6 +411,45 @@ html, body, #root {
   .mobile-only { display: inline-flex; }
   .desktop-only { display: none; }
   .app-content { padding: 16px; }
+
+  /* Mobile nav drawer — fill viewport; scroll nav when content overflows */
+  .sidebar-mobile-drawer.ant-drawer .ant-drawer-content-wrapper {
+    height: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+
+  .sidebar-mobile-drawer.ant-drawer .ant-drawer-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: inherit;
+  }
+
+  .sidebar-mobile-drawer.ant-drawer .ant-drawer-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .sidebar-mobile-drawer .sidebar-inner {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
+  }
+
+  .sidebar-mobile-drawer .sidebar-nav {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .project-id-link {

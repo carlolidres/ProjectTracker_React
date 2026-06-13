@@ -164,7 +164,15 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
         onClose={onCloseMobile}
         width={300}
         closable={false}
-        styles={{ body: { padding: 0 } }}
+        rootClassName="sidebar-mobile-drawer"
+        styles={{
+          body: {
+            padding: 0,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          },
+        }}
       >
         {content}
       </Drawer>
