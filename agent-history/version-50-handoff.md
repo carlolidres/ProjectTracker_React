@@ -33,7 +33,7 @@ Add a global search bar on the **User Management** admin page for easy filtering
 ## Git Traceability
 
 - Commit message: `v50: add user management search bar`
-- Commit hash: _(pending)_
+- Commit hash: `92b37ad`
 
 ---
 
