@@ -25,6 +25,7 @@ import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
 import { useRegistry } from "@/app/registry-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { ProjectFieldControl } from "@/features/projects/components/ProjectFieldControl";
+import { CopyCnfFromProjectModal } from "@/features/projects/components/CopyCnfFromProjectModal";
 import {
   collectAllCollapseKeys,
   ProjectHierarchyForm,
@@ -50,7 +51,7 @@ import {
 } from "@/lib/projectFormFields";
 import { ROLE_LABELS } from "@/lib/constants";
 import { collectProjectDateChanges } from "@/lib/dateAdjustmentReview";
-import { canArchiveRecords, canEditProjectFields, isViewerRole } from "@/lib/roleAccess";
+import { canArchiveRecords, canCopyCnfFromProject, canEditProjectFields, isViewerRole } from "@/lib/roleAccess";
 import {
   cloneBatchDefaults,
   getCanonicalCnfEntryCount,
@@ -59,12 +60,20 @@ import {
 import { isMissingValue } from "@/lib/utils";
 import { refreshAllNotifications } from "@/services/notificationService";
 import {
+  attachCnfLinkToProject,
+  copyAndLinkCnfFromMother,
+  listEligibleMotherProjectSummaries,
+  logBlockedLinkedCnfEdit,
+  logBlockedLinkedCnfNumberChange,
+  unlinkChildFromMother,
+} from "@/services/cnfLinkService";
+import {
   archiveProject,
   getProjectById,
   saveProject,
   updateProject,
 } from "@/services/projectService";
-import type { BatchControl, CnfEntry, MoControl, PoControl, ProjectHierarchy } from "@/types";
+import type { BatchControl, CnfEntry, MoControl, PoControl, ProjectHierarchy, ProjectSummaryForCnfCopy } from "@/types";
 
 function emptyCnfEntry(): CnfEntry {
   return {
@@ -222,6 +231,10 @@ export function ProjectEntryPage() {
   const [activeTab, setActiveTab] = useState<ProjectTab>("AM/BM/PL");
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [savedFgMonths, setSavedFgMonths] = useState<Record<string, string>>({});
+  const [copyCnfModalOpen, setCopyCnfModalOpen] = useState(false);
+  const [copyCnfModalLoading, setCopyCnfModalLoading] = useState(false);
+  const [copyCnfActionLoading, setCopyCnfActionLoading] = useState(false);
+  const [eligibleMotherProjects, setEligibleMotherProjects] = useState<ProjectSummaryForCnfCopy[]>([]);
   const stickyHeaderRef = useRef<HTMLDivElement>(null);
 
   const meetingViewReadOnly = useMeetingViewReadOnly();
@@ -233,6 +246,7 @@ export function ProjectEntryPage() {
     [profile?.role, activeTab],
   );
   const canEditHeaderFields = canEditProjectFields(profile?.role ?? "view", "am");
+  const canUseCnfCopy = canCopyCnfFromProject(profile?.role) && !viewOnly;
 
   const allCollapseKeys = useMemo(() => collectAllCollapseKeys(project), [project]);
 
@@ -254,9 +268,10 @@ export function ProjectEntryPage() {
         const existing = await getProjectById(projectIdParam);
         if (existing) {
           syncProjectCnfEntryCounts(existing);
-          baselineProjectRef.current = structuredClone(existing);
-          setProject(existing);
-          setSavedFgMonths(collectSavedFgMonths(existing));
+          const withLink = await attachCnfLinkToProject(existing);
+          baselineProjectRef.current = structuredClone(withLink);
+          setProject(withLink);
+          setSavedFgMonths(collectSavedFgMonths(withLink));
           setOpenKeys([]);
         }
       } else if (user?.id) {
@@ -340,6 +355,93 @@ export function ProjectEntryPage() {
       window.setTimeout(() => focusDuplicateField(target.fieldDomId), 120);
     });
     message.info(`Opened ${target.location} for review.`);
+  }
+
+  async function openCopyCnfModal() {
+    if (!canUseCnfCopy || project.project_id === "N/A") {
+      message.warning("Save this project before copying CNF entries from another project.");
+      return;
+    }
+    setCopyCnfModalOpen(true);
+    setCopyCnfModalLoading(true);
+    try {
+      const projects = await listEligibleMotherProjectSummaries(project.project_id);
+      setEligibleMotherProjects(projects);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Failed to load projects");
+      setCopyCnfModalOpen(false);
+    } finally {
+      setCopyCnfModalLoading(false);
+    }
+  }
+
+  async function handleCopyCnfFromMother(motherProjectId: string) {
+    if (!user?.email) return;
+    setCopyCnfActionLoading(true);
+    setError(null);
+    try {
+      const { project: linkedProject } = await copyAndLinkCnfFromMother(project, motherProjectId, user.email);
+      syncProjectCnfEntryCounts(linkedProject);
+      baselineProjectRef.current = structuredClone(linkedProject);
+      setProject(linkedProject);
+      setCopyCnfModalOpen(false);
+      message.success(`Copied CNF entries from ${motherProjectId} and linked as read-only.`);
+    } catch (err) {
+      const messageText = err instanceof Error ? err.message : "Failed to copy CNF entries";
+      setError(messageText);
+      message.error(messageText);
+    } finally {
+      setCopyCnfActionLoading(false);
+    }
+  }
+
+  function requestUnlinkCnf() {
+    if (!user?.email || !project.cnf_mother_link?.mother_project_id) return;
+    const motherId = project.cnf_mother_link.mother_project_id;
+    const childId = project.project_id;
+    modal.confirm({
+      title: "Unlink from Mother Project",
+      content: (
+        <div>
+          <p>Unlinking will make the copied CNF entries independent in this child project.</p>
+          <ul>
+            <li>Future updates from Mother Project {motherId} will no longer apply.</li>
+            <li>CNF entries will become editable in this project.</li>
+            <li>You must assign a new unique CNF number before saving.</li>
+            <li>The Mother Project CNF number cannot be reused after unlinking.</li>
+          </ul>
+        </div>
+      ),
+      okText: "Unlink",
+      cancelText: "Cancel",
+      onOk: async () => {
+        try {
+          const link = await unlinkChildFromMother(childId, user.email!);
+          setProject((current) => ({ ...current, cnf_mother_link: link }));
+          message.info("CNF entries are now independent. Assign new unique CNF number(s) before saving.");
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : "Failed to unlink from mother project");
+        }
+      },
+    });
+  }
+
+  function handleBlockedLinkedCnfEdit() {
+    const motherId = project.cnf_mother_link?.mother_project_id ?? "the mother project";
+    message.warning(
+      `Linked CNF entries are read-only and controlled by Mother Project ${motherId}. Edit them in the mother project.`,
+    );
+    const childId = project.project_id;
+    if (!user?.email || !project.cnf_mother_link?.mother_project_id || childId === "N/A") return;
+    void logBlockedLinkedCnfEdit(childId, project.cnf_mother_link.mother_project_id, user.email);
+  }
+
+  function handleBlockedLinkedCnfNumberChange() {
+    handleBlockedLinkedCnfEdit();
+    const childId = project.project_id;
+    const motherId = project.cnf_mother_link?.mother_project_id;
+    if (!user?.email || !motherId || childId === "N/A") return;
+    void logBlockedLinkedCnfNumberChange(childId, motherId, user.email);
   }
 
   async function confirmFgMonthAssignments() {
@@ -594,6 +696,20 @@ export function ProjectEntryPage() {
             }}
             onCopyFromFirstPo={copyFromFirstPo}
             savedFgMonths={savedFgMonths}
+            cnfMotherLink={project.cnf_mother_link}
+            canCopyCnfFromProject={canUseCnfCopy}
+            onRequestCopyCnf={() => void openCopyCnfModal()}
+            onRequestUnlinkCnf={requestUnlinkCnf}
+            onBlockedLinkedCnfEdit={handleBlockedLinkedCnfEdit}
+            onBlockedLinkedCnfNumberChange={handleBlockedLinkedCnfNumberChange}
+          />
+
+          <CopyCnfFromProjectModal
+            open={copyCnfModalOpen}
+            loading={copyCnfModalLoading || copyCnfActionLoading}
+            projects={eligibleMotherProjects}
+            onCancel={() => setCopyCnfModalOpen(false)}
+            onConfirm={(motherProjectId) => void handleCopyCnfFromMother(motherProjectId)}
           />
 
           {activeTab === "AM/BM/PL" ? (

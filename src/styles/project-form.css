@@ -386,6 +386,19 @@
   overflow: hidden;
 }
 
+.project-cnf-mother-banner {
+  padding: 8px 12px;
+  border: 1px solid var(--layer-border);
+  border-radius: 8px;
+  background: var(--layer-bg-subtle, rgba(0, 0, 0, 0.02));
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.project-cnf-mother-banner a {
+  font-weight: 600;
+}
+
 .project-form-actions {
   margin-top: 12px;
 }

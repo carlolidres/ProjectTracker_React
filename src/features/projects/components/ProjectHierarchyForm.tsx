@@ -1,5 +1,5 @@
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Collapse, Space } from "antd";
+import { CopyOutlined, DeleteOutlined, DisconnectOutlined, LinkOutlined, PlusOutlined } from "@ant-design/icons";
+import { Button, Collapse, Space, Tag, Tooltip, Typography } from "antd";
 import { ProjectFieldControl } from "@/features/projects/components/ProjectFieldControl";
 import {
   BATCH_FIELDS,
@@ -13,6 +13,7 @@ import {
   projectTabKey,
 } from "@/lib/projectFormFields";
 import { buildFieldDomId } from "@/lib/duplicateReview";
+import { isCnfMotherLinked, isCnfMotherUnlinked, motherProjectUrl } from "@/lib/cnfMotherLink";
 import { isFgMonthLocked } from "@/lib/fgMonthLock";
 import {
   clonePoForAdd,
@@ -21,7 +22,7 @@ import {
   isCanonicalPo,
   syncProjectCnfEntryCounts,
 } from "@/lib/projectHierarchy";
-import type { CnfEntry, PoControl, ProjectHierarchy } from "@/types";
+import type { CnfEntry, PoControl, ProjectCnfMotherLink, ProjectHierarchy } from "@/types";
 import { generateHierarchyId, valueOrNA } from "@/lib/utils";
 import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
 
@@ -86,6 +87,12 @@ interface ProjectHierarchyFormProps {
   onChange: (project: ProjectHierarchy) => void;
   onCopyFromFirstPo: (batchIndex: number, moIndex: number, poIndex: number) => void;
   savedFgMonths?: Record<string, string>;
+  cnfMotherLink?: ProjectCnfMotherLink;
+  canCopyCnfFromProject?: boolean;
+  onRequestCopyCnf?: () => void;
+  onRequestUnlinkCnf?: () => void;
+  onBlockedLinkedCnfEdit?: () => void;
+  onBlockedLinkedCnfNumberChange?: () => void;
 }
 
 function displayLabel(value: string, fallback: string) {
@@ -132,11 +139,20 @@ export function ProjectHierarchyForm({
   onChange,
   onCopyFromFirstPo,
   savedFgMonths = {},
+  cnfMotherLink,
+  canCopyCnfFromProject = false,
+  onRequestCopyCnf,
+  onRequestUnlinkCnf,
+  onBlockedLinkedCnfEdit,
+  onBlockedLinkedCnfNumberChange,
 }: ProjectHierarchyFormProps) {
   useDiagLifecycle("ProjectHierarchyForm");
   const isAmTab = activeTab === "AM/BM/PL";
   const poFields = PO_FIELDS_BY_TAB(activeTab);
+  const cnfLinked = isCnfMotherLinked(cnfMotherLink);
+  const cnfUnlinked = isCnfMotherUnlinked(cnfMotherLink);
   const canModifyHierarchy = canEdit && !viewOnly;
+  const canModifyCnf = canModifyHierarchy && !cnfLinked;
   const fieldLockProps = {
     readOnly: viewOnly,
     disabled: !canEdit && !viewOnly,
@@ -179,6 +195,14 @@ export function ProjectHierarchyForm({
     key: keyof CnfEntry,
     value: string,
   ) {
+    if (cnfLinked) {
+      if (key === "cnf_reference") {
+        onBlockedLinkedCnfNumberChange?.();
+      } else {
+        onBlockedLinkedCnfEdit?.();
+      }
+      return;
+    }
     updatePo(batchIndex, moIndex, poIndex, (po) => {
       const entries = po.cnf_entries?.length ? [...po.cnf_entries] : [emptyCnfEntry()];
       entries[cnfIndex] = { ...entries[cnfIndex], [key]: value };
@@ -294,24 +318,71 @@ export function ProjectHierarchyForm({
                   <div className="project-cnf-heading">
                     <h4>CNF Entries</h4>
                     {isCanonicalPo(batchIndex, moIndex, poIndex) ? (
-                      <Button
-                        size="small"
-                        icon={<PlusOutlined />}
-                        disabled={!canModifyHierarchy}
-                        onClick={() => {
-                          const next = structuredClone(project);
-                          const canonicalPo = next.batches[0].mo_controls[0].po_controls[0];
-                          const entries = [...(canonicalPo.cnf_entries ?? [emptyCnfEntry()])];
-                          entries.push(emptyCnfEntry());
-                          canonicalPo.cnf_entries = entries;
-                          syncProjectCnfEntryCounts(next);
-                          onChange(next);
-                        }}
-                      >
-                        CNF Entry
-                      </Button>
+                      <Space size={4}>
+                        {cnfLinked ? (
+                          <Tag color="blue">Linked to Mother Project</Tag>
+                        ) : null}
+                        {cnfUnlinked ? (
+                          <Tag color="gold">Unlinked — assign new unique CNF number(s)</Tag>
+                        ) : null}
+                        {canCopyCnfFromProject && !cnfLinked && !cnfMotherLink ? (
+                          <Tooltip title="Copy from another Project">
+                            <Button
+                              size="small"
+                              icon={<CopyOutlined />}
+                              disabled={!canModifyHierarchy}
+                              onClick={() => onRequestCopyCnf?.()}
+                            />
+                          </Tooltip>
+                        ) : null}
+                        {canCopyCnfFromProject && cnfLinked ? (
+                          <Tooltip title="Unlink from Mother Project">
+                            <Button
+                              size="small"
+                              icon={<DisconnectOutlined />}
+                              disabled={!canModifyHierarchy}
+                              onClick={() => onRequestUnlinkCnf?.()}
+                            />
+                          </Tooltip>
+                        ) : null}
+                        {canModifyCnf ? (
+                          <Button
+                            size="small"
+                            icon={<PlusOutlined />}
+                            disabled={!canModifyCnf}
+                            onClick={() => {
+                              const next = structuredClone(project);
+                              const canonicalPo = next.batches[0].mo_controls[0].po_controls[0];
+                              const entries = [...(canonicalPo.cnf_entries ?? [emptyCnfEntry()])];
+                              entries.push(emptyCnfEntry());
+                              canonicalPo.cnf_entries = entries;
+                              syncProjectCnfEntryCounts(next);
+                              onChange(next);
+                            }}
+                          >
+                            CNF Entry
+                          </Button>
+                        ) : null}
+                      </Space>
                     ) : null}
                   </div>
+                  {cnfMotherLink?.mother_project_id ? (
+                    <div className="project-cnf-mother-banner">
+                      <Typography.Text type="secondary">Mother Project: </Typography.Text>
+                      <a
+                        href={motherProjectUrl(cnfMotherLink.mother_project_id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {cnfMotherLink.mother_project_id}
+                      </a>
+                      {cnfLinked ? (
+                        <Typography.Text type="secondary"> — copied CNF entries are read-only while linked.</Typography.Text>
+                      ) : (
+                        <Typography.Text type="secondary"> — historical reference after unlinking.</Typography.Text>
+                      )}
+                    </div>
+                  ) : null}
                   {cnfEntries.map((entry, cnfIndex) => (
                     <Collapse
                       key={`${poKeyValue}-cnf-${cnfIndex}`}
@@ -326,12 +397,58 @@ export function ProjectHierarchyForm({
                           key: cnfKey(poKeyValue, cnfIndex),
                           label: `CNF Entry ${cnfIndex + 1}`,
                           extra:
-                            isCanonicalPo(batchIndex, moIndex, poIndex) && cnfEntries.length > 1 ? (
+                            isCanonicalPo(batchIndex, moIndex, poIndex) && cnfIndex === 0 ? (
+                              <Space size={4} onClick={(e) => e.stopPropagation()}>
+                                {canCopyCnfFromProject && !cnfLinked && !cnfMotherLink ? (
+                                  <Tooltip title="Copy from another Project">
+                                    <Button
+                                      size="small"
+                                      type="text"
+                                      icon={<LinkOutlined />}
+                                      disabled={!canModifyHierarchy}
+                                      onClick={() => onRequestCopyCnf?.()}
+                                    />
+                                  </Tooltip>
+                                ) : null}
+                                {canCopyCnfFromProject && cnfLinked ? (
+                                  <Tooltip title="Unlink from Mother Project">
+                                    <Button
+                                      size="small"
+                                      type="text"
+                                      icon={<DisconnectOutlined />}
+                                      disabled={!canModifyHierarchy}
+                                      onClick={() => onRequestUnlinkCnf?.()}
+                                    />
+                                  </Tooltip>
+                                ) : null}
+                                {canModifyCnf && cnfEntries.length > 1 ? (
+                                  <Button
+                                    size="small"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    disabled={!canModifyCnf}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const next = structuredClone(project);
+                                      const canonicalPo = next.batches[0].mo_controls[0].po_controls[0];
+                                      const entries = [...(canonicalPo.cnf_entries ?? [emptyCnfEntry()])];
+                                      if (entries.length <= 1) return;
+                                      entries.splice(cnfIndex, 1);
+                                      canonicalPo.cnf_entries = entries;
+                                      syncProjectCnfEntryCounts(next);
+                                      onChange(next);
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                ) : null}
+                              </Space>
+                            ) : isCanonicalPo(batchIndex, moIndex, poIndex) && canModifyCnf && cnfEntries.length > 1 ? (
                               <Button
                                 size="small"
                                 danger
                                 icon={<DeleteOutlined />}
-                                disabled={!canModifyHierarchy}
+                                disabled={!canModifyCnf}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   const next = structuredClone(project);
@@ -362,7 +479,8 @@ export function ProjectHierarchyForm({
                                     fieldKey: field.key,
                                   })}
                                   value={String(entry[field.key as keyof CnfEntry] ?? "")}
-                                  {...fieldLockProps}
+                                  readOnly={fieldLockProps.readOnly || cnfLinked}
+                                  disabled={fieldLockProps.disabled || cnfLinked}
                                   registry={registry}
                                   onChange={(value) =>
                                     updateCnfEntry(

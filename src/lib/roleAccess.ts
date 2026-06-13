@@ -41,6 +41,10 @@ export function isViewerRole(role: UserRole | undefined): boolean {
   return role === "view";
 }
 
+export function canCopyCnfFromProject(role: UserRole | undefined): boolean {
+  return role === "admin" || role === "am_bm_pl";
+}
+
 export function canEditProjectFields(role: UserRole, fieldGroup: "am" | "pp" | "tsd" | "val" | "qc"): boolean {
   if (role === "admin") return true;
   if (role === "view") return false;

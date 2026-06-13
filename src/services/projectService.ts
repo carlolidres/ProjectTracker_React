@@ -15,6 +15,12 @@ import {
   valueOrNA,
 } from "@/lib/utils";
 import { logAuditDiff, logAuditEntries } from "@/services/auditService";
+import {
+  enforceLinkedChildCnfOnSave,
+  getProjectCnfLink,
+  propagateMotherCnfToLinkedChildren,
+  validateChildProjectCnfSave,
+} from "@/services/cnfLinkService";
 import type {
   BatchControl,
   CnfEntry,
@@ -319,7 +325,14 @@ export async function saveProject(payload: ProjectHierarchy, userEmail: string) 
     valueOrNA(payload.project_id) === NA_VALUE
       ? await getNextProjectId()
       : payload.project_id.trim();
-  const lines = flattenProjectPayload({ ...payload, project_id: projectId }, projectId);
+  const link = await getProjectCnfLink(projectId);
+  let payloadToSave = { ...payload, project_id: projectId };
+  await validateChildProjectCnfSave(projectId, payloadToSave, link, userEmail);
+  if (link?.link_status === "linked") {
+    payloadToSave = await enforceLinkedChildCnfOnSave(projectId, payloadToSave, link, userEmail);
+  }
+
+  const lines = flattenProjectPayload(payloadToSave, projectId);
   if (!lines.length) throw new Error("At least one PO control line is required.");
 
   const now = new Date().toISOString();
@@ -354,7 +367,14 @@ export async function updateProject(
   const existingHierarchy = buildProjectHierarchy(existing);
   assertDateAdjustmentsConfirmed(existingHierarchy, payload, options);
 
-  const lines = flattenProjectPayload(payload, projectId);
+  const link = await getProjectCnfLink(projectId);
+  let payloadToSave = payload;
+  await validateChildProjectCnfSave(projectId, payloadToSave, link, userEmail);
+  if (link?.link_status === "linked") {
+    payloadToSave = await enforceLinkedChildCnfOnSave(projectId, payloadToSave, link, userEmail);
+  }
+
+  const lines = flattenProjectPayload(payloadToSave, projectId);
   if (!lines.length) throw new Error("At least one PO control line is required.");
 
   const now = new Date().toISOString();
@@ -389,6 +409,8 @@ export async function updateProject(
       await logAuditEntries("Projects", "DELETE", row.record_id, projectId, row as unknown as Record<string, unknown>, {}, "PO line removed", userEmail);
     }
   }
+
+  await propagateMotherCnfToLinkedChildren(projectId, payloadToSave, userEmail);
 
   return { project_id: projectId };
 }

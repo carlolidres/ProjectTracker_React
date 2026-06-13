@@ -68,6 +68,31 @@ export interface ProjectHierarchy {
   fg_code: string;
   product_name: string;
   batches: BatchControl[];
+  cnf_mother_link?: ProjectCnfMotherLink;
+}
+
+export type ProjectCnfLinkStatus = "linked" | "unlinked";
+
+export interface ProjectCnfMotherLink {
+  child_project_id: string;
+  mother_project_id: string;
+  link_status: ProjectCnfLinkStatus;
+  mother_cnf_references: string[];
+  copied_entry_count: number;
+  linked_at?: string;
+  linked_by?: string;
+  unlinked_at?: string;
+  unlinked_by?: string;
+}
+
+export interface ProjectSummaryForCnfCopy {
+  project_id: string;
+  project_owner: string;
+  client_name: string;
+  product_name: string;
+  fg_code: string;
+  activity_type: string;
+  final_status: string;
 }
 
 export interface ProjectRow {
