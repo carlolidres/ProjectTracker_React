@@ -21,7 +21,7 @@ const FIELD_LABELS: Record<string, string> = Object.fromEntries(
   PO_FIELDS.map((field) => [field.key, field.label]),
 );
 
-FIELD_LABELS.Target_Date = "Target Date";
+FIELD_LABELS.Target_Date = "Target Date to Execute";
 FIELD_LABELS.Planning_Schedule = "Planning Schedule";
 
 export interface DateFieldChange {

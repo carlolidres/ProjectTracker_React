@@ -16,12 +16,11 @@
   justify-content: space-between;
   gap: 12px;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: none;
   background: var(--surface);
   position: sticky;
   top: var(--topbar-height);
-  z-index: 12;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  z-index: 13;
 }
 
 .project-sticky-header-text {
@@ -232,6 +231,18 @@
   background: #f8fafb !important;
 }
 
+.project-field .ant-picker {
+  width: 100%;
+}
+
+.support-form-field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
 .project-tabs {
   display: flex;
   gap: 6px;
@@ -242,8 +253,10 @@
   background: var(--surface);
   overflow-x: auto;
   position: sticky;
-  top: calc(var(--topbar-height) + var(--project-sticky-header-height));
+  /* -1px overlaps header bottom so no background shows through between stuck bars */
+  top: calc(var(--topbar-height) + var(--project-sticky-header-height) - 1px);
   z-index: 12;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 .project-tab {
@@ -605,16 +618,17 @@
 
 html.meeting-view-nav-active .project-sticky-header {
   top: calc(var(--meeting-view-bar-height) + var(--meeting-view-bar-gap));
-  box-shadow: none;
   border-bottom: none;
 }
 
 html.meeting-view-nav-active .project-tabs {
-  top: calc(var(--meeting-view-bar-height) + var(--meeting-view-bar-gap) + var(--project-sticky-header-height));
+  top: calc(
+    var(--meeting-view-bar-height) + var(--meeting-view-bar-gap) + var(--project-sticky-header-height) - 1px
+  );
   margin-top: 0;
-  border-top: none;
+  border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  z-index: 11;
+  z-index: 12;
 }
 
 html.meeting-view-nav-active .project-header-section {

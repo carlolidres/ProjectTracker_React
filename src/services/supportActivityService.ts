@@ -1,4 +1,5 @@
 import { collectSupportDateChanges } from "@/lib/dateAdjustmentReview";
+import { normalizeStoredAppDate } from "@/lib/date";
 import { rowMatchesDueWindow, supportTargetDays } from "@/lib/fgUrgency";
 import { mapDbToSupport, mapSupportToDb } from "@/lib/mappers";
 import { getNextSupportActivityId, getNextSupportProjectId } from "@/lib/idGeneration";
@@ -87,8 +88,8 @@ export async function saveSupportActivity(
     Product_User: valueOrEmpty(payload.Product_User),
     Principal: valueOrEmpty(payload.Principal),
     Product: valueOrEmpty(payload.Product),
-    Target_Date: valueOrEmpty(payload.Target_Date),
-    Planning_Schedule: valueOrEmpty(payload.Planning_Schedule),
+    Target_Date: normalizeStoredAppDate(valueOrEmpty(payload.Target_Date)),
+    Planning_Schedule: normalizeStoredAppDate(valueOrEmpty(payload.Planning_Schedule)),
     created_by: existing?.created_by ?? userEmail,
     created_at: existing?.created_at ?? now,
     updated_by: userEmail,

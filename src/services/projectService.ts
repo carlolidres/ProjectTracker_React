@@ -1,6 +1,6 @@
 import { CNF_ENTRY_KEYS, NA_VALUE } from "@/lib/constants";
 import { collectProjectDateChanges } from "@/lib/dateAdjustmentReview";
-import { monthYearMatches } from "@/lib/date";
+import { monthYearMatches, normalizeStoredFgMonth } from "@/lib/date";
 import { projectRowFgDays, rowMatchesDueWindow } from "@/lib/fgUrgency";
 import { compareProjectPriority, hasMissingFieldsForGroup, type FocusGroup } from "@/lib/projectPriority";
 import { mapDbToProject, mapProjectToDb } from "@/lib/mappers";
@@ -199,7 +199,10 @@ function toDbRow(line: Record<string, unknown>, meta: { userEmail: string; now: 
     mo_control_no: normalizeProjectValue(line.mo_control_no),
     po_instance_id: normalizeProjectValue(line.po_instance_id ?? generateHierarchyId("PO")),
     po_control_no: normalizeProjectValue(line.po_control_no),
-    fg_month: normalizeProjectValue(line.fg_month),
+    fg_month: (() => {
+      const raw = normalizeProjectValue(line.fg_month);
+      return raw === NA_VALUE ? raw : normalizeStoredFgMonth(raw) || raw;
+    })(),
     business_unit: normalizeProjectValue(line.business_unit),
     updatedDocsVer: normalizeProjectValue(line.updatedDocsVer),
     order_quantity: normalizeProjectValue(line.order_quantity),

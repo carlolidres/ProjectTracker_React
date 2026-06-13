@@ -313,7 +313,7 @@ export function ProjectEntryPage() {
     const panel = node.closest(".project-panel") as HTMLElement | null;
     const syncStickyHeaderHeight = () => {
       if (!panel) return;
-      const height = node.offsetHeight;
+      const height = node.getBoundingClientRect().height;
       panel.style.setProperty("--project-sticky-header-height", `${height}px`);
     };
 

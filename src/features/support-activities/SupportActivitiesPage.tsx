@@ -2,6 +2,8 @@ import { ClearOutlined, DownloadOutlined, ReloadOutlined, SaveOutlined } from "@
 import { Alert, Button, Card, Col, Input, Row, Select, Space, Spin, Table, Typography, message } from "antd";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { AppDatePicker } from "@/components/common/app-date-picker";
+import { NaClearingInput } from "@/components/common/na-clearing-input";
 import { useAuth } from "@/app/auth-provider";
 import { useDateAdjustment } from "@/app/date-adjustment-provider";
 import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
@@ -202,32 +204,34 @@ export function SupportActivitiesPage() {
           </Col>
           {isTsd ? (
             <>
-              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Material" value={form.Material} onChange={(e) => setForm((f) => ({ ...f, Material: e.target.value }))} /></Col>
-              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Line" value={form.Line} onChange={(e) => setForm((f) => ({ ...f, Line: e.target.value }))} /></Col>
-              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Bulk" value={form.Bulk} onChange={(e) => setForm((f) => ({ ...f, Bulk: e.target.value }))} /></Col>
-              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Product User" value={form.Product_User} onChange={(e) => setForm((f) => ({ ...f, Product_User: e.target.value }))} /></Col>
+              <Col xs={24} md={6}><NaClearingInput placeholder="Material" value={form.Material ?? ""} readOnly={meetingViewReadOnly} onChange={(Material) => setForm((f) => ({ ...f, Material }))} /></Col>
+              <Col xs={24} md={6}><NaClearingInput placeholder="Line" value={form.Line ?? ""} readOnly={meetingViewReadOnly} onChange={(Line) => setForm((f) => ({ ...f, Line }))} /></Col>
+              <Col xs={24} md={6}><NaClearingInput placeholder="Bulk" value={form.Bulk ?? ""} readOnly={meetingViewReadOnly} onChange={(Bulk) => setForm((f) => ({ ...f, Bulk }))} /></Col>
+              <Col xs={24} md={6}><NaClearingInput placeholder="Product User" value={form.Product_User ?? ""} readOnly={meetingViewReadOnly} onChange={(Product_User) => setForm((f) => ({ ...f, Product_User }))} /></Col>
             </>
           ) : (
             <>
-              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Principal" value={form.Principal} onChange={(e) => setForm((f) => ({ ...f, Principal: e.target.value }))} /></Col>
-              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Product" value={form.Product} onChange={(e) => setForm((f) => ({ ...f, Product: e.target.value }))} /></Col>
-              <Col xs={24} md={6}><Input disabled={meetingViewReadOnly} placeholder="Line" value={form.Line} onChange={(e) => setForm((f) => ({ ...f, Line: e.target.value }))} /></Col>
+              <Col xs={24} md={6}><NaClearingInput placeholder="Principal" value={form.Principal ?? ""} readOnly={meetingViewReadOnly} onChange={(Principal) => setForm((f) => ({ ...f, Principal }))} /></Col>
+              <Col xs={24} md={6}><NaClearingInput placeholder="Product" value={form.Product ?? ""} readOnly={meetingViewReadOnly} onChange={(Product) => setForm((f) => ({ ...f, Product }))} /></Col>
+              <Col xs={24} md={6}><NaClearingInput placeholder="Line" value={form.Line ?? ""} readOnly={meetingViewReadOnly} onChange={(Line) => setForm((f) => ({ ...f, Line }))} /></Col>
             </>
           )}
           <Col xs={24} md={6}>
-            <Input
-              disabled={meetingViewReadOnly}
-              placeholder="Target Date"
-              value={form.Target_Date}
-              onChange={(e) => setForm((current) => ({ ...current, Target_Date: e.target.value }))}
+            <label className="support-form-field-label" htmlFor="support-target-date">Target Date to Execute</label>
+            <AppDatePicker
+              id="support-target-date"
+              value={form.Target_Date ?? ""}
+              readOnly={meetingViewReadOnly}
+              onChange={(Target_Date) => setForm((current) => ({ ...current, Target_Date }))}
             />
           </Col>
           <Col xs={24} md={6}>
-            <Input
-              disabled={meetingViewReadOnly}
-              placeholder="Planning Schedule"
-              value={form.Planning_Schedule}
-              onChange={(e) => setForm((current) => ({ ...current, Planning_Schedule: e.target.value }))}
+            <label className="support-form-field-label" htmlFor="support-planning-schedule">Planning Schedule</label>
+            <AppDatePicker
+              id="support-planning-schedule"
+              value={form.Planning_Schedule ?? ""}
+              readOnly={meetingViewReadOnly}
+              onChange={(Planning_Schedule) => setForm((current) => ({ ...current, Planning_Schedule }))}
             />
           </Col>
         </Row>
@@ -269,7 +273,7 @@ export function SupportActivitiesPage() {
               { title: "Project ID", dataIndex: "project_id" },
               { title: "Kind", dataIndex: "activity_kind" },
               { title: "Department", dataIndex: "Department" },
-              { title: "Target Date", dataIndex: "Target_Date", render: (v) => formatAppDate(v) },
+              { title: "Target Date to Execute", dataIndex: "Target_Date", render: (v) => formatAppDate(v) },
               { title: "Updated", dataIndex: "updated_at", render: (v) => formatAppDate(v) },
               {
                 title: "Actions",

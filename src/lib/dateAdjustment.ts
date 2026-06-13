@@ -8,7 +8,7 @@ export const TRACKED_PROJECT_DATE_FIELDS = new Set(
 );
 
 const SUPPORT_DATE_LABELS: Record<string, string> = {
-  Target_Date: "Target Date",
+  Target_Date: "Target Date to Execute",
   Planning_Schedule: "Planning Schedule",
 };
 
