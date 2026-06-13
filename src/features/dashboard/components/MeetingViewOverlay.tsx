@@ -95,7 +95,6 @@ export function MeetingViewOverlay({ onExit }: MeetingViewOverlayProps) {
       { label: "Within 7 Days", value: counts.within7, window: "within7", tone: "soon" as const },
       { label: "Within 15 Days", value: counts.within15, window: "within15", tone: "soon" as const },
       { label: "Within 30 Days", value: counts.within30, window: "within30", tone: "soon" as const },
-      { label: "More Than 30 Days", value: counts.beyond30, window: "beyond30", tone: "low" as const },
     ];
   }, [data]);
 

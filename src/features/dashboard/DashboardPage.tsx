@@ -199,7 +199,17 @@ export function DashboardPage() {
     ];
   }, [data]);
 
-  const dueDateCards = useMemo(() => {
+  const dueDateOverviewCards = useMemo(() => {
+    if (!data) return [];
+    const counts = data.dueDateCounts;
+    return [
+      { label: "Within 15 Days", value: counts.within15, window: "within15", tone: "soon" as const },
+      { label: "Within 30 Days", value: counts.within30, window: "within30", tone: "soon" as const },
+      { label: "More Than 30 Days", value: counts.beyond30, window: "beyond30", tone: "low" as const },
+    ];
+  }, [data]);
+
+  const fgMonthTaskCards = useMemo(() => {
     if (!data) return [];
     const counts = data.dueDateCounts;
     return [
@@ -207,9 +217,6 @@ export function DashboardPage() {
       { label: "Due Today", value: counts.today, window: "today", tone: "today" as const },
       { label: "Within 3 Days", value: counts.within3, window: "within3", tone: "soon" as const },
       { label: "Within 7 Days", value: counts.within7, window: "within7", tone: "soon" as const },
-      { label: "Within 15 Days", value: counts.within15, window: "within15", tone: "soon" as const },
-      { label: "Within 30 Days", value: counts.within30, window: "within30", tone: "soon" as const },
-      { label: "More Than 30 Days", value: counts.beyond30, window: "beyond30", tone: "low" as const },
     ];
   }, [data]);
 
@@ -336,7 +343,7 @@ export function DashboardPage() {
                 <div className="dashboard-panel-header">Due Date Overview</div>
                 <div className="dashboard-panel-body">
                   <div className="due-date-overview">
-                    {dueDateCards.map((metric) => (
+                    {dueDateOverviewCards.map((metric) => (
                       <button
                         type="button"
                         key={metric.window}
@@ -470,15 +477,7 @@ export function DashboardPage() {
                 <div className="dashboard-panel-header">FG Month Tasks</div>
                 <div className="dashboard-panel-body dashboard-fg-month-tasks-body">
                   <div className="due-date-overview compact dashboard-fg-month-tasks-list">
-                    <button
-                      type="button"
-                      className="due-date-action due-date-action--overdue"
-                      onClick={() => drillToDatabase({ final_status: "OPEN", due_window: "overdue" })}
-                    >
-                      <span>Currently Overdue</span>
-                      <strong className="danger-text">{data.dueDateCounts.overdue}</strong>
-                    </button>
-                    {dueDateCards.slice(1, 4).map((item) => (
+                    {fgMonthTaskCards.map((item) => (
                       <button
                         type="button"
                         key={item.window}
@@ -486,7 +485,9 @@ export function DashboardPage() {
                         onClick={() => drillToDatabase({ final_status: "OPEN", due_window: item.window })}
                       >
                         <span>{item.label}</span>
-                        <strong>{item.value}</strong>
+                        <strong className={item.tone === "overdue" ? "danger-text" : undefined}>
+                          {item.value}
+                        </strong>
                       </button>
                     ))}
                   </div>
