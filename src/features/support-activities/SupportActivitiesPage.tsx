@@ -1,4 +1,4 @@
-import { DownloadOutlined, PlusOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
+import { ClearOutlined, DownloadOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
 import { Alert, Button, Card, Col, Input, Row, Select, Space, Spin, Table, Typography, message } from "antd";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -194,7 +194,7 @@ export function SupportActivitiesPage() {
           </Col>
         </Row>
         {meetingViewReadOnly ? null : (
-          <Button icon={<PlusOutlined />} style={{ marginTop: 12 }} onClick={() => loadForm(emptyActivity())}>
+          <Button icon={<ClearOutlined />} style={{ marginTop: 12 }} onClick={() => loadForm(emptyActivity())}>
             Clear Form
           </Button>
         )}
