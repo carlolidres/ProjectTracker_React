@@ -70,7 +70,7 @@ export function flattenProjectPayload(payload: ProjectHierarchy, projectId: stri
     project_owner: payload.project_owner,
     activity_type: payload.activity_type,
     client_name: payload.client_name,
-    so_no: payload.so_no,
+    so_no: payload.batches[0]?.mo_controls[0]?.po_controls[0]?.so_no ?? payload.so_no,
     fg_code: payload.fg_code,
     product_name: payload.product_name,
   };
@@ -101,6 +101,7 @@ export function flattenProjectPayload(payload: ProjectHierarchy, projectId: stri
 function extractPoFields(row: ProjectRow): PoControl {
   const po: PoControl = {
     po_instance_id: row.po_instance_id,
+    so_no: row.so_no,
     po_control_no: row.po_control_no,
     fg_month: row.fg_month,
     business_unit: row.business_unit,

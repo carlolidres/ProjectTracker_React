@@ -45,7 +45,7 @@ export const MO_FIELDS: ProjectFieldDef[] = [
   { key: "mo_control_no", label: "MO Control No.", type: "alphanumeric", role: "AM/BM/PL", tooltip: "Manufacturing order control number (alphanumeric)." },
 ];
 
-export const PROJECT_LEVEL_PO_FIELDS = new Set(["so_no"]);
+export const PROJECT_LEVEL_PO_FIELDS = new Set<string>();
 
 export const PO_FIELDS: ProjectFieldDef[] = [
   { key: "so_no", label: "SO No.", type: "alphanumeric", role: "AM/BM/PL", tooltip: "Sales order number (alphanumeric)." },

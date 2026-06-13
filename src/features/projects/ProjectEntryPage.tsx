@@ -89,6 +89,7 @@ function emptyCnfEntry(): CnfEntry {
 
 function emptyPo(): PoControl {
   return {
+    so_no: "",
     po_control_no: "",
     fg_month: "",
     business_unit: "",

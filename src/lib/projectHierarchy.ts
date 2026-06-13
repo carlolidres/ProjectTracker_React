@@ -60,6 +60,7 @@ export function clonePoForAdd(referencePo: PoControl, cnfCount: number): PoContr
   const clone = structuredClone(referencePo);
   delete clone.record_id;
   clone.po_instance_id = generateHierarchyId("PO");
+  clone.so_no = "";
   clone.po_control_no = "";
   clone.fg_month = "";
   resizeCnfEntries(clone, cnfCount);

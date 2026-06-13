@@ -7,7 +7,6 @@ import {
   MO_FIELDS,
   PO_FIELDS_BY_TAB,
   PO_ORDER_QUANTITY_UOM_KEYS,
-  PROJECT_LEVEL_PO_FIELDS,
   type ProjectFieldDef,
   type ProjectTab,
   projectTabKey,
@@ -23,7 +22,7 @@ import {
   syncProjectCnfEntryCounts,
 } from "@/lib/projectHierarchy";
 import type { CnfEntry, PoControl, ProjectCnfMotherLink, ProjectHierarchy } from "@/types";
-import { generateHierarchyId, valueOrNA } from "@/lib/utils";
+import { generateHierarchyId, isMissingValue, valueOrNA } from "@/lib/utils";
 import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
 
 import {
@@ -170,19 +169,20 @@ export function ProjectHierarchyForm({
     onChange(next);
   }
 
-  function updateProjectSoNo(value: string) {
-    const next = structuredClone(project);
-    next.so_no = value;
-    onChange(next);
-  }
-
-  function shouldShowPoField(fieldKey: string) {
-    return !PROJECT_LEVEL_PO_FIELDS.has(fieldKey) || fieldKey === "so_no";
-  }
-
-  function poFieldDisplayValue(fieldKey: string, po: PoControl): string {
-    if (PROJECT_LEVEL_PO_FIELDS.has(fieldKey)) {
-      return String(project[fieldKey as keyof ProjectHierarchy] ?? "");
+  function poFieldDisplayValue(
+    fieldKey: string,
+    po: PoControl,
+    batchIndex: number,
+    moIndex: number,
+    poIndex: number,
+  ): string {
+    if (fieldKey === "so_no") {
+      const poValue = poFieldValue(po, fieldKey);
+      if (!isMissingValue(poValue)) return poValue;
+      if (isCanonicalPo(batchIndex, moIndex, poIndex)) {
+        return String(project.so_no ?? "");
+      }
+      return "";
     }
     return poFieldValue(po, fieldKey);
   }
@@ -264,7 +264,7 @@ export function ProjectHierarchyForm({
           ) : null,
           children: (
             <div className="project-form-grid project-po-form-grid">
-              {groupPoFieldsForRender(poFields.filter((field) => shouldShowPoField(field.key))).map(
+              {groupPoFieldsForRender(poFields).map(
                 (group) => {
                   const renderField = (field: ProjectFieldDef) => {
                     const fgMonthLocked =
@@ -282,18 +282,18 @@ export function ProjectHierarchyForm({
                         poIndex,
                         fieldKey: field.key,
                       })}
-                      value={poFieldDisplayValue(field.key, po)}
+                      value={poFieldDisplayValue(field.key, po, batchIndex, moIndex, poIndex)}
                       readOnly={fieldLockProps.readOnly || fgMonthLocked}
                       disabled={fieldLockProps.disabled}
                       registry={registry}
                       onChange={(value) => {
-                        if (field.key === "so_no") {
-                          updateProjectSoNo(value);
-                          return;
+                        const next = structuredClone(project);
+                        const target = next.batches[batchIndex].mo_controls[moIndex].po_controls[poIndex];
+                        setPoFieldValue(target, field.key, value);
+                        if (field.key === "so_no" && isCanonicalPo(batchIndex, moIndex, poIndex)) {
+                          next.so_no = value;
                         }
-                        updatePo(batchIndex, moIndex, poIndex, (target) => {
-                          setPoFieldValue(target, field.key, value);
-                        });
+                        onChange(next);
                       }}
                     />
                   );
@@ -595,6 +595,7 @@ export function ProjectHierarchyForm({
               const referencePo = next.batches[batchIndex].mo_controls[0]?.po_controls[0];
               const cnfCount = getCanonicalCnfEntryCount(next);
               const templatePo = referencePo ? clonePoForAdd(referencePo, cnfCount) : structuredClone({
+                so_no: "",
                 po_control_no: "",
                 fg_month: "",
                 business_unit: "",

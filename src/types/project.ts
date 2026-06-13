@@ -10,6 +10,7 @@ export interface CnfEntry {
 export interface PoControl {
   record_id?: string;
   po_instance_id?: string;
+  so_no: string;
   po_control_no: string;
   fg_month: string;
   business_unit: string;
