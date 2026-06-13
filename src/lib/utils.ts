@@ -62,3 +62,13 @@ export function isMissingValue(value: unknown): boolean {
   const normalized = valueOrNA(value);
   return normalized === "N/A" || normalized === "";
 }
+
+/** Capitalize the first letter of each word (e.g. "kenvue" → "Kenvue"). */
+export function toTitleCase(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed
+    .split(/\s+/)
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : word))
+    .join(" ");
+}

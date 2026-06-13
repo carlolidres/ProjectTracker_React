@@ -1,6 +1,6 @@
-import { ReloadOutlined, UndoOutlined } from "@ant-design/icons";
-import { Alert, App as AntApp, Button, Spin, Table, Tabs, Typography, message } from "antd";
-import { useCallback, useEffect, useState } from "react";
+import { ReloadOutlined, SearchOutlined, UndoOutlined } from "@ant-design/icons";
+import { Alert, App as AntApp, Button, Card, Input, Spin, Table, Tabs, Typography, message } from "antd";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/app/auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { formatAppDate } from "@/lib/date";
@@ -16,6 +16,7 @@ export function ArchivedPage() {
   const [loading, setLoading] = useState(true);
   const [restoringKey, setRestoringKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,6 +38,44 @@ export function ArchivedPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const filteredProjects = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return projects;
+    return projects.filter((row) => {
+      const blob = [
+        row.project_id,
+        row.client_name,
+        row.product_name,
+        row.po_control_no,
+        row.project_owner,
+        row.fg_code,
+        formatAppDate(row.updated_at),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return blob.includes(query);
+    });
+  }, [projects, search]);
+
+  const filteredSupport = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return support;
+    return support.filter((row) => {
+      const blob = [
+        row.project_id,
+        row.activity_id,
+        row.activity_kind,
+        row.Department,
+        row.Material,
+        row.Product,
+        formatAppDate(row.updated_at),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return blob.includes(query);
+    });
+  }, [support, search]);
 
   async function handleRestoreProject(record: ProjectRow) {
     const userEmail = user?.email;
@@ -93,6 +132,18 @@ export function ArchivedPage() {
 
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
 
+      {!loading ? (
+        <Card className="archived-search-card" style={{ marginBottom: 16 }}>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="Search archived records by project ID, client, product, PO, department, or activity"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </Card>
+      ) : null}
+
       {loading ? (
         <div className="page-loading"><Spin size="large" /></div>
       ) : (
@@ -100,11 +151,11 @@ export function ArchivedPage() {
           items={[
             {
               key: "projects",
-              label: `Projects (${projects.length})`,
+              label: `Projects (${filteredProjects.length})`,
               children: (
                 <Table
                   rowKey="record_id"
-                  dataSource={projects}
+                  dataSource={filteredProjects}
                   pagination={{ pageSize: 20 }}
                   columns={[
                     { title: "Project ID", dataIndex: "project_id" },
@@ -133,11 +184,11 @@ export function ArchivedPage() {
             },
             {
               key: "support",
-              label: `Support (${support.length})`,
+              label: `Support (${filteredSupport.length})`,
               children: (
                 <Table
                   rowKey="activity_id"
-                  dataSource={support}
+                  dataSource={filteredSupport}
                   pagination={{ pageSize: 20 }}
                   columns={[
                     { title: "Project ID", dataIndex: "project_id" },

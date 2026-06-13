@@ -10,7 +10,7 @@ import {
   sanitizeNumericDigits,
   sanitizeOrderQuantityInput,
 } from "@/lib/orderQuantity";
-import { cn, isMissingValue } from "@/lib/utils";
+import { cn, isMissingValue, toTitleCase } from "@/lib/utils";
 
 interface ProjectFieldControlProps {
   field: ProjectFieldDef;
@@ -59,6 +59,7 @@ export function ProjectFieldControl({
   const isViewOnly = readOnly && !disabled;
   const isNa = isMissingValue(value);
   const spanClass = field.span === 3 ? "project-field-span-3" : field.span === 2 ? "project-field-span-2" : "";
+  const capitalizeClass = field.capitalizeWords ? "project-field-capitalize" : "";
   const anchorId = domId;
   const fieldId = anchorId ? `${anchorId}-control` : `project-field-${field.key}`;
   const helpSuffix = field.tooltip ? <FieldHelpIcon title={field.tooltip} /> : undefined;
@@ -187,6 +188,7 @@ export function ProjectFieldControl({
         value={value}
         disabled={disabled && !isViewOnly}
         readOnly={isViewOnly}
+        normalizeOnBlur={field.capitalizeWords ? toTitleCase : undefined}
         onChange={onChange}
       />
     );
@@ -195,7 +197,7 @@ export function ProjectFieldControl({
   return (
     <div
       id={anchorId}
-      className={cn("project-field", spanClass, isViewOnly && "project-field-view-only")}
+      className={cn("project-field", spanClass, capitalizeClass, isViewOnly && "project-field-view-only")}
     >
       <label className="project-field-label" htmlFor={fieldId}>
         {field.label}

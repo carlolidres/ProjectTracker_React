@@ -58,7 +58,7 @@ import {
   getCanonicalCnfEntryCount,
   syncProjectCnfEntryCounts,
 } from "@/lib/projectHierarchy";
-import { isMissingValue } from "@/lib/utils";
+import { isMissingValue, toTitleCase } from "@/lib/utils";
 import { refreshAllNotifications } from "@/services/notificationService";
 import {
   attachCnfLinkToProject,
@@ -230,12 +230,20 @@ function applyProjectOwnerSavePolicy(
   isNew: boolean,
   baseline: ProjectHierarchy,
 ): ProjectHierarchy {
-  if (isAdminRole(profile?.role)) return project;
-  if (isNew) {
-    const firstName = getProfileFirstName(profile);
-    return firstName ? { ...project, project_owner: firstName } : project;
-  }
-  return { ...project, project_owner: baseline.project_owner };
+  const withOwner = (() => {
+    if (isAdminRole(profile?.role)) return project;
+    if (isNew) {
+      const firstName = getProfileFirstName(profile);
+      return firstName ? { ...project, project_owner: firstName } : project;
+    }
+    return { ...project, project_owner: baseline.project_owner };
+  })();
+
+  return {
+    ...withOwner,
+    client_name: toTitleCase(withOwner.client_name),
+    product_name: toTitleCase(withOwner.product_name),
+  };
 }
 
 export function ProjectEntryPage() {

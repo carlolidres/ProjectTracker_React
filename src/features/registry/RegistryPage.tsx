@@ -134,23 +134,43 @@ export function RegistryPage() {
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
 
       <Card title="Add Registry Value" style={{ marginBottom: 16 }}>
-        <Form form={form} layout="inline" onFinish={handleAdd}>
-          <Form.Item name="registry_type" rules={[{ required: true, message: "Select a registry type" }]}>
-            <Select
-              placeholder="Type"
-              style={{ width: 220 }}
-              options={REGISTRY_TYPES.map((key) => ({ label: key, value: key }))}
-            />
-          </Form.Item>
-          <Form.Item name="registry_value" rules={[{ required: true, message: "Enter a value" }]}>
-            <Input placeholder="Value" style={{ width: 220 }} />
-          </Form.Item>
-          <Form.Item name="description">
-            <Input placeholder="Description (optional)" style={{ width: 260 }} />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={saving}>Add</Button>
-          </Form.Item>
+        <Form form={form} layout="vertical" onFinish={handleAdd} className="registry-add-form">
+          <Row gutter={[12, 12]} align="bottom">
+            <Col xs={24} sm={12} lg={6}>
+              <Form.Item
+                name="registry_type"
+                label="Type"
+                rules={[{ required: true, message: "Select a registry type" }]}
+              >
+                <Select
+                  placeholder="Select type"
+                  style={{ width: "100%" }}
+                  options={REGISTRY_TYPES.map((key) => ({ label: key, value: key }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Form.Item
+                name="registry_value"
+                label="Value"
+                rules={[{ required: true, message: "Enter a value" }]}
+              >
+                <Input placeholder="Enter value" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Form.Item name="description" label="Description">
+                <Input placeholder="Description (optional)" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} lg={4}>
+              <Form.Item label=" ">
+                <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={saving} block>
+                  Add
+                </Button>
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Card>
 
