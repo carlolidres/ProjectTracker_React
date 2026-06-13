@@ -37,7 +37,7 @@ Update confirmation message to: *"This will clear all unsaved inputs."*
 ## Git Traceability
 
 - Commit message: `v43: clear project form reverts unsaved edits only`
-- Commit hash: *(pending)*
+- Commit hash: `fae7838`
 
 ---
 
