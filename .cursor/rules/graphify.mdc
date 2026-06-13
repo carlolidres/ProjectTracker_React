@@ -1,0 +1,32 @@
+---
+description: graphify knowledge graph context (token-efficient usage)
+alwaysApply: true
+---
+
+This project has a graphify knowledge graph at `graphify-out/`.
+
+## Token-efficient exploration (preferred)
+
+Use the lightest tool that answers the question:
+
+1. **Known symbol/file** → `Grep` once, then `Read` only the 30–80 lines needed to edit. Best for bug fixes, UI tweaks, and single-handler changes.
+2. **Unknown location or cross-file flow** → `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` before reading multiple files.
+3. **Broad architecture** → `graphify-out/GRAPH_REPORT.md` or `graphify query` with a narrow question — not full-file reads across the repo.
+
+Do **not** run graphify for trivial lookups (e.g. where a single function is defined). Do **not** read entire large files when a small slice suffices.
+
+## graphify commands (when needed)
+
+- `graphify query "<question>"` — scoped subgraph for architecture or dependency questions
+- `graphify path "<A>" "<B>"` — shortest path between two symbols
+- `graphify explain "<concept>"` — neighbors of a concept
+
+If `graphify-out/wiki/index.md` exists, prefer it over reading many raw files.
+
+## After code changes
+
+Run `graphify update . --force` after substantive code edits (AST-only, no API key). Optional for tiny one-line fixes.
+
+## Bootstrap
+
+If `graphify-out/graph.json` is missing: `graphify update . --force` from the project root.
