@@ -229,7 +229,6 @@ export function SupportActivitiesPage() {
             pagination={{ pageSize: 20 }}
             columns={[
               { title: "Project ID", dataIndex: "project_id" },
-              { title: "Activity ID", dataIndex: "activity_id" },
               { title: "Kind", dataIndex: "activity_kind" },
               { title: "Department", dataIndex: "Department" },
               { title: "Target Date", dataIndex: "Target_Date", render: (v) => formatAppDate(v) },

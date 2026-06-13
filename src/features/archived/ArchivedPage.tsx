@@ -141,7 +141,6 @@ export function ArchivedPage() {
                   pagination={{ pageSize: 20 }}
                   columns={[
                     { title: "Project ID", dataIndex: "project_id" },
-                    { title: "Activity ID", dataIndex: "activity_id" },
                     { title: "Kind", dataIndex: "activity_kind" },
                     { title: "Department", dataIndex: "Department" },
                     { title: "Archived", dataIndex: "updated_at", render: (v) => formatAppDate(v) },
