@@ -1,5 +1,5 @@
-import { KeyOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Popconfirm, Select, Space, Table, Tag, Typography, message } from "antd";
+import { KeyOutlined, ReloadOutlined, SaveOutlined, SearchOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Input, Popconfirm, Select, Space, Table, Tag, Typography, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/app/auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
@@ -36,6 +36,7 @@ export function AdminUsersPage() {
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
   const [pendingResetUserIds, setPendingResetUserIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const loadProfiles = useCallback(async () => {
     setLoading(true);
@@ -83,6 +84,33 @@ export function AdminUsersPage() {
   }
 
   const pendingResetCount = useMemo(() => pendingResetUserIds.size, [pendingResetUserIds]);
+
+  const filteredProfiles = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return profiles;
+    return profiles.filter((profile) => {
+      const draft = drafts[profile.id];
+      const blob = [
+        getProfileShortName(profile),
+        profile.email,
+        profile.full_name,
+        profile.first_name,
+        profile.last_name,
+        profile.role,
+        profile.requested_role,
+        ROLE_LABELS[profile.role],
+        profile.requested_role ? ROLE_LABELS[profile.requested_role] : "",
+        profile.status,
+        draft?.role,
+        draft?.status,
+        draft?.role ? ROLE_LABELS[draft.role] : "",
+        pendingResetUserIds.has(profile.id) ? "password reset requested" : "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return blob.includes(query);
+    });
+  }, [drafts, pendingResetUserIds, profiles, search]);
 
   async function handlePasswordReset(profile: Profile) {
     setResettingUserId(profile.id);
@@ -148,10 +176,22 @@ export function AdminUsersPage() {
         />
       ) : null}
 
+      {!loading ? (
+        <Card className="admin-users-search-card" style={{ marginBottom: 16 }}>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="Search users by name, email, role, or status"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </Card>
+      ) : null}
+
       <Card>
         <Table
           rowKey="id"
-          dataSource={profiles}
+          dataSource={filteredProfiles}
           loading={loading}
           pagination={{ pageSize: 20 }}
           columns={[
