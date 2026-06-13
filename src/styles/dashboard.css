@@ -111,6 +111,11 @@
 
 .dashboard-panel-notifications .dashboard-panel-body {
   padding: 10px 12px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .dashboard-notifications-body {
@@ -129,6 +134,8 @@
   max-height: none;
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
 }
 
 .dashboard-notifications-feed .ant-empty {
@@ -136,13 +143,13 @@
 }
 
 .dashboard-notifications-feed .notification-feed-item {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
   gap: 4px;
-  min-height: 0;
-  max-height: 100%;
+  min-height: 72px;
+  max-height: none;
   padding: 8px 10px;
   overflow: hidden;
 }
@@ -189,18 +196,38 @@
   overflow: hidden;
 }
 
+.dashboard-panel-due-soon .dashboard-panel-header {
+  flex-shrink: 0;
+  padding: 10px 14px 0;
+  font-size: 14px;
+}
+
 .dashboard-due-soon-body {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  padding: 10px 12px;
 }
 
 .dashboard-due-soon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   flex: 1;
   min-height: 0;
+  height: 100%;
   max-height: none;
+  overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+.dashboard-due-soon-list .urgent-record-action {
+  flex: 0 0 auto;
+  width: 100%;
 }
 
 .dashboard-due-soon-list .ant-empty {
@@ -1021,8 +1048,12 @@
 .urgent-record-list {
   display: grid;
   gap: 8px;
-  max-height: 280px;
-  overflow-y: auto;
+}
+
+.dashboard-due-soon-list.urgent-record-list {
+  display: flex;
+  flex-direction: column;
+  max-height: none;
 }
 
 .urgent-record-action {
@@ -1070,6 +1101,20 @@
   .dashboard-panel-due-soon,
   .dashboard-panel-fg-month-tasks {
     height: auto !important;
+    min-height: 0;
+  }
+
+  .dashboard-notifications-body,
+  .dashboard-due-soon-body {
+    min-height: min(220px, 30vh);
+    max-height: min(420px, 45vh);
+  }
+
+  .dashboard-notifications-feed,
+  .dashboard-due-soon-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .dashboard-notifications-feed .notification-feed-item {
@@ -1117,6 +1162,12 @@
 
   .dashboard-notifications-feed .notification-feed-item {
     min-height: 64px;
+  }
+
+  .dashboard-notifications-body,
+  .dashboard-due-soon-body {
+    min-height: min(200px, 28vh);
+    max-height: min(360px, 42vh);
   }
 }
 
