@@ -183,7 +183,9 @@ export function SupportActivitiesPage() {
       >
         <Row gutter={[12, 12]}>
           <Col xs={24} md={6}>
+            <label className="support-form-field-label" htmlFor="support-activity-kind">Activity Kind</label>
             <Select
+              id="support-activity-kind"
               style={{ width: "100%" }}
               disabled={meetingViewReadOnly}
               value={form.activity_kind as ActivityKind | undefined}
@@ -192,7 +194,9 @@ export function SupportActivitiesPage() {
             />
           </Col>
           <Col xs={24} md={6}>
+            <label className="support-form-field-label" htmlFor="support-department">Department</label>
             <Select
+              id="support-department"
               allowClear
               placeholder="Department"
               style={{ width: "100%" }}
@@ -204,16 +208,79 @@ export function SupportActivitiesPage() {
           </Col>
           {isTsd ? (
             <>
-              <Col xs={24} md={6}><NaClearingInput placeholder="Material" value={form.Material ?? ""} readOnly={meetingViewReadOnly} onChange={(Material) => setForm((f) => ({ ...f, Material }))} /></Col>
-              <Col xs={24} md={6}><NaClearingInput placeholder="Line" value={form.Line ?? ""} readOnly={meetingViewReadOnly} onChange={(Line) => setForm((f) => ({ ...f, Line }))} /></Col>
-              <Col xs={24} md={6}><NaClearingInput placeholder="Bulk" value={form.Bulk ?? ""} readOnly={meetingViewReadOnly} onChange={(Bulk) => setForm((f) => ({ ...f, Bulk }))} /></Col>
-              <Col xs={24} md={6}><NaClearingInput placeholder="Product User" value={form.Product_User ?? ""} readOnly={meetingViewReadOnly} onChange={(Product_User) => setForm((f) => ({ ...f, Product_User }))} /></Col>
+              <Col xs={24} md={6}>
+                <label className="support-form-field-label" htmlFor="support-material">Material</label>
+                <NaClearingInput
+                  id="support-material"
+                  placeholder="Material"
+                  value={form.Material ?? ""}
+                  readOnly={meetingViewReadOnly}
+                  onChange={(Material) => setForm((f) => ({ ...f, Material }))}
+                />
+              </Col>
+              <Col xs={24} md={6}>
+                <label className="support-form-field-label" htmlFor="support-line">Line</label>
+                <NaClearingInput
+                  id="support-line"
+                  placeholder="Line"
+                  value={form.Line ?? ""}
+                  readOnly={meetingViewReadOnly}
+                  onChange={(Line) => setForm((f) => ({ ...f, Line }))}
+                />
+              </Col>
+              <Col xs={24} md={6}>
+                <label className="support-form-field-label" htmlFor="support-bulk">Bulk</label>
+                <NaClearingInput
+                  id="support-bulk"
+                  placeholder="Bulk"
+                  value={form.Bulk ?? ""}
+                  readOnly={meetingViewReadOnly}
+                  onChange={(Bulk) => setForm((f) => ({ ...f, Bulk }))}
+                />
+              </Col>
+              <Col xs={24} md={6}>
+                <label className="support-form-field-label" htmlFor="support-product-user">Product User</label>
+                <NaClearingInput
+                  id="support-product-user"
+                  placeholder="Product User"
+                  value={form.Product_User ?? ""}
+                  readOnly={meetingViewReadOnly}
+                  onChange={(Product_User) => setForm((f) => ({ ...f, Product_User }))}
+                />
+              </Col>
             </>
           ) : (
             <>
-              <Col xs={24} md={6}><NaClearingInput placeholder="Principal" value={form.Principal ?? ""} readOnly={meetingViewReadOnly} onChange={(Principal) => setForm((f) => ({ ...f, Principal }))} /></Col>
-              <Col xs={24} md={6}><NaClearingInput placeholder="Product" value={form.Product ?? ""} readOnly={meetingViewReadOnly} onChange={(Product) => setForm((f) => ({ ...f, Product }))} /></Col>
-              <Col xs={24} md={6}><NaClearingInput placeholder="Line" value={form.Line ?? ""} readOnly={meetingViewReadOnly} onChange={(Line) => setForm((f) => ({ ...f, Line }))} /></Col>
+              <Col xs={24} md={6}>
+                <label className="support-form-field-label" htmlFor="support-principal">Principal</label>
+                <NaClearingInput
+                  id="support-principal"
+                  placeholder="Principal"
+                  value={form.Principal ?? ""}
+                  readOnly={meetingViewReadOnly}
+                  onChange={(Principal) => setForm((f) => ({ ...f, Principal }))}
+                />
+              </Col>
+              <Col xs={24} md={6}>
+                <label className="support-form-field-label" htmlFor="support-product">Product</label>
+                <NaClearingInput
+                  id="support-product"
+                  placeholder="Product"
+                  value={form.Product ?? ""}
+                  readOnly={meetingViewReadOnly}
+                  onChange={(Product) => setForm((f) => ({ ...f, Product }))}
+                />
+              </Col>
+              <Col xs={24} md={6}>
+                <label className="support-form-field-label" htmlFor="support-rnd-line">Line</label>
+                <NaClearingInput
+                  id="support-rnd-line"
+                  placeholder="Line"
+                  value={form.Line ?? ""}
+                  readOnly={meetingViewReadOnly}
+                  onChange={(Line) => setForm((f) => ({ ...f, Line }))}
+                />
+              </Col>
             </>
           )}
           <Col xs={24} md={6}>
