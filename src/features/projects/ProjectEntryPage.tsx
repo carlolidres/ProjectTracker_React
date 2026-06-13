@@ -541,12 +541,26 @@ export function ProjectEntryPage() {
     });
   }
 
+  function clearUnsavedChanges() {
+    const baseline = structuredClone(baselineProjectRef.current);
+    syncProjectCnfEntryCounts(baseline);
+    setProject(baseline);
+    setSavedFgMonths(collectSavedFgMonths(baseline));
+    setOpenKeys((current) => {
+      const valid = new Set(collectAllCollapseKeys(baseline));
+      return current.filter((key) => valid.has(key));
+    });
+    if (!projectIdParam && user?.id) {
+      saveProjectEntryDraft(user.id, { project: baseline, openKeys, activeTab });
+    }
+  }
+
   function handleClear() {
     modal.confirm({
       title: "Clear project form?",
-      content: "This will reset the current draft to a new empty project.",
+      content: "This will clear all unsaved inputs.",
       okText: "Clear",
-      onOk: () => void prepareNewProject(),
+      onOk: () => clearUnsavedChanges(),
     });
   }
 
