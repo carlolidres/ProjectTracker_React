@@ -127,3 +127,32 @@ export async function archiveSupportActivity(activityId: string, userEmail: stri
   if (error) throw error;
   await logAuditEntries("Support Activities", "DELETE", activityId, existing.project_id, existing as unknown as Record<string, unknown>, {}, "Support activity archived", userEmail);
 }
+
+export async function restoreSupportActivity(activityId: string, userEmail: string) {
+  const { data, error: fetchError } = await supabase
+    .from("support_activities")
+    .select("*")
+    .eq("activity_id", activityId)
+    .eq("is_active", false)
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+  if (!data) throw new Error(`Archived support activity ${activityId} not found.`);
+
+  const existing = mapRow(data);
+  const now = new Date().toISOString();
+  const updates = { is_active: true, updated_by: userEmail, updated_at: now };
+  const { error } = await supabase
+    .from("support_activities")
+    .update(updates)
+    .eq("activity_id", activityId);
+  if (error) throw error;
+  await logAuditDiff(
+    "Support Activities",
+    "UPDATE",
+    activityId,
+    existing.project_id,
+    existing as unknown as Record<string, unknown>,
+    { ...existing, ...updates } as unknown as Record<string, unknown>,
+    userEmail,
+  );
+}

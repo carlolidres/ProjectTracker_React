@@ -1,16 +1,20 @@
-import { ReloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Spin, Table, Tabs, Typography } from "antd";
+import { ReloadOutlined, UndoOutlined } from "@ant-design/icons";
+import { Alert, App as AntApp, Button, Spin, Table, Tabs, Typography, message } from "antd";
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/app/auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { formatAppDate } from "@/lib/date";
-import { listArchivedProjects } from "@/services/projectService";
-import { listArchivedSupportActivities } from "@/services/supportActivityService";
+import { listArchivedProjects, restoreProject } from "@/services/projectService";
+import { listArchivedSupportActivities, restoreSupportActivity } from "@/services/supportActivityService";
 import type { ProjectRow, SupportActivity } from "@/types";
 
 export function ArchivedPage() {
+  const { user } = useAuth();
+  const { modal } = AntApp.useApp();
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [support, setSupport] = useState<SupportActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [restoringKey, setRestoringKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -33,6 +37,50 @@ export function ArchivedPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function handleRestoreProject(record: ProjectRow) {
+    const userEmail = user?.email;
+    if (!userEmail) return;
+    modal.confirm({
+      title: "Restore project?",
+      content: `Restore all archived PO lines for ${record.project_id}?`,
+      okText: "Restore",
+      onOk: async () => {
+        setRestoringKey(record.project_id);
+        try {
+          await restoreProject(record.project_id, userEmail);
+          message.success(`Project ${record.project_id} restored`);
+          await load();
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : "Failed to restore project");
+        } finally {
+          setRestoringKey(null);
+        }
+      },
+    });
+  }
+
+  async function handleRestoreSupport(record: SupportActivity) {
+    const userEmail = user?.email;
+    if (!userEmail) return;
+    modal.confirm({
+      title: "Restore support activity?",
+      content: `Restore activity ${record.activity_id}?`,
+      okText: "Restore",
+      onOk: async () => {
+        setRestoringKey(record.activity_id);
+        try {
+          await restoreSupportActivity(record.activity_id, userEmail);
+          message.success(`Support activity ${record.activity_id} restored`);
+          await load();
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : "Failed to restore support activity");
+        } finally {
+          setRestoringKey(null);
+        }
+      },
+    });
+  }
 
   return (
     <AppShell>
@@ -64,6 +112,21 @@ export function ArchivedPage() {
                     { title: "Product", dataIndex: "product_name" },
                     { title: "PO", dataIndex: "po_control_no" },
                     { title: "Archived", dataIndex: "updated_at", render: (v) => formatAppDate(v) },
+                    {
+                      title: "Actions",
+                      fixed: "right",
+                      width: 120,
+                      render: (_: unknown, record: ProjectRow) => (
+                        <Button
+                          type="link"
+                          icon={<UndoOutlined />}
+                          loading={restoringKey === record.project_id}
+                          onClick={() => void handleRestoreProject(record)}
+                        >
+                          Restore
+                        </Button>
+                      ),
+                    },
                   ]}
                 />
               ),
@@ -82,6 +145,21 @@ export function ArchivedPage() {
                     { title: "Kind", dataIndex: "activity_kind" },
                     { title: "Department", dataIndex: "Department" },
                     { title: "Archived", dataIndex: "updated_at", render: (v) => formatAppDate(v) },
+                    {
+                      title: "Actions",
+                      fixed: "right",
+                      width: 120,
+                      render: (_: unknown, record: SupportActivity) => (
+                        <Button
+                          type="link"
+                          icon={<UndoOutlined />}
+                          loading={restoringKey === record.activity_id}
+                          onClick={() => void handleRestoreSupport(record)}
+                        >
+                          Restore
+                        </Button>
+                      ),
+                    },
                   ]}
                 />
               ),

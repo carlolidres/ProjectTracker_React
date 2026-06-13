@@ -412,6 +412,37 @@ export async function archiveProject(projectId: string, userEmail: string) {
   }
 }
 
+export async function restoreProject(projectId: string, userEmail: string) {
+  const { data, error: fetchError } = await supabase
+    .from("cnf_projects")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("is_active", false);
+  if (fetchError) throw fetchError;
+
+  const existing = (data ?? []).map(mapDbRow);
+  if (!existing.length) throw new Error(`No archived records found for project ${projectId}.`);
+
+  const now = new Date().toISOString();
+  for (const row of existing) {
+    const updates = { is_active: true, updated_by: userEmail, updated_at: now };
+    const { error } = await supabase
+      .from("cnf_projects")
+      .update(updates)
+      .eq("record_id", row.record_id);
+    if (error) throw error;
+    await logAuditDiff(
+      "Projects",
+      "UPDATE",
+      row.record_id,
+      projectId,
+      row as unknown as Record<string, unknown>,
+      { ...row, ...updates } as unknown as Record<string, unknown>,
+      userEmail,
+    );
+  }
+}
+
 export function findDuplicateProjects(rows: ProjectRow[], payload: ProjectHierarchy): ProjectRow[] {
   const client = valueOrNA(payload.client_name).toLowerCase();
   const product = valueOrNA(payload.product_name).toLowerCase();
