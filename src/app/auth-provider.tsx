@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fetchProfile } from "@/lib/auth";
 import { clearAppSessionState } from "@/lib/sessionCleanup";
+import { diagLog } from "@/lib/sessionDiagnostics";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/types";
 
@@ -9,7 +10,6 @@ interface AuthContextValue {
   user: User | null;
   profile: Profile | null;
   initializing: boolean;
-  sessionEpoch: number;
   refreshProfile: () => Promise<void>;
 }
 
@@ -24,72 +24,126 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [initializing, setInitializing] = useState(true);
-  const [sessionEpoch, setSessionEpoch] = useState(0);
   const lastUserIdRef = useRef<string | null>(null);
+  const bootstrappedRef = useRef(false);
+  const profileRef = useRef<Profile | null>(null);
+  profileRef.current = profile;
 
   const refreshProfile = async () => {
+    diagLog("auth", "refreshProfile()");
     const { data, error } = await supabase.auth.getUser();
     if (error) throw error;
 
     const currentUser = data.user ?? null;
     const nextUserId = currentUser?.id ?? null;
     if (lastUserIdRef.current && nextUserId && lastUserIdRef.current !== nextUserId) {
+      diagLog("auth", "refreshProfile detected user switch", {
+        from: lastUserIdRef.current,
+        to: nextUserId,
+      });
       clearAppSessionState();
-      setSessionEpoch((current) => current + 1);
     }
 
     lastUserIdRef.current = nextUserId;
     setUser(currentUser);
-    setProfile(await loadSessionProfile(currentUser));
+    applySetProfile(await loadSessionProfile(currentUser));
+  };
+
+  const applySetProfile = (next: Profile | null) => {
+    if (next === null) diagLog("auth-state", "setProfile(null)");
+    setProfile(next);
+  };
+
+  const applySetInitializing = (next: boolean) => {
+    if (next) diagLog("auth-state", "setInitializing(true)");
+    else diagLog("auth-state", "setInitializing(false)");
+    setInitializing(next);
   };
 
   useEffect(() => {
+    diagLog("lifecycle", "AuthProvider mounted");
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       const nextUser = session?.user ?? null;
       const nextUserId = nextUser?.id ?? null;
       const previousUserId = lastUserIdRef.current;
 
-      if (event === "SIGNED_OUT" || !nextUserId) {
+      diagLog("auth-event", event, {
+        nextUserId,
+        previousUserId,
+        bootstrapped: bootstrappedRef.current,
+      });
+
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        lastUserIdRef.current = nextUserId;
+        if (nextUser) setUser(nextUser);
+        return;
+      }
+
+      if (event === "SIGNED_OUT") {
+        diagLog("auth", "SIGNED_OUT → clearAppSessionState()");
+        bootstrappedRef.current = false;
         lastUserIdRef.current = null;
         clearAppSessionState();
         setUser(null);
-        setProfile(null);
-        setSessionEpoch((current) => current + 1);
-        setInitializing(false);
+        applySetProfile(null);
+        applySetInitializing(false);
         return;
       }
 
-      // Tab/window focus can refresh the JWT without changing the signed-in user.
-      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+      if (!nextUserId) {
+        if (!bootstrappedRef.current) {
+          setUser(null);
+          applySetProfile(null);
+          applySetInitializing(false);
+        }
+        return;
+      }
+
+      if (event === "INITIAL_SESSION") {
+        if (bootstrappedRef.current) {
+          diagLog("auth", "ignored duplicate INITIAL_SESSION");
+          return;
+        }
+        bootstrappedRef.current = true;
         lastUserIdRef.current = nextUserId;
         setUser(nextUser);
+        applySetInitializing(true);
+        void loadSessionProfile(nextUser)
+          .then(applySetProfile)
+          .finally(() => applySetInitializing(false));
         return;
       }
 
-      const userChanged = Boolean(previousUserId && previousUserId !== nextUserId);
-      if (event === "SIGNED_IN" || userChanged) {
-        clearAppSessionState();
-        setProfile(null);
-        setSessionEpoch((current) => current + 1);
+      if (event === "SIGNED_IN") {
+        const userChanged = Boolean(previousUserId && previousUserId !== nextUserId);
+        if (userChanged) {
+          diagLog("auth", "SIGNED_IN user changed → clearAppSessionState()");
+          clearAppSessionState();
+          applySetProfile(null);
+        }
+        lastUserIdRef.current = nextUserId;
+        setUser(nextUser);
+        if (!profileRef.current || userChanged || previousUserId === null) {
+          void loadSessionProfile(nextUser).then(applySetProfile);
+        }
+        applySetInitializing(false);
+        bootstrappedRef.current = true;
+        return;
       }
 
       lastUserIdRef.current = nextUserId;
       setUser(nextUser);
-
-      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || userChanged) {
-        setInitializing(true);
-        void loadSessionProfile(nextUser)
-          .then(setProfile)
-          .finally(() => setInitializing(false));
-      }
     });
 
-    return () => subscription.subscription.unsubscribe();
+    return () => {
+      diagLog("lifecycle", "AuthProvider unmounted");
+      subscription.subscription.unsubscribe();
+    };
   }, []);
 
   const value = useMemo(
-    () => ({ user, profile, initializing, sessionEpoch, refreshProfile }),
-    [user, profile, initializing, sessionEpoch],
+    () => ({ user, profile, initializing, refreshProfile }),
+    [user, profile, initializing],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

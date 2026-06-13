@@ -374,6 +374,18 @@ html, body, #root {
   min-height: 240px;
 }
 
+.page-loading--overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  min-height: 0;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.protected-route-session-pending {
+  position: relative;
+}
+
 .login-page {
   min-height: 100vh;
   display: flex;

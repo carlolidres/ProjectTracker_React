@@ -4,10 +4,12 @@ import {
   clearSupabaseAuthStorage,
   redirectToLoginForFreshSession,
 } from "@/lib/sessionCleanup";
+import { diagLog } from "@/lib/sessionDiagnostics";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile, UserRole } from "@/types";
 
 export async function endUserSession(): Promise<void> {
+  diagLog("session", "endUserSession()");
   clearAppSessionState();
   await supabase.auth.signOut({ scope: "global" }).catch(() => undefined);
   clearSupabaseAuthStorage();
@@ -47,6 +49,7 @@ export async function signUp(input: {
 }
 
 export async function signOut() {
+  diagLog("session", "signOut()");
   await endUserSession();
   redirectToLoginForFreshSession();
   return { error: null };

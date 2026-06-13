@@ -1,3 +1,6 @@
+import { clearAllFormDrafts } from "@/lib/formDraftStorage";
+import { diagLog } from "@/lib/sessionDiagnostics";
+
 const APP_SESSION_PREFIX = "project-tracker:";
 
 /**
@@ -6,7 +9,9 @@ const APP_SESSION_PREFIX = "project-tracker:";
 export function clearAppSessionState(): void {
   if (typeof window === "undefined") return;
 
+  diagLog("session", "clearAppSessionState()");
   sessionStorage.clear();
+  clearAllFormDrafts();
 
   const localKeys: string[] = [];
   for (let index = 0; index < localStorage.length; index += 1) {

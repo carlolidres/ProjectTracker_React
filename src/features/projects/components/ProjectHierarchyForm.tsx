@@ -23,6 +23,7 @@ import {
 } from "@/lib/projectHierarchy";
 import type { CnfEntry, PoControl, ProjectHierarchy } from "@/types";
 import { generateHierarchyId, valueOrNA } from "@/lib/utils";
+import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
 
 import {
   batchKey,
@@ -132,6 +133,7 @@ export function ProjectHierarchyForm({
   onCopyFromFirstPo,
   savedFgMonths = {},
 }: ProjectHierarchyFormProps) {
+  useDiagLifecycle("ProjectHierarchyForm");
   const isAmTab = activeTab === "AM/BM/PL";
   const poFields = PO_FIELDS_BY_TAB(activeTab);
   const canModifyHierarchy = canEdit && !viewOnly;

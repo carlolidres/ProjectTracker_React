@@ -1,30 +1,32 @@
-import { App as AntApp, Spin } from "antd";
-import { HashRouter } from "react-router-dom";
+import { App as AntApp } from "antd";
+import { HashRouter, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { AppRouter } from "@/app/router";
-import { AuthProvider, useAuth } from "@/app/auth-provider";
+import { AuthProvider } from "@/app/auth-provider";
 import { MeetingViewProvider } from "@/app/meeting-view-provider";
 import { DateAdjustmentProvider } from "@/app/date-adjustment-provider";
 import { RegistryProvider } from "@/app/registry-provider";
 import { ThemeProvider } from "@/app/theme-provider";
+import { diagLog, useDiagLifecycle, usePageVisibilityDiagnostics } from "@/lib/sessionDiagnostics";
+
+function RouteChangeLogger() {
+  const location = useLocation();
+  useEffect(() => {
+    diagLog("route", "navigation", { pathname: location.pathname, search: location.search });
+  }, [location.pathname, location.search]);
+  return null;
+}
 
 function SessionScopedRouter() {
-  const { user, initializing, sessionEpoch } = useAuth();
-  const sessionKey = `${user?.id ?? "anonymous"}:${sessionEpoch}`;
-
-  if (initializing) {
-    return (
-      <div className="page-loading">
-        <Spin size="large" aria-label="Loading session" />
-      </div>
-    );
-  }
+  useDiagLifecycle("SessionScopedRouter");
 
   return (
-    <HashRouter key={sessionKey}>
+    <HashRouter>
+      <RouteChangeLogger />
       <RegistryProvider>
         <DateAdjustmentProvider>
           <MeetingViewProvider>
-            <AppRouter key={sessionKey} />
+            <AppRouter />
           </MeetingViewProvider>
         </DateAdjustmentProvider>
       </RegistryProvider>
@@ -33,6 +35,8 @@ function SessionScopedRouter() {
 }
 
 export function App() {
+  useDiagLifecycle("App");
+  usePageVisibilityDiagnostics();
   return (
     <ThemeProvider>
       <AntApp>
@@ -43,4 +47,3 @@ export function App() {
     </ThemeProvider>
   );
 }
-

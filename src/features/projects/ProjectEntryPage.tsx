@@ -12,6 +12,13 @@ import type { HookAPI } from "antd/es/modal/useModal";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import {
+  clearProjectEntryDraft,
+  loadProjectEntryDraft,
+  saveProjectEntryDraft,
+  useFlushOnPageHide,
+} from "@/lib/formDraftStorage";
+import { diagLog, useDiagLifecycle } from "@/lib/sessionDiagnostics";
 import { useAuth } from "@/app/auth-provider";
 import { useDateAdjustment } from "@/app/date-adjustment-provider";
 import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
@@ -202,6 +209,7 @@ function emptyProject(): ProjectHierarchy {
 export function ProjectEntryPage() {
   const { modal } = App.useApp();
   const { user, profile } = useAuth();
+  useDiagLifecycle("ProjectEntryPage");
   const [searchParams] = useSearchParams();
   const projectIdParam = searchParams.get("projectId");
   const { registry } = useRegistry();
@@ -235,6 +243,7 @@ export function ProjectEntryPage() {
     setProject(next);
     setSavedFgMonths({});
     setOpenKeys([]);
+    if (user?.id) clearProjectEntryDraft(user.id);
   }
 
   const load = useCallback(async () => {
@@ -250,6 +259,22 @@ export function ProjectEntryPage() {
           setSavedFgMonths(collectSavedFgMonths(existing));
           setOpenKeys([]);
         }
+      } else if (user?.id) {
+        const draft = loadProjectEntryDraft(user.id);
+        if (draft) {
+          diagLog("form", "restored project entry draft from localStorage", {
+            openKeys: draft.openKeys.length,
+            activeTab: draft.activeTab,
+          });
+          syncProjectCnfEntryCounts(draft.project);
+          baselineProjectRef.current = structuredClone(draft.project);
+          setProject(draft.project);
+          setSavedFgMonths(collectSavedFgMonths(draft.project));
+          setOpenKeys(draft.openKeys);
+          setActiveTab(draft.activeTab);
+        } else {
+          await prepareNewProject();
+        }
       } else {
         await prepareNewProject();
       }
@@ -258,11 +283,26 @@ export function ProjectEntryPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectIdParam]);
+  }, [projectIdParam, user?.id]);
+
+  const persistProjectDraft = useCallback(() => {
+    if (projectIdParam || !user?.id || loading) return;
+    saveProjectEntryDraft(user.id, { project, openKeys, activeTab });
+  }, [project, openKeys, activeTab, projectIdParam, user?.id, loading]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (projectIdParam || !user?.id || loading) return;
+    const timer = window.setTimeout(() => {
+      persistProjectDraft();
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [persistProjectDraft, projectIdParam, user?.id, loading]);
+
+  useFlushOnPageHide(persistProjectDraft);
 
   useLayoutEffect(() => {
     if (loading) return;
@@ -374,6 +414,7 @@ export function ProjectEntryPage() {
         message.success("Project updated");
       }
       await refreshAllNotifications();
+      if (user?.id) clearProjectEntryDraft(user.id);
       await prepareNewProject();
       message.info("Form cleared for next entry");
     } catch (err) {

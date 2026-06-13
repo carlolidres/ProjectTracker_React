@@ -9,9 +9,16 @@ import { useRegistry } from "@/app/registry-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { ROLE_LABELS } from "@/lib/constants";
 import { collectSupportDateChanges } from "@/lib/dateAdjustmentReview";
+import {
+  clearSupportActivityDraft,
+  loadSupportActivityDraft,
+  saveSupportActivityDraft,
+  useFlushOnPageHide,
+} from "@/lib/formDraftStorage";
 import { DUE_WINDOW_FILTER_OPTIONS } from "@/lib/fgUrgency";
 import { formatAppDate } from "@/lib/date";
 import { canArchiveRecords } from "@/lib/roleAccess";
+import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
 import { exportSupportToExcel } from "@/services/exportService";
 import {
   archiveSupportActivity,
@@ -40,6 +47,7 @@ const emptyActivity = (): Partial<SupportActivity> => ({
 });
 
 export function SupportActivitiesPage() {
+  useDiagLifecycle("SupportActivitiesPage");
   const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const { registry } = useRegistry();
@@ -66,9 +74,33 @@ export function SupportActivitiesPage() {
     }
   }, []);
 
+  const persistSupportDraft = useCallback(() => {
+    if (!user?.id) return;
+    saveSupportActivityDraft(user.id, form);
+  }, [form, user?.id]);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const draft = loadSupportActivityDraft(user.id);
+    if (draft) {
+      baselineFormRef.current = structuredClone(draft);
+      setForm(draft);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const timer = window.setTimeout(() => {
+      persistSupportDraft();
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [persistSupportDraft, user?.id]);
+
+  useFlushOnPageHide(persistSupportDraft);
 
   useEffect(() => {
     const dueWindow = searchParams.get("due_window") ?? undefined;
@@ -85,6 +117,14 @@ export function SupportActivitiesPage() {
     const next = { ...record };
     baselineFormRef.current = structuredClone(next);
     setForm(next);
+    if (user?.id) saveSupportActivityDraft(user.id, next);
+  }
+
+  function clearForm() {
+    const cleared = emptyActivity();
+    baselineFormRef.current = cleared;
+    setForm(cleared);
+    if (user?.id) clearSupportActivityDraft(user.id);
   }
 
   async function handleSave() {
@@ -103,9 +143,7 @@ export function SupportActivitiesPage() {
 
       await saveSupportActivity(form, user.email, { dateAdjustmentsConfirmed: dateChanges.length > 0 });
       message.success("Support activity saved");
-      const cleared = emptyActivity();
-      baselineFormRef.current = cleared;
-      setForm(cleared);
+      clearForm();
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -194,7 +232,7 @@ export function SupportActivitiesPage() {
           </Col>
         </Row>
         {meetingViewReadOnly ? null : (
-          <Button icon={<ClearOutlined />} style={{ marginTop: 12 }} onClick={() => loadForm(emptyActivity())}>
+          <Button icon={<ClearOutlined />} style={{ marginTop: 12 }} onClick={() => clearForm()}>
             Clear Form
           </Button>
         )}
