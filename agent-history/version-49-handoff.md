@@ -51,7 +51,7 @@ When **Add Batch** is used inside the same project, the new batch's **SO No.** f
 ## Git Traceability
 
 - Commit message: `v49: stop copying SO No when adding batch`
-- Commit hash: _(pending)_
+- Commit hash: `f72ea87`
 
 ---
 
