@@ -30,6 +30,7 @@ export async function updateOwnProfile(input: {
   firstName: string;
   middleInitial: string;
   lastName: string;
+  department: string;
   avatarUrl?: string | null;
 }): Promise<Profile> {
   const { data, error } = await supabase.rpc("update_own_profile", {
@@ -37,6 +38,7 @@ export async function updateOwnProfile(input: {
     p_middle_initial: input.middleInitial,
     p_last_name: input.lastName,
     p_avatar_url: input.avatarUrl ?? null,
+    p_department: input.department,
   });
 
   if (error) throw error;

@@ -55,6 +55,33 @@ export async function signOut() {
   return { error: null };
 }
 
+export async function changeOwnPassword(input: {
+  email: string;
+  currentPassword: string;
+  newPassword: string;
+}): Promise<void> {
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: input.email,
+    password: input.currentPassword,
+  });
+
+  if (verifyError) {
+    const message = verifyError.message.toLowerCase();
+    if (message.includes("invalid login credentials") || message.includes("invalid")) {
+      throw new Error("Current password is incorrect.");
+    }
+    throw new Error(verifyError.message);
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: input.newPassword,
+  });
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+}
+
 export async function getCurrentUser() {
   const { data, error } = await supabase.auth.getUser();
   return { user: data.user, error };

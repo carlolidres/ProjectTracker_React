@@ -4,6 +4,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { signIn, signUp } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
+import { passwordRules } from "@/lib/passwordValidation";
 import { requestPasswordReset } from "@/services/passwordResetService";
 import type { UserRole } from "@/types";
 
@@ -108,7 +109,7 @@ export function LoginPage() {
           <Form.Item
             label="Password"
             name="password"
-            rules={[{ required: true }, { min: 8, message: "Use at least 8 characters." }]}
+            rules={passwordRules()}
           >
             <Input.Password autoComplete={isSigningUp ? "new-password" : "current-password"} />
           </Form.Item>

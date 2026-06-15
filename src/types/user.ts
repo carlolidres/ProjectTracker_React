@@ -16,6 +16,7 @@ export interface Profile {
   first_name: string | null;
   middle_initial: string | null;
   last_name: string | null;
+  department: string | null;
   avatar_url: string | null;
   role: UserRole;
   requested_role: UserRole | null;

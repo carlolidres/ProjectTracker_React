@@ -270,6 +270,21 @@ html, body, #root {
   margin-top: 8px;
 }
 
+.profile-settings-divider {
+  margin: 20px 0;
+}
+
+.profile-settings-password-section {
+  margin-bottom: 4px;
+}
+
+.profile-settings-section-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
 .topbar {
   height: var(--topbar-height);
   display: flex;
