@@ -43,6 +43,15 @@ export const PROJECT_SHEET_HEADERS = [
   "Val_Batch_Seq_No",
   "Val_Strategy",
   "Val_Strategy_remarks",
+  "val_interim_report_no",
+  "val_interim_report_status",
+  "val_interim_report_target_date",
+  "validation_report_no",
+  "validation_report_status",
+  "validation_report_target_date",
+  "endorsement_report_no",
+  "endorsement_report_status",
+  "endorsement_acceptance_target_date",
   "val_report_no",
   "Report_Sub_Status",
   "Report_target_Date",
@@ -118,6 +127,12 @@ export function rowHasData(row: Record<string, unknown>): boolean {
   });
 }
 
+function mapLegacyReportStatus(value: unknown): string {
+  const cleaned = cleanValue(value);
+  if (cleaned === "Client Approval") return "Routing";
+  return cleaned;
+}
+
 export function mapProjectRow(row: Record<string, unknown>) {
   const recordId = cleanValue(row["Record ID"] ?? row.record_id);
   const projectId = cleanValue(row.project_id);
@@ -164,9 +179,26 @@ export function mapProjectRow(row: Record<string, unknown>) {
     val_batch_seq_no: cleanValue(row.Val_Batch_Seq_No ?? row.val_batch_seq_no),
     val_strategy: cleanValue(row.Val_Strategy ?? row.val_strategy),
     val_strategy_remarks: cleanValue(row.Val_Strategy_remarks ?? row.val_strategy_remarks),
-    val_report_no: cleanValue(row.val_report_no),
-    report_sub_status: cleanValue(row.Report_Sub_Status ?? row.report_sub_status),
-    report_target_date: cleanValue(row.Report_target_Date ?? row.report_target_date),
+    val_interim_report_no: cleanValue(row.val_interim_report_no),
+    val_interim_report_status: cleanValue(row.val_interim_report_status),
+    val_interim_report_target_date: cleanValue(row.val_interim_report_target_date),
+    validation_report_no: cleanValue(row.validation_report_no ?? row.val_report_no),
+    validation_report_status: mapLegacyReportStatus(
+      row.validation_report_status ?? row.Report_Sub_Status ?? row.report_sub_status,
+    ),
+    validation_report_target_date: cleanValue(
+      row.validation_report_target_date ?? row.Report_target_Date ?? row.report_target_date,
+    ),
+    endorsement_report_no: cleanValue(row.endorsement_report_no),
+    endorsement_report_status: cleanValue(row.endorsement_report_status),
+    endorsement_acceptance_target_date: cleanValue(row.endorsement_acceptance_target_date),
+    val_report_no: cleanValue(row.validation_report_no ?? row.val_report_no),
+    report_sub_status: mapLegacyReportStatus(
+      row.validation_report_status ?? row.Report_Sub_Status ?? row.report_sub_status,
+    ),
+    report_target_date: cleanValue(
+      row.validation_report_target_date ?? row.Report_target_Date ?? row.report_target_date,
+    ),
     ar_availability_date: cleanValue(row.ar_availability_date),
     packaging_schedule: cleanValue(row.packaging_schedule),
     final_status: cleanValue(row.final_status),

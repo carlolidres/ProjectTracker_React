@@ -1,0 +1,226 @@
+.data-map-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: calc(100vh - 120px);
+  min-height: 520px;
+}
+
+.data-map-page-header {
+  margin-bottom: 0;
+}
+
+.data-map-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.data-map-search {
+  max-width: min(360px, 100%);
+  flex: 1 1 220px;
+}
+
+.data-map-stats {
+  white-space: nowrap;
+}
+
+.data-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.data-map-canvas-card,
+.data-map-review-card,
+.data-map-detail-card {
+  height: 100%;
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.data-map-canvas-card .ant-card-head,
+.data-map-review-card .ant-card-head,
+.data-map-detail-card .ant-card-head {
+  border-bottom-color: var(--border);
+}
+
+.data-map-canvas-card .ant-card-body {
+  height: calc(100% - 56px);
+  padding: 0;
+}
+
+.data-map-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  background:
+    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 55%),
+    var(--panel);
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+.schema-graph-background {
+  background-color: transparent !important;
+}
+
+[data-theme="dark"] .data-map-canvas {
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 60%),
+    #0a0d12;
+}
+
+[data-theme="light"] .data-map-canvas {
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 60%),
+    var(--elevated);
+}
+
+.schema-graph-node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.schema-graph-node-core {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid color-mix(in srgb, var(--text) 12%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.schema-graph-node:hover .schema-graph-node-core,
+.schema-graph-node-selected .schema-graph-node-core {
+  transform: scale(1.06);
+  border-color: color-mix(in srgb, var(--text) 28%, transparent);
+}
+
+.schema-graph-node-label {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  padding: 0 6px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  word-break: break-word;
+  max-width: 100%;
+  pointer-events: none;
+}
+
+.schema-graph-handle {
+  opacity: 0;
+  width: 6px !important;
+  height: 6px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.schema-graph-edge .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--primary) 45%, var(--muted));
+  stroke-opacity: 0.35;
+}
+
+.schema-graph-edge:hover .react-flow__edge-path {
+  stroke-opacity: 0.75;
+}
+
+.schema-graph-controls {
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  background: var(--surface) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.schema-graph-controls button {
+  background: var(--surface) !important;
+  border-bottom-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+.schema-graph-minimap {
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--panel) 88%, transparent) !important;
+}
+
+.data-map-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.data-map-review-card .ant-card-body,
+.data-map-detail-card .ant-card-body {
+  max-height: 280px;
+  overflow: auto;
+}
+
+.data-map-finding-detail {
+  margin: 4px 0 0 !important;
+  font-size: 12px;
+}
+
+.data-map-indexes {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@media (max-width: 1100px) {
+  .data-map-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .data-map-page {
+    height: auto;
+  }
+
+  .data-map-canvas {
+    min-height: 360px;
+  }
+
+  .data-map-review-card .ant-card-body,
+  .data-map-detail-card .ant-card-body {
+    max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .data-map-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .data-map-stats {
+    text-align: center;
+  }
+
+  .data-map-canvas {
+    min-height: 300px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .data-map-layout {
+    grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  }
+
+  .data-map-page {
+    height: calc(100vh - 100px);
+  }
+}

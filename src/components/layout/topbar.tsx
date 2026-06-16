@@ -35,6 +35,7 @@ export function Topbar({ sidebarState, onToggleSidebar, onOpenMobileSidebar }: T
       </Tooltip>
       <div className="topbar-title">
         <p className="topbar-title-main">Project Tracker</p>
+        <p className="topbar-title-sub">An End-to-End Project Monitoring System</p>
       </div>
       <div className="topbar-actions">
         <FeedbackChat />

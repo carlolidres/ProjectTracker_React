@@ -41,9 +41,18 @@
 | Val_Batch_Seq_No | val_batch_seq_no |
 | Val_Strategy | val_strategy |
 | Val_Strategy_remarks | val_strategy_remarks |
-| val_report_no | val_report_no |
-| Report_Sub_Status | report_sub_status |
-| Report_target_Date | report_target_date |
+| val_interim_report_no | val_interim_report_no |
+| val_interim_report_status | val_interim_report_status |
+| val_interim_report_target_date | val_interim_report_target_date |
+| validation_report_no | validation_report_no |
+| validation_report_status | validation_report_status |
+| validation_report_target_date | validation_report_target_date |
+| endorsement_report_no | endorsement_report_no |
+| endorsement_report_status | endorsement_report_status |
+| endorsement_acceptance_target_date | endorsement_acceptance_target_date |
+| val_report_no (legacy) | val_report_no |
+| Report_Sub_Status (legacy) | report_sub_status |
+| Report_target_Date (legacy) | report_target_date |
 | ar_availability_date | ar_availability_date |
 | packaging_schedule | packaging_schedule |
 | final_status | final_status |

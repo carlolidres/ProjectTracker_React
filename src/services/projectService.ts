@@ -4,6 +4,7 @@ import { monthYearMatches, normalizeStoredFgMonth } from "@/lib/date";
 import { projectRowFgDays, rowMatchesDueWindow } from "@/lib/fgUrgency";
 import { compareProjectPriority, hasMissingFieldsForGroup, type FocusGroup } from "@/lib/projectPriority";
 import { mapDbToProject, mapProjectToDb } from "@/lib/mappers";
+import { findDuplicateSoNumbers } from "@/lib/soNoValidation";
 import { getNextProjectId } from "@/lib/idGeneration";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -128,9 +129,15 @@ function extractPoFields(row: ProjectRow): PoControl {
     Val_Batch_Seq_No: row.Val_Batch_Seq_No,
     Val_Strategy: row.Val_Strategy,
     Val_Strategy_remarks: row.Val_Strategy_remarks,
-    val_report_no: row.val_report_no,
-    Report_Sub_Status: row.Report_Sub_Status,
-    Report_target_Date: row.Report_target_Date,
+    val_interim_report_no: row.val_interim_report_no,
+    val_interim_report_status: row.val_interim_report_status,
+    val_interim_report_target_date: row.val_interim_report_target_date,
+    validation_report_no: row.validation_report_no,
+    validation_report_status: row.validation_report_status,
+    validation_report_target_date: row.validation_report_target_date,
+    endorsement_report_no: row.endorsement_report_no,
+    endorsement_report_status: row.endorsement_report_status,
+    endorsement_acceptance_target_date: row.endorsement_acceptance_target_date,
     ar_availability_date: row.ar_availability_date,
     packaging_schedule: row.packaging_schedule,
     final_status: row.final_status,
@@ -153,6 +160,9 @@ export function buildProjectHierarchy(rows: ProjectRow[]): ProjectHierarchy | nu
     so_no: head.so_no,
     fg_code: head.fg_code,
     product_name: head.product_name,
+    validation_report_no: head.validation_report_no,
+    validation_report_status: head.validation_report_status,
+    validation_report_target_date: head.validation_report_target_date,
     batches: [],
   };
 
@@ -181,6 +191,13 @@ export function buildProjectHierarchy(rows: ProjectRow[]): ProjectHierarchy | nu
       batchMap[batchKey].mo_controls.push(moMaps[batchKey][moKey]);
     }
     moMaps[batchKey][moKey].po_controls.push(extractPoFields(row));
+  }
+
+  const canonicalPo = project.batches[0]?.mo_controls[0]?.po_controls[0];
+  if (canonicalPo) {
+    project.validation_report_no = canonicalPo.validation_report_no;
+    project.validation_report_status = canonicalPo.validation_report_status;
+    project.validation_report_target_date = canonicalPo.validation_report_target_date;
   }
 
   return project;
@@ -235,9 +252,18 @@ function toDbRow(line: Record<string, unknown>, meta: { userEmail: string; now: 
     Val_Batch_Seq_No: normalizeProjectValue(line.Val_Batch_Seq_No),
     Val_Strategy: normalizeProjectValue(line.Val_Strategy),
     Val_Strategy_remarks: normalizeProjectValue(line.Val_Strategy_remarks),
-    val_report_no: normalizeProjectValue(line.val_report_no),
-    Report_Sub_Status: normalizeProjectValue(line.Report_Sub_Status),
-    Report_target_Date: normalizeProjectValue(line.Report_target_Date),
+    val_interim_report_no: normalizeProjectValue(line.val_interim_report_no),
+    val_interim_report_status: normalizeProjectValue(line.val_interim_report_status),
+    val_interim_report_target_date: normalizeProjectValue(line.val_interim_report_target_date),
+    validation_report_no: normalizeProjectValue(line.validation_report_no),
+    validation_report_status: normalizeProjectValue(line.validation_report_status),
+    validation_report_target_date: normalizeProjectValue(line.validation_report_target_date),
+    endorsement_report_no: normalizeProjectValue(line.endorsement_report_no),
+    endorsement_report_status: normalizeProjectValue(line.endorsement_report_status),
+    endorsement_acceptance_target_date: normalizeProjectValue(line.endorsement_acceptance_target_date),
+    val_report_no: normalizeProjectValue(line.validation_report_no),
+    report_sub_status: normalizeProjectValue(line.validation_report_status),
+    report_target_date: normalizeProjectValue(line.validation_report_target_date),
     ar_availability_date: normalizeProjectValue(line.ar_availability_date),
     packaging_schedule: normalizeProjectValue(line.packaging_schedule),
     final_status: normalizeProjectValue(line.final_status),
@@ -333,6 +359,11 @@ export async function saveProject(payload: ProjectHierarchy, userEmail: string) 
     payloadToSave = await enforceLinkedChildCnfOnSave(projectId, payloadToSave, link, userEmail);
   }
 
+  const duplicateSoNumbers = await findDuplicateSoNumbers(payloadToSave);
+  if (duplicateSoNumbers.length) {
+    throw new Error(`SO No. already exists on another active project: ${duplicateSoNumbers.join(", ")}`);
+  }
+
   const lines = flattenProjectPayload(payloadToSave, projectId);
   if (!lines.length) throw new Error("At least one PO control line is required.");
 
@@ -373,6 +404,11 @@ export async function updateProject(
   await validateChildProjectCnfSave(projectId, payloadToSave, link, userEmail);
   if (link?.link_status === "linked") {
     payloadToSave = await enforceLinkedChildCnfOnSave(projectId, payloadToSave, link, userEmail);
+  }
+
+  const duplicateSoNumbers = await findDuplicateSoNumbers(payloadToSave, projectId);
+  if (duplicateSoNumbers.length) {
+    throw new Error(`SO No. already exists on another active project: ${duplicateSoNumbers.join(", ")}`);
   }
 
   const lines = flattenProjectPayload(payloadToSave, projectId);

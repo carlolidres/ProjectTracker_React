@@ -6,7 +6,7 @@ import {
   PlusOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
-import { Alert, App, Button, Spin, Tooltip, Typography, message } from "antd";
+import { Alert, App, Button, Input, Spin, Tooltip, Typography, message } from "antd";
 import type { ButtonProps } from "antd";
 import type { HookAPI } from "antd/es/modal/useModal";
 import type { ReactNode } from "react";
@@ -24,6 +24,7 @@ import { useDateAdjustment } from "@/app/date-adjustment-provider";
 import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
 import { useRegistry } from "@/app/registry-provider";
 import { AppShell } from "@/components/layout/app-shell";
+import { FieldHelpIcon } from "@/components/common/field-help-icon";
 import { ProjectFieldControl } from "@/features/projects/components/ProjectFieldControl";
 import { CopyCnfFromProjectModal } from "@/features/projects/components/CopyCnfFromProjectModal";
 import {
@@ -52,13 +53,16 @@ import {
 import { ROLE_LABELS } from "@/lib/constants";
 import { collectProjectDateChanges } from "@/lib/dateAdjustmentReview";
 import { canArchiveRecords, canCopyCnfFromProject, canEditProjectFields, isAdminRole, isViewerRole } from "@/lib/roleAccess";
+import { projectBmrLockStatusLabel } from "@/lib/bmrLock";
 import { getProfileFirstName } from "@/lib/profileName";
 import {
   cloneBatchDefaults,
+  copyPoFieldsFromFirstPo,
   getCanonicalCnfEntryCount,
   syncProjectCnfEntryCounts,
 } from "@/lib/projectHierarchy";
 import { isMissingValue, toTitleCase } from "@/lib/utils";
+import { emitLogicViolation, isLogicViolationError } from "@/lib/logicViolationEvents";
 import { refreshAllNotifications } from "@/services/notificationService";
 import {
   attachCnfLinkToProject,
@@ -117,9 +121,15 @@ function emptyPo(): PoControl {
     Val_Batch_Seq_No: "",
     Val_Strategy: "",
     Val_Strategy_remarks: "",
-    val_report_no: "",
-    Report_Sub_Status: "",
-    Report_target_Date: "",
+    val_interim_report_no: "",
+    val_interim_report_status: "",
+    val_interim_report_target_date: "",
+    validation_report_no: "",
+    validation_report_status: "",
+    validation_report_target_date: "",
+    endorsement_report_no: "",
+    endorsement_report_status: "",
+    endorsement_acceptance_target_date: "",
     ar_availability_date: "",
     packaging_schedule: "",
     final_status: "OPEN",
@@ -213,6 +223,9 @@ function emptyProject(): ProjectHierarchy {
     so_no: "",
     fg_code: "",
     product_name: "",
+    validation_report_no: "",
+    validation_report_status: "",
+    validation_report_target_date: "",
     batches: [emptyBatch()],
   };
 }
@@ -282,6 +295,9 @@ export function ProjectEntryPage() {
   const canEditProjectOwner = isAdminRole(profile?.role) && canEditHeaderFields && !viewOnly;
 
   const allCollapseKeys = useMemo(() => collectAllCollapseKeys(project), [project]);
+  const bmrLockStatus = useMemo(() => projectBmrLockStatusLabel(project), [project]);
+  const bmrLockTooltip =
+    "BMR for the next commercial batch remains locked until the Endorsement Report Status is Approved or Not Applicable.";
 
   async function prepareNewProject() {
     const nextId = await getNextProjectId();
@@ -563,7 +579,11 @@ export function ProjectEntryPage() {
       await prepareNewProject();
       message.info("Form cleared for next entry");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save project");
+      const errorMessage = err instanceof Error ? err.message : "Failed to save project";
+      if (isLogicViolationError(errorMessage)) {
+        emitLogicViolation({ message: errorMessage, projectId: project.project_id });
+      }
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -608,26 +628,13 @@ export function ProjectEntryPage() {
   }
 
   function copyFromFirstPo(batchIndex: number, moIndex: number, poIndex: number) {
-    const firstPo = project.batches[0]?.mo_controls[0]?.po_controls[0];
-    if (!firstPo || (batchIndex === 0 && moIndex === 0 && poIndex === 0)) return;
+    if (poIndex === 0) return;
     setProject((current) => {
       const next = structuredClone(current);
-      const target = next.batches[batchIndex].mo_controls[moIndex].po_controls[poIndex];
-      target.cnf_reference = firstPo.cnf_reference;
-      target.protocol_no = firstPo.protocol_no;
-      target.protocol_Status = firstPo.protocol_Status;
-      target.protocol_target_date = firstPo.protocol_target_date;
-      target.Val_Strategy = firstPo.Val_Strategy;
-      if (firstPo.cnf_entries?.length) {
-        target.cnf_entries = structuredClone(firstPo.cnf_entries);
-        const firstCnf = firstPo.cnf_entries[0];
-        target.cnf_reference = firstCnf.cnf_reference;
-        target.qrmr_ref_no = firstCnf.qrmr_ref_no;
-        target.change_description = firstCnf.change_description;
-        target.cnf_status = firstCnf.cnf_status;
-        target.client_approval_target_date = firstCnf.client_approval_target_date;
-        target.remarks = firstCnf.remarks;
-      }
+      const source = next.batches[batchIndex]?.mo_controls[moIndex]?.po_controls[0];
+      const target = next.batches[batchIndex]?.mo_controls[moIndex]?.po_controls[poIndex];
+      if (!source || !target) return current;
+      copyPoFieldsFromFirstPo(target, source);
       return next;
     });
     message.info("Copied fields from first PO");
@@ -739,6 +746,19 @@ export function ProjectEntryPage() {
                     onChange={(value) => updateProjectHead(field.key as keyof ProjectHierarchy, value)}
                   />
                 );
+              }).flatMap((control, index) => {
+                const field = HEADER_FIELDS[index];
+                if (field?.key !== "fg_code") return [control];
+                return [
+                  control,
+                  <div key="bmr-lock-status" className="project-field project-field-bmr-lock">
+                    <label className="project-field-label" htmlFor="project-bmr-lock-status">
+                      <FieldHelpIcon title={bmrLockTooltip} />
+                      <span className="project-field-label-text">BMR Lock Status</span>
+                    </label>
+                    <Input id="project-bmr-lock-status" value={bmrLockStatus} readOnly disabled />
+                  </div>,
+                ];
               })}
             </div>
           </div>

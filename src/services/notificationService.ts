@@ -1,3 +1,4 @@
+import { buildLogicViolationNotifications } from "@/lib/logicViolations";
 import { supabase } from "@/lib/supabaseClient";
 import { fgSortValue, projectRowFgDays } from "@/lib/fgUrgency";
 import { getFocusGroup } from "@/lib/projectPriority";
@@ -6,10 +7,12 @@ import { listActiveProjects } from "@/services/projectService";
 import type { Notification, ProjectRow } from "@/types";
 
 const SEVERITY_ORDER: Record<string, number> = {
+  logic: -1,
   critical: 0,
   high: 1,
   medium: 2,
   low: 3,
+  info: 4,
 };
 
 function urgencySeverity(days: number): { severity: string; title: string; message: string } | null {
@@ -130,11 +133,22 @@ function buildNotificationsForRow(row: ProjectRow): Array<Omit<Notification, "cr
   return notifications;
 }
 
+function buildAllNotifications(rows: ProjectRow[]) {
+  const logic = buildLogicViolationNotifications(rows);
+  const urgency = rows.flatMap(buildNotificationsForRow);
+  return sortNotifications([
+    ...logic.map((n) => ({ ...n, fgSort: -1 })),
+    ...urgency,
+  ]);
+}
+
 export async function refreshAllNotifications(): Promise<void> {
   const rows = await listActiveProjects();
   await supabase.from("notifications").delete().neq("notification_id", "");
 
-  const notifications = sortNotifications(rows.flatMap(buildNotificationsForRow));
+  const notifications = buildAllNotifications(rows).filter(
+    (n) => n.kind !== "logic_violation_critical" && n.kind !== "logic_violation_info",
+  );
 
   if (notifications.length) {
     const withTimestamps = notifications.map((n) => ({ ...n, created_at: new Date().toISOString() }));
@@ -145,7 +159,7 @@ export async function refreshAllNotifications(): Promise<void> {
 
 export async function listNotifications(): Promise<Notification[]> {
   const rows = await listActiveProjects();
-  const notifications = sortNotifications(rows.flatMap(buildNotificationsForRow));
+  const notifications = buildAllNotifications(rows);
   return notifications.map((n, index) => ({
     ...n,
     created_at: new Date(Date.now() - index * 1000).toISOString(),
@@ -154,5 +168,5 @@ export async function listNotifications(): Promise<Notification[]> {
 
 export async function getNotificationCount(): Promise<number> {
   const rows = await listActiveProjects();
-  return rows.flatMap(buildNotificationsForRow).length;
+  return buildAllNotifications(rows).length;
 }

@@ -22,6 +22,7 @@ export interface Notification {
   message: string;
   status: string;
   created_at: string;
+  kind?: "logic_violation_critical" | "logic_violation_info" | "urgency";
 }
 
 export interface RegistryEntry {

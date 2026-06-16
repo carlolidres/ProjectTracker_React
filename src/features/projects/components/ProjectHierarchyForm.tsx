@@ -1,4 +1,4 @@
-import { CopyOutlined, DeleteOutlined, DisconnectOutlined, LinkOutlined, PlusOutlined } from "@ant-design/icons";
+import { CopyOutlined, DeleteOutlined, DisconnectOutlined, LinkOutlined, LockOutlined, PlusOutlined } from "@ant-design/icons";
 import { Button, Collapse, Space, Tag, Tooltip, Typography } from "antd";
 import { ProjectFieldControl } from "@/features/projects/components/ProjectFieldControl";
 import {
@@ -7,6 +7,7 @@ import {
   MO_FIELDS,
   PO_FIELDS_BY_TAB,
   PO_ORDER_QUANTITY_UOM_KEYS,
+  PROJECT_LEVEL_VAL_FIELDS,
   type ProjectFieldDef,
   type ProjectTab,
   projectTabKey,
@@ -14,6 +15,8 @@ import {
 import { buildFieldDomId } from "@/lib/duplicateReview";
 import { isCnfMotherLinked, isCnfMotherUnlinked, motherProjectUrl } from "@/lib/cnfMotherLink";
 import { isFgMonthLocked } from "@/lib/fgMonthLock";
+import { bmrLockReason, isBmrFieldKey, isBmrLockedForBatch, isProjectBmrLocked } from "@/lib/bmrLock";
+import { endorsementDateFromValidationTarget } from "@/lib/valReportDates";
 import {
   clonePoForAdd,
   emptyCnfEntry,
@@ -107,6 +110,11 @@ function setPoFieldValue(po: PoControl, key: string, value: string) {
   (po as unknown as Record<string, string>)[key] = value;
 }
 
+function visiblePoFields(fields: ProjectFieldDef[], batchIndex: number): ProjectFieldDef[] {
+  if (batchIndex === 0) return fields;
+  return fields.filter((field) => !field.projectLevelVal);
+}
+
 function groupPoFieldsForRender(fields: ProjectFieldDef[]): ProjectFieldDef[][] {
   const groups: ProjectFieldDef[][] = [];
   let index = 0;
@@ -147,7 +155,9 @@ export function ProjectHierarchyForm({
 }: ProjectHierarchyFormProps) {
   useDiagLifecycle("ProjectHierarchyForm");
   const isAmTab = activeTab === "AM/BM/PL";
+  const isTsdTab = activeTab === "TSD";
   const poFields = PO_FIELDS_BY_TAB(activeTab);
+  const showTsdBmrLockBanner = isTsdTab && isProjectBmrLocked(project);
   const cnfLinked = isCnfMotherLinked(cnfMotherLink);
   const cnfUnlinked = isCnfMotherUnlinked(cnfMotherLink);
   const canModifyHierarchy = canEdit && !viewOnly;
@@ -184,6 +194,14 @@ export function ProjectHierarchyForm({
       }
       return "";
     }
+    if (PROJECT_LEVEL_VAL_FIELDS.has(fieldKey)) {
+      const poValue = poFieldValue(po, fieldKey);
+      if (!isMissingValue(poValue)) return poValue;
+      if (isCanonicalPo(batchIndex, moIndex, poIndex)) {
+        return String((project as unknown as Record<string, string>)[fieldKey] ?? "");
+      }
+      return "";
+    }
     return poFieldValue(po, fieldKey);
   }
 
@@ -217,6 +235,7 @@ export function ProjectHierarchyForm({
     const batchKeyValue = batchKey(batch, batchIndex);
     const batchLabel = displayLabel(batch.unique_batch, `Batch ${batchIndex + 1}`);
     const batchMoKeys = batch.mo_controls.map((mo, moIndex) => moKey(mo, batchIndex, moIndex));
+    const bmrLocked = isTsdTab && isBmrLockedForBatch(project, batchIndex);
 
     const moItems = batch.mo_controls.map((mo, moIndex) => {
       const moKeyValue = moKey(mo, batchIndex, moIndex);
@@ -264,12 +283,13 @@ export function ProjectHierarchyForm({
           ) : null,
           children: (
             <div className="project-form-grid project-po-form-grid">
-              {groupPoFieldsForRender(poFields).map(
+              {groupPoFieldsForRender(visiblePoFields(poFields, batchIndex)).map(
                 (group) => {
                   const renderField = (field: ProjectFieldDef) => {
                     const fgMonthLocked =
                       field.key === "fg_month" &&
                       isFgMonthLocked(savedFgMonths, batchIndex, moIndex, poIndex);
+                    const bmrFieldLocked = bmrLocked && isBmrFieldKey(field.key);
 
                     return (
                     <ProjectFieldControl
@@ -283,7 +303,7 @@ export function ProjectHierarchyForm({
                         fieldKey: field.key,
                       })}
                       value={poFieldDisplayValue(field.key, po, batchIndex, moIndex, poIndex)}
-                      readOnly={fieldLockProps.readOnly || fgMonthLocked}
+                      readOnly={fieldLockProps.readOnly || fgMonthLocked || bmrFieldLocked}
                       disabled={fieldLockProps.disabled}
                       registry={registry}
                       onChange={(value) => {
@@ -292,6 +312,18 @@ export function ProjectHierarchyForm({
                         setPoFieldValue(target, field.key, value);
                         if (field.key === "so_no" && isCanonicalPo(batchIndex, moIndex, poIndex)) {
                           next.so_no = value;
+                        }
+                        if (PROJECT_LEVEL_VAL_FIELDS.has(field.key) && isCanonicalPo(batchIndex, moIndex, poIndex)) {
+                          (next as unknown as Record<string, string>)[field.key] = value;
+                        }
+                        if (
+                          field.key === "validation_report_target_date" &&
+                          isCanonicalPo(batchIndex, moIndex, poIndex)
+                        ) {
+                          const endorsementDate = endorsementDateFromValidationTarget(value);
+                          if (endorsementDate) {
+                            target.endorsement_acceptance_target_date = endorsementDate;
+                          }
                         }
                         onChange(next);
                       }}
@@ -622,9 +654,15 @@ export function ProjectHierarchyForm({
                 Val_Batch_Seq_No: "",
                 Val_Strategy: "",
                 Val_Strategy_remarks: "",
-                val_report_no: "",
-                Report_Sub_Status: "",
-                Report_target_Date: "",
+                val_interim_report_no: "",
+                val_interim_report_status: "",
+                val_interim_report_target_date: "",
+                validation_report_no: "",
+                validation_report_status: "",
+                validation_report_target_date: "",
+                endorsement_report_no: "",
+                endorsement_report_status: "",
+                endorsement_acceptance_target_date: "",
                 ar_availability_date: "",
                 packaging_schedule: "",
                 final_status: "OPEN",
@@ -697,6 +735,12 @@ export function ProjectHierarchyForm({
 
   return (
     <div className={`project-tab-layer project-tab-layer-${projectTabKey(activeTab)}`}>
+      {showTsdBmrLockBanner ? (
+        <div className="project-bmr-lock-banner project-bmr-lock-banner-tab">
+          <LockOutlined aria-hidden />
+          <Typography.Text>{bmrLockReason(project)}</Typography.Text>
+        </div>
+      ) : null}
       <Collapse
         items={batchItems}
         activeKey={openKeys}

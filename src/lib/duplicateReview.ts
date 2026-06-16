@@ -110,11 +110,23 @@ const PO_FIELD_META: PoFieldMeta[] = [
 
   { key: "Val_Strategy_remarks", label: "Val Strategy Remarks", role: "VAL" },
 
-  { key: "val_report_no", label: "Val Report No.", role: "VAL" },
+  { key: "val_interim_report_no", label: "Interim Report No.", role: "VAL" },
 
-  { key: "Report_Sub_Status", label: "Report Sub Status", role: "VAL" },
+  { key: "val_interim_report_status", label: "Interim Report Status", role: "VAL" },
 
-  { key: "Report_target_Date", label: "Report Target Date", role: "VAL" },
+  { key: "val_interim_report_target_date", label: "Interim Report Target Date", role: "VAL" },
+
+  { key: "validation_report_no", label: "Report No.", role: "VAL" },
+
+  { key: "validation_report_status", label: "Report Status", role: "VAL" },
+
+  { key: "validation_report_target_date", label: "Report Target Date", role: "VAL" },
+
+  { key: "endorsement_report_no", label: "Endorsement Report No.", role: "VAL" },
+
+  { key: "endorsement_report_status", label: "Endorsement Report Status", role: "VAL" },
+
+  { key: "endorsement_acceptance_target_date", label: "Target Date of Endorsement Acceptance", role: "VAL" },
 
   { key: "ar_availability_date", label: "AR Availability Date", role: "QC" },
 

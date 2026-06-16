@@ -10,7 +10,9 @@ export const DEFAULT_REGISTRY: Record<string, string[]> = {
   Val_Stability: ["Yes", "No"],
   Val_Batch_Seq_No: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
   Val_Strategy: ["Concurrent", "Prospective"],
-  Report_Sub_Status: ["In-process", "Routing", "Client Approval", "Approved"],
+  val_interim_report_status: ["In-process", "Routing", "Client Approval", "Approved", "Not Applicable"],
+  validation_report_status: ["In-process", "Routing", "Client Approval", "Approved"],
+  endorsement_report_status: ["In-process", "Routing", "Approved", "Not Applicable"],
   final_status: ["OPEN", "CLOSED", "CANCELLED", "Others"],
   department: ["DPM", "LPM", "DPP", "LPP", "CO", "COS", "TOP", "STEROIDS", "CEPHA"],
   doc_status: ["In-process", "Routing", "Client Approval", "Approved"],
@@ -33,8 +35,10 @@ export const TSD_FIELDS = [
 
 export const VAL_FIELDS = [
   "protocol_no", "protocol_Status", "protocol_target_date", "Val_Activity", "Val_Stability",
-  "Val_Batch_Seq_No", "Val_Strategy", "Val_Strategy_remarks", "val_report_no",
-  "Report_Sub_Status", "Report_target_Date",
+  "Val_Batch_Seq_No", "Val_Strategy", "Val_Strategy_remarks",
+  "val_interim_report_no", "val_interim_report_status", "val_interim_report_target_date",
+  "validation_report_no", "validation_report_status", "validation_report_target_date",
+  "endorsement_report_no", "endorsement_report_status", "endorsement_acceptance_target_date",
 ];
 
 export const QC_FIELDS = ["ar_availability_date"];

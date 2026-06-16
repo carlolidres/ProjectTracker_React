@@ -2,6 +2,8 @@ import { supabase } from "@/lib/supabaseClient";
 
 export type FeedbackType = "improvement" | "bug";
 
+export type FeedbackStatus = "addressed" | "not_addressed";
+
 export interface AppFeedback {
   id: string;
   user_id: string;
@@ -9,7 +11,17 @@ export interface AppFeedback {
   feedback_type: FeedbackType;
   message: string;
   page_path: string | null;
+  status: FeedbackStatus;
+  addressed_at: string | null;
   created_at: string;
+}
+
+const FEEDBACK_ADDRESSED_TTL_HOURS = 72;
+
+export async function purgeExpiredAddressedFeedback(): Promise<number> {
+  const { data, error } = await supabase.rpc("purge_expired_addressed_feedback");
+  if (error) throw error;
+  return typeof data === "number" ? data : 0;
 }
 
 export function formatFeedbackForCopy(item: AppFeedback): string {
@@ -28,13 +40,35 @@ export function formatFeedbackForCopy(item: AppFeedback): string {
 }
 
 export async function listAppFeedback(): Promise<AppFeedback[]> {
+  try {
+    await purgeExpiredAddressedFeedback();
+  } catch {
+    // Migration 024 may not be applied yet; listing still works without purge.
+  }
+
   const { data, error } = await supabase
     .from("app_feedback")
-    .select("id, user_id, user_email, feedback_type, message, page_path, created_at")
+    .select("id, user_id, user_email, feedback_type, message, page_path, status, addressed_at, created_at")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
   return (data ?? []) as AppFeedback[];
+}
+
+export function feedbackAddressedExpiryLabel(addressedAt: string | null | undefined): string | null {
+  if (!addressedAt) return null;
+  const expiresAt = new Date(addressedAt).getTime() + FEEDBACK_ADDRESSED_TTL_HOURS * 60 * 60 * 1000;
+  const remainingMs = expiresAt - Date.now();
+  if (remainingMs <= 0) return "Scheduled for removal";
+  const hoursLeft = Math.ceil(remainingMs / (60 * 60 * 1000));
+  return hoursLeft <= 24
+    ? `Auto-deletes in ${hoursLeft}h`
+    : `Auto-deletes in ${Math.ceil(hoursLeft / 24)}d`;
+}
+
+export async function updateFeedbackStatus(id: string, status: FeedbackStatus) {
+  const { error } = await supabase.from("app_feedback").update({ status }).eq("id", id);
+  if (error) throw error;
 }
 
 export async function submitAppFeedback(params: {

@@ -1,7 +1,7 @@
 :root {
   --sidebar-width: 280px;
   --sidebar-collapsed-width: 72px;
-  --topbar-height: 64px;
+  --topbar-height: 72px;
   --bg: #f5f7fb;
   --surface: #ffffff;
   --panel: #ffffff;
@@ -298,9 +298,120 @@ html, body, #root {
   z-index: 10;
 }
 
-.topbar-title-main { margin: 0; font-weight: 700; }
-.topbar-title-sub { margin: 0; color: var(--muted); font-size: 12px; }
+.topbar-title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.topbar-title-main {
+  margin: 0;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.topbar-title-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: italic;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+}
 .topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.notification-bell-alert {
+  display: inline-flex;
+  border-radius: 8px;
+}
+
+.notification-bell-alert .ant-btn {
+  color: #ff4d4f !important;
+  animation: notification-bell-pulse 1.25s ease-in-out infinite;
+}
+
+.notification-bell-alert .anticon-bell {
+  animation: notification-bell-shake 0.55s ease-in-out infinite;
+}
+
+.notification-bell-alert .ant-badge-count {
+  animation: notification-badge-pulse 1.25s ease-in-out infinite;
+  background: #ff4d4f !important;
+}
+
+.notification-list-item-logic-critical {
+  border-left: 3px solid #eb2f96;
+  padding-left: 12px;
+  background: color-mix(in srgb, #eb2f96 6%, transparent);
+}
+
+.notification-list-item-logic-info {
+  border-left: 3px solid #1677ff;
+  padding-left: 12px;
+  background: color-mix(in srgb, #1677ff 4%, transparent);
+}
+
+@keyframes notification-bell-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, #ff4d4f 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, #ff4d4f 0%, transparent);
+  }
+}
+
+@keyframes notification-bell-shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-12deg); }
+  75% { transform: rotate(12deg); }
+}
+
+@keyframes notification-badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-bell-alert .ant-btn,
+  .notification-bell-alert .anticon-bell,
+  .notification-bell-alert .ant-badge-count,
+  .feedback-inbox-alert .ant-btn,
+  .feedback-inbox-alert .anticon {
+    animation: none;
+  }
+}
+
+.feedback-inbox-alert {
+  display: inline-flex;
+  border-radius: 8px;
+}
+
+.feedback-inbox-alert .ant-btn {
+  color: #1677ff !important;
+  animation: feedback-inbox-pulse 1.25s ease-in-out infinite;
+}
+
+.feedback-inbox-alert .anticon {
+  animation: feedback-inbox-shake 0.55s ease-in-out infinite;
+}
+
+@keyframes feedback-inbox-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, #1677ff 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, #1677ff 0%, transparent);
+  }
+}
+
+@keyframes feedback-inbox-shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
 
 .page-header {
   display: flex;
@@ -370,6 +481,45 @@ html, body, #root {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.feedback-chat-modal .ant-modal {
+  max-width: calc(100vw - 24px) !important;
+}
+
+@media (max-width: 640px) {
+  .feedback-chat-modal .ant-modal {
+    margin: 12px auto !important;
+  }
+
+  .feedback-inbox-item-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .feedback-inbox-list {
+    max-height: min(60vh, 420px);
+  }
+
+  .feedback-chat-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-content {
+    padding: 24px 28px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .app-content {
+    padding: 28px 32px;
+    max-width: 1920px;
+    margin-inline: auto;
+    width: 100%;
+  }
 }
 
 .feedback-inbox-message {
@@ -426,6 +576,14 @@ html, body, #root {
   .mobile-only { display: inline-flex; }
   .desktop-only { display: none; }
   .app-content { padding: 16px; }
+
+  .page-header {
+    margin-bottom: 12px;
+  }
+
+  .page-header .ant-typography {
+    word-break: break-word;
+  }
 
   /* Mobile nav drawer — fill viewport; scroll nav when content overflows */
   .sidebar-mobile-drawer.ant-drawer .ant-drawer-content-wrapper {

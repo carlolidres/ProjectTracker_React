@@ -26,6 +26,7 @@ export interface ProjectFieldDef {
   copyFromFirst?: boolean;
   required?: boolean;
   capitalizeWords?: boolean;
+  projectLevelVal?: boolean;
 }
 
 export const HEADER_FIELDS: ProjectFieldDef[] = [
@@ -46,6 +47,12 @@ export const MO_FIELDS: ProjectFieldDef[] = [
 ];
 
 export const PROJECT_LEVEL_PO_FIELDS = new Set<string>();
+
+export const PROJECT_LEVEL_VAL_FIELDS = new Set([
+  "validation_report_no",
+  "validation_report_status",
+  "validation_report_target_date",
+]);
 
 export const PO_FIELDS: ProjectFieldDef[] = [
   { key: "so_no", label: "SO No.", type: "alphanumeric", role: "AM/BM/PL", tooltip: "Sales order number (alphanumeric)." },
@@ -100,9 +107,15 @@ export const PO_FIELDS: ProjectFieldDef[] = [
   { key: "Val_Batch_Seq_No", label: "Val Batch Seq No.", type: "select", role: "VAL", registry: "Val_Batch_Seq_No", tooltip: "Batch sequence number (1, 2, 3, ...)." },
   { key: "Val_Strategy", label: "Val Strategy", type: "select", role: "VAL", registry: "Val_Strategy", copyFromFirst: true, tooltip: "Concurrent or Prospective strategy." },
   { key: "Val_Strategy_remarks", label: "Val Strategy Remarks", type: "textarea", role: "VAL", span: 3, tooltip: "Describe implementation strategy if change applies to COMML during ongoing study." },
-  { key: "val_report_no", label: "Val Report No.", type: "alphanumeric", role: "VAL", tooltip: "Validation report number." },
-  { key: "Report_Sub_Status", label: "Report Sub Status", type: "select", role: "VAL", registry: "Report_Sub_Status", tooltip: "Report submission status." },
-  { key: "Report_target_Date", label: "Report Target Date", type: "date", role: "VAL", tooltip: "Target date for validation report." },
+  { key: "val_interim_report_no", label: "Interim Report No.", type: "alphanumeric", role: "VAL", tooltip: "Interim report reference number for this batch." },
+  { key: "val_interim_report_status", label: "Interim Report Status", type: "select", role: "VAL", registry: "val_interim_report_status", tooltip: "Interim report workflow status." },
+  { key: "val_interim_report_target_date", label: "Interim Report Target Date", type: "date", role: "VAL", tooltip: "Target date for the interim report." },
+  { key: "validation_report_no", label: "Report No.", type: "alphanumeric", role: "VAL", projectLevelVal: true, tooltip: "Full validation report number. One value per project (Batch 1 only)." },
+  { key: "validation_report_status", label: "Report Status", type: "select", role: "VAL", registry: "validation_report_status", projectLevelVal: true, tooltip: "Full validation report workflow status (Batch 1 only)." },
+  { key: "validation_report_target_date", label: "Report Target Date", type: "date", role: "VAL", projectLevelVal: true, tooltip: "Target date for the full validation report (Batch 1 only)." },
+  { key: "endorsement_report_no", label: "Endorsement Report No.", type: "alphanumeric", role: "VAL", tooltip: "Endorsement report reference number." },
+  { key: "endorsement_report_status", label: "Endorsement Report Status", type: "select", role: "VAL", registry: "endorsement_report_status", tooltip: "Endorsement report workflow status. BMR unlock requires Approved or Not Applicable." },
+  { key: "endorsement_acceptance_target_date", label: "Target Date of Endorsement Acceptance", type: "date", role: "VAL", tooltip: "Target endorsement acceptance date. Defaults to one month after Report Target Date." },
   { key: "ar_availability_date", label: "AR Availability Date", type: "date", role: "QC", tooltip: "Analytical report availability date." },
   { key: "packaging_schedule", label: "Packaging Schedule", type: "date", role: "PP", tooltip: "Planned packaging schedule." },
   { key: "final_status", label: "Final Status", type: "select", role: "PP", registry: "final_status", tooltip: "OPEN, CLOSED, CANCELLED, or Others." },
@@ -112,6 +125,16 @@ export const PO_FIELDS: ProjectFieldDef[] = [
 export const CNF_FIELDS: ProjectFieldDef[] = PO_FIELDS.filter((field) =>
   (CNF_ENTRY_KEYS as readonly string[]).includes(field.key),
 );
+
+/** Copied from PO 1 → PO 2+ within the same MO when using "Copy from 1st PO" on AM/BM/PL. */
+export const COPY_FROM_FIRST_PO_AM_FIELDS = [
+  "fg_month",
+  "business_unit",
+  "updatedDocsVer",
+  "prod_ver",
+  "order_quantity",
+  "uom",
+] as const;
 
 /** Rendered side-by-side in the PO form; order_quantity must precede uom in PO_FIELDS. */
 export const PO_ORDER_QUANTITY_UOM_KEYS = ["order_quantity", "uom"] as const;

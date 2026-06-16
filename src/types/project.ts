@@ -39,9 +39,15 @@ export interface PoControl {
   Val_Batch_Seq_No: string;
   Val_Strategy: string;
   Val_Strategy_remarks: string;
-  val_report_no: string;
-  Report_Sub_Status: string;
-  Report_target_Date: string;
+  val_interim_report_no: string;
+  val_interim_report_status: string;
+  val_interim_report_target_date: string;
+  validation_report_no: string;
+  validation_report_status: string;
+  validation_report_target_date: string;
+  endorsement_report_no: string;
+  endorsement_report_status: string;
+  endorsement_acceptance_target_date: string;
   ar_availability_date: string;
   packaging_schedule: string;
   final_status: string;
@@ -68,6 +74,9 @@ export interface ProjectHierarchy {
   so_no: string;
   fg_code: string;
   product_name: string;
+  validation_report_no: string;
+  validation_report_status: string;
+  validation_report_target_date: string;
   batches: BatchControl[];
   cnf_mother_link?: ProjectCnfMotherLink;
 }
@@ -137,9 +146,15 @@ export interface ProjectRow {
   Val_Batch_Seq_No: string;
   Val_Strategy: string;
   Val_Strategy_remarks: string;
-  val_report_no: string;
-  Report_Sub_Status: string;
-  Report_target_Date: string;
+  val_interim_report_no: string;
+  val_interim_report_status: string;
+  val_interim_report_target_date: string;
+  validation_report_no: string;
+  validation_report_status: string;
+  validation_report_target_date: string;
+  endorsement_report_no: string;
+  endorsement_report_status: string;
+  endorsement_acceptance_target_date: string;
   ar_availability_date: string;
   packaging_schedule: string;
   final_status: string;

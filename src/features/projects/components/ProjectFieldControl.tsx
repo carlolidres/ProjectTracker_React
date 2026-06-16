@@ -62,7 +62,6 @@ export function ProjectFieldControl({
   const capitalizeClass = field.capitalizeWords ? "project-field-capitalize" : "";
   const anchorId = domId;
   const fieldId = anchorId ? `${anchorId}-control` : `project-field-${field.key}`;
-  const helpSuffix = field.tooltip ? <FieldHelpIcon title={field.tooltip} /> : undefined;
 
   function handleSelectChange(next: string) {
     if (isViewOnly) return;
@@ -76,7 +75,6 @@ export function ProjectFieldControl({
           id={fieldId}
           value={isNa ? NA_VALUE : value}
           classNames={{ input: cn(isNa && naGuideClass) }}
-          suffix={helpSuffix}
           readOnly
           disabled
         />
@@ -85,41 +83,35 @@ export function ProjectFieldControl({
 
     if (field.type === "select") {
       return (
-        <div className="project-field-input-shell project-field-input-shell-select">
-          <Select
-            id={fieldId}
-            className={cn(isNa && !selectFocused && naGuideClass, isViewOnly && "project-field-view-only-select")}
-            style={{ width: "100%" }}
-            value={isNa ? NA_VALUE : value}
-            disabled={disabled && !isViewOnly}
-            open={isViewOnly ? false : undefined}
-            showSearch={!isViewOnly}
-            tabIndex={isViewOnly ? -1 : undefined}
-            options={registryOptions(registry, field.registry, value)}
-            onChange={handleSelectChange}
-            onFocus={() => setSelectFocused(true)}
-            onBlur={() => setSelectFocused(false)}
-            onMouseDown={isViewOnly ? blockViewOnlyInteraction : undefined}
-            onClick={isViewOnly ? blockViewOnlyInteraction : undefined}
-            onKeyDown={isViewOnly ? blockViewOnlyInteraction : undefined}
-          />
-          {field.tooltip ? <FieldHelpIcon title={field.tooltip} className="field-help-icon-overlay" /> : null}
-        </div>
+        <Select
+          id={fieldId}
+          className={cn(isNa && !selectFocused && naGuideClass, isViewOnly && "project-field-view-only-select")}
+          style={{ width: "100%" }}
+          value={isNa ? NA_VALUE : value}
+          disabled={disabled && !isViewOnly}
+          open={isViewOnly ? false : undefined}
+          showSearch={!isViewOnly}
+          tabIndex={isViewOnly ? -1 : undefined}
+          options={registryOptions(registry, field.registry, value)}
+          onChange={handleSelectChange}
+          onFocus={() => setSelectFocused(true)}
+          onBlur={() => setSelectFocused(false)}
+          onMouseDown={isViewOnly ? blockViewOnlyInteraction : undefined}
+          onClick={isViewOnly ? blockViewOnlyInteraction : undefined}
+          onKeyDown={isViewOnly ? blockViewOnlyInteraction : undefined}
+        />
       );
     }
 
     if (field.type === "textarea") {
       return (
-        <div className="project-field-input-shell project-field-input-shell-textarea">
-          <NaClearingTextArea
-            id={fieldId}
-            value={value}
-            disabled={disabled && !isViewOnly}
-            readOnly={isViewOnly}
-            onChange={onChange}
-          />
-          {field.tooltip ? <FieldHelpIcon title={field.tooltip} className="field-help-icon-overlay" /> : null}
-        </div>
+        <NaClearingTextArea
+          id={fieldId}
+          value={value}
+          disabled={disabled && !isViewOnly}
+          readOnly={isViewOnly}
+          onChange={onChange}
+        />
       );
     }
 
@@ -140,31 +132,25 @@ export function ProjectFieldControl({
 
     if (field.type === "date") {
       return (
-        <div className="project-field-input-shell">
-          <AppDatePicker
-            id={fieldId}
-            value={value}
-            disabled={disabled && !isViewOnly}
-            readOnly={isViewOnly}
-            onChange={onChange}
-          />
-          {field.tooltip ? <FieldHelpIcon title={field.tooltip} className="field-help-icon-overlay" /> : null}
-        </div>
+        <AppDatePicker
+          id={fieldId}
+          value={value}
+          disabled={disabled && !isViewOnly}
+          readOnly={isViewOnly}
+          onChange={onChange}
+        />
       );
     }
 
     if (field.type === "month") {
       return (
-        <div className="project-field-input-shell">
-          <AppMonthPicker
-            id={fieldId}
-            value={value}
-            disabled={disabled && !isViewOnly}
-            readOnly={isViewOnly}
-            onChange={onChange}
-          />
-          {field.tooltip ? <FieldHelpIcon title={field.tooltip} className="field-help-icon-overlay" /> : null}
-        </div>
+        <AppMonthPicker
+          id={fieldId}
+          value={value}
+          disabled={disabled && !isViewOnly}
+          readOnly={isViewOnly}
+          onChange={onChange}
+        />
       );
     }
 
@@ -200,7 +186,8 @@ export function ProjectFieldControl({
       className={cn("project-field", spanClass, capitalizeClass, isViewOnly && "project-field-view-only")}
     >
       <label className="project-field-label" htmlFor={fieldId}>
-        {field.label}
+        {field.tooltip ? <FieldHelpIcon title={field.tooltip} /> : null}
+        <span className="project-field-label-text">{field.label}</span>
       </label>
       {control}
     </div>

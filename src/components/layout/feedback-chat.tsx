@@ -7,6 +7,7 @@ import {
   Input,
   Modal,
   Radio,
+  Select,
   Space,
   Spin,
   Tag,
@@ -19,9 +20,12 @@ import { useAuth } from "@/app/auth-provider";
 import { formatAppDateTime } from "@/lib/date";
 import {
   formatFeedbackForCopy,
+  feedbackAddressedExpiryLabel,
   listAppFeedback,
   submitAppFeedback,
+  updateFeedbackStatus,
   type AppFeedback,
+  type FeedbackStatus,
   type FeedbackType,
 } from "@/services/feedbackService";
 
@@ -141,6 +145,42 @@ function FeedbackSubmitModal({
   );
 }
 
+function feedbackStatusLabel(status: FeedbackStatus) {
+  return status === "addressed" ? "Addressed" : "Not Addressed";
+}
+
+const FEEDBACK_LAST_SEEN_STORAGE = "pt-admin-feedback-last-seen";
+
+function readFeedbackLastSeen(): string | null {
+  try {
+    return localStorage.getItem(FEEDBACK_LAST_SEEN_STORAGE);
+  } catch {
+    return null;
+  }
+}
+
+function markFeedbackSeen(items: AppFeedback[]) {
+  if (!items.length) return;
+  const latest = items.reduce(
+    (max, item) => (item.created_at > max ? item.created_at : max),
+    items[0].created_at,
+  );
+  try {
+    localStorage.setItem(FEEDBACK_LAST_SEEN_STORAGE, latest);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function hasUnreadFeedback(items: AppFeedback[]): boolean {
+  const lastSeen = readFeedbackLastSeen();
+  return items.some(
+    (item) =>
+      item.status === "not_addressed" &&
+      (!lastSeen || item.created_at > lastSeen),
+  );
+}
+
 function FeedbackInboxModal({
   open,
   onClose,
@@ -152,12 +192,15 @@ function FeedbackInboxModal({
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<AppFeedback[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setItems(await listAppFeedback());
+      const nextItems = await listAppFeedback();
+      setItems(nextItems);
+      markFeedbackSeen(nextItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load feedback.");
     } finally {
@@ -166,9 +209,12 @@ function FeedbackInboxModal({
   }, []);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    void load();
+    const intervalId = window.setInterval(() => {
       void load();
-    }
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(intervalId);
   }, [open, load]);
 
   async function handleCopy(item: AppFeedback) {
@@ -177,6 +223,29 @@ function FeedbackInboxModal({
       message.success("Feedback copied to clipboard.");
     } catch {
       message.error("Could not copy feedback. Please copy manually.");
+    }
+  }
+
+  async function handleStatusChange(item: AppFeedback, status: FeedbackStatus) {
+    setUpdatingId(item.id);
+    try {
+      await updateFeedbackStatus(item.id, status);
+      setItems((current) =>
+        current.map((entry) =>
+          entry.id === item.id
+            ? {
+                ...entry,
+                status,
+                addressed_at: status === "addressed" ? new Date().toISOString() : null,
+              }
+            : entry,
+        ),
+      );
+      message.success("Feedback status updated.");
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Failed to update status.");
+    } finally {
+      setUpdatingId(null);
     }
   }
 
@@ -193,7 +262,7 @@ function FeedbackInboxModal({
       <div className="feedback-chat-window">
         <div className="feedback-chat-bubble feedback-chat-bubble-system">
           <Typography.Text>
-            Messages submitted by non-admin users. Administrators cannot send feedback to themselves.
+            Messages submitted by non-admin users. Addressed items are automatically removed after 72 hours.
           </Typography.Text>
         </div>
 
@@ -219,14 +288,31 @@ function FeedbackInboxModal({
                     <Tag color={item.feedback_type === "bug" ? "red" : "blue"}>
                       {feedbackTypeLabel(item.feedback_type)}
                     </Tag>
+                    <Tag color={item.status === "addressed" ? "green" : "default"}>
+                      {feedbackStatusLabel(item.status ?? "not_addressed")}
+                    </Tag>
                   </Space>
-                  <Button
-                    size="small"
-                    icon={<CopyOutlined />}
-                    onClick={() => void handleCopy(item)}
-                  >
-                    Copy
-                  </Button>
+                  <Space size={4}>
+                    <Select
+                      size="small"
+                      value={item.status ?? "not_addressed"}
+                      loading={updatingId === item.id}
+                      disabled={updatingId === item.id}
+                      options={[
+                        { value: "not_addressed", label: "Not Addressed" },
+                        { value: "addressed", label: "Addressed" },
+                      ]}
+                      onChange={(value) => void handleStatusChange(item, value as FeedbackStatus)}
+                      style={{ minWidth: 140 }}
+                    />
+                    <Button
+                      size="small"
+                      icon={<CopyOutlined />}
+                      onClick={() => void handleCopy(item)}
+                    >
+                      Copy
+                    </Button>
+                  </Space>
                 </div>
                 <Typography.Paragraph className="feedback-inbox-message">
                   {item.message}
@@ -234,6 +320,9 @@ function FeedbackInboxModal({
                 <Typography.Text type="secondary" className="feedback-inbox-meta">
                   {formatAppDateTime(item.created_at)}
                   {item.page_path ? ` · ${item.page_path}` : ""}
+                  {item.status === "addressed" && feedbackAddressedExpiryLabel(item.addressed_at)
+                    ? ` · ${feedbackAddressedExpiryLabel(item.addressed_at)}`
+                    : ""}
                 </Typography.Text>
               </article>
             ))}
@@ -250,22 +339,61 @@ export function FeedbackChat() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const [open, setOpen] = useState(false);
+  const [hasNewFeedback, setHasNewFeedback] = useState(false);
+
+  const checkForNewFeedback = useCallback(async () => {
+    if (!isAdmin) {
+      setHasNewFeedback(false);
+      return;
+    }
+    try {
+      const items = await listAppFeedback();
+      setHasNewFeedback(hasUnreadFeedback(items));
+    } catch {
+      setHasNewFeedback(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    void checkForNewFeedback();
+    const intervalId = window.setInterval(() => {
+      void checkForNewFeedback();
+    }, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, [isAdmin, checkForNewFeedback]);
+
+  function handleOpen() {
+    setOpen(true);
+    if (isAdmin) {
+      setHasNewFeedback(false);
+    }
+  }
+
+  function handleClose() {
+    setOpen(false);
+    if (isAdmin) {
+      void checkForNewFeedback();
+    }
+  }
 
   return (
     <>
-      <Tooltip title={isAdmin ? "View user feedback" : "Send feedback to admin"}>
-        <Button
-          type="text"
-          icon={<MessageOutlined />}
-          aria-label={isAdmin ? "Open user feedback inbox" : "Open feedback chat"}
-          onClick={() => setOpen(true)}
-        />
+      <Tooltip title={isAdmin ? (hasNewFeedback ? "New user feedback" : "View user feedback") : "Send feedback to admin"}>
+        <span className={isAdmin && hasNewFeedback ? "feedback-inbox-alert" : undefined}>
+          <Button
+            type="text"
+            icon={<MessageOutlined />}
+            aria-label={isAdmin ? (hasNewFeedback ? "Open user feedback inbox — new messages" : "Open user feedback inbox") : "Open feedback chat"}
+            onClick={handleOpen}
+          />
+        </span>
       </Tooltip>
 
       {isAdmin ? (
-        <FeedbackInboxModal open={open} onClose={() => setOpen(false)} />
+        <FeedbackInboxModal open={open} onClose={handleClose} />
       ) : (
-        <FeedbackSubmitModal open={open} onClose={() => setOpen(false)} />
+        <FeedbackSubmitModal open={open} onClose={handleClose} />
       )}
     </>
   );

@@ -15,6 +15,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/archived", roles: ["admin"] },
   { path: "/registry", roles: ["admin"] },
   { path: "/admin/users", roles: ["admin"] },
+  { path: "/admin/data-map", roles: ["admin"] },
 ];
 
 export function isAdminRole(role: UserRole | undefined): boolean {

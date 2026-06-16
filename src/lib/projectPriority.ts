@@ -31,8 +31,10 @@ const PRIORITY_ACTION_LABELS: Record<string, string> = {
   mo_bmr_po_activation_date: "Set MO/BMR/PO Activation Date",
   ar_availability_date: "Set AR Availability Date",
   packaging_schedule: "Set Packaging Schedule",
-  Report_target_Date: "Set Validation Report Target Date",
-  Report_Sub_Status: "Complete Validation Report Status",
+  validation_report_target_date: "Set Validation Report Target Date",
+  validation_report_status: "Complete Validation Report Status",
+  endorsement_acceptance_target_date: "Set Endorsement Acceptance Target Date",
+  endorsement_report_status: "Complete Endorsement Report Status",
   final_status: "Complete Final Status",
   fg_month: "Set FG Month",
 };
@@ -57,9 +59,11 @@ const FIELD_TO_GROUP: Record<string, FocusGroup> = {
   protocol_target_date: "VAL",
   Val_Activity: "VAL",
   Val_Strategy: "VAL",
-  val_report_no: "VAL",
-  Report_target_Date: "VAL",
-  Report_Sub_Status: "VAL",
+  validation_report_no: "VAL",
+  validation_report_target_date: "VAL",
+  validation_report_status: "VAL",
+  endorsement_report_status: "VAL",
+  endorsement_acceptance_target_date: "VAL",
   ar_availability_date: "QC",
 };
 
@@ -77,8 +81,10 @@ const PRIORITY_FIELD_ORDER = [
   "mo_bmr_po_activation_date",
   "ar_availability_date",
   "packaging_schedule",
-  "Report_target_Date",
-  "Report_Sub_Status",
+  "validation_report_target_date",
+  "validation_report_status",
+  "endorsement_acceptance_target_date",
+  "endorsement_report_status",
   "final_status",
   "fg_month",
 ] as const;
@@ -100,7 +106,7 @@ function fieldLabel(field: string): string {
 
 function isFieldComplete(row: ProjectRow, field: string): boolean {
   if (field === "cnf_status") return valueOrNA(row.cnf_status) === "Approved";
-  if (field === "protocol_Status" || field === "Report_Sub_Status") {
+  if (field === "protocol_Status" || field === "validation_report_status" || field === "endorsement_report_status") {
     return isApprovedStatus(String(row[field as keyof ProjectRow] ?? ""));
   }
   return !isMissingValue(row[field as keyof ProjectRow]);

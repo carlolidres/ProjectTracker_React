@@ -176,7 +176,9 @@
 }
 
 .project-field-label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 6px;
   color: var(--text);
   cursor: default;
@@ -185,7 +187,13 @@
   line-height: 1.3;
 }
 
+.project-field-label-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .field-help-icon {
+  flex-shrink: 0;
   color: var(--muted);
   font-size: 12px;
   cursor: help;
@@ -195,31 +203,26 @@
   color: var(--primary);
 }
 
-.project-field-input-shell {
-  position: relative;
+.project-bmr-lock-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--layer-border);
+  border-radius: 8px;
+  background: var(--layer-bg-subtle, rgba(0, 0, 0, 0.02));
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
 }
 
-.project-field-input-shell-select .field-help-icon-overlay {
-  position: absolute;
-  top: 50%;
-  right: 30px;
-  z-index: 2;
-  transform: translateY(-50%);
+.project-bmr-lock-banner .anticon {
+  margin-top: 2px;
+  color: var(--warning, #d48806);
 }
 
-.project-field-input-shell-textarea .field-help-icon-overlay {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 2;
-}
-
-.project-field-input-shell-select .ant-select .ant-select-selector {
-  padding-right: 28px;
-}
-
-.project-field-input-shell-textarea .ant-input {
-  padding-right: 28px;
+.project-bmr-lock-banner-tab {
+  margin-bottom: 12px;
 }
 
 .project-field .ant-input.na-guide,
@@ -631,6 +634,38 @@
     grid-template-columns: 1fr;
   }
 
+  .project-sticky-header {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+
+  .project-sticky-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .project-form-body {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .project-sticky-header h2 {
+    font-size: 1.05rem;
+  }
+
+  .project-sticky-action-btn.ant-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .project-form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px 16px;
+  }
 }
 
 html.meeting-view-nav-active .project-sticky-header {

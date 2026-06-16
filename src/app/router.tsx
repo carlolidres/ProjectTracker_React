@@ -10,6 +10,7 @@ import { LessonsLearnedPage } from "@/features/lessons-learned/LessonsLearnedPag
 import { ArchivedPage } from "@/features/archived/ArchivedPage";
 import { RegistryPage } from "@/features/registry/RegistryPage";
 import { AdminUsersPage } from "@/features/admin/AdminUsersPage";
+import { DataMapPage } from "@/features/admin/DataMapPage";
 
 export function AppRouter() {
   return (
@@ -43,6 +44,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminUsersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/data-map"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <DataMapPage />
           </ProtectedRoute>
         }
       />

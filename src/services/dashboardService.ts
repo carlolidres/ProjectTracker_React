@@ -122,7 +122,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
     if (isOpen && cnfStatus !== "Approved") pendingCnf += 1;
     if (isOpen && !isApprovedStatus(row.protocol_Status)) pendingProtocol += 1;
-    if (isOpen && !isApprovedStatus(row.Report_Sub_Status)) pendingReport += 1;
+    if (isOpen && !isApprovedStatus(row.validation_report_status)) pendingReport += 1;
 
     if (isOpen) {
       for (const group of PENDING_GROUPS) {

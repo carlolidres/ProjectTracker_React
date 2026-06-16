@@ -1,4 +1,5 @@
 import {
+  ApartmentOutlined,
   AuditOutlined,
   CloseOutlined,
   DashboardOutlined,
@@ -43,6 +44,7 @@ const adminNavItems: NavItem[] = [
   { label: "Archived", href: "/archived", icon: InboxOutlined, roles: ["admin"] },
   { label: "Registry", href: "/registry", icon: SettingOutlined, roles: ["admin"] },
   { label: "User Management", href: "/admin/users", icon: TeamOutlined, roles: ["admin"] },
+  { label: "Data Map", href: "/admin/data-map", icon: ApartmentOutlined, roles: ["admin"] },
 ];
 
 const allNavItems: NavItem[] = [...navItems, ...adminNavItems];

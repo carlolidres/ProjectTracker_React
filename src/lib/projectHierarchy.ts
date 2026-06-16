@@ -1,4 +1,5 @@
 import { CNF_ENTRY_KEYS } from "@/lib/constants";
+import { COPY_FROM_FIRST_PO_AM_FIELDS, PO_FIELDS } from "@/lib/projectFormFields";
 import { generateHierarchyId } from "@/lib/utils";
 import type { BatchControl, CnfEntry, PoControl, ProjectHierarchy } from "@/types";
 
@@ -78,4 +79,28 @@ export function cloneBatchDefaults(source: BatchControl, cnfCount: number): Batc
     return moClone;
   });
   return clone;
+}
+
+/** Copy AM/BM/PL and copyFromFirst PO fields from the first PO in the same MO. */
+export function copyPoFieldsFromFirstPo(
+  target: PoControl,
+  source: PoControl,
+) {
+  for (const key of COPY_FROM_FIRST_PO_AM_FIELDS) {
+    (target as unknown as Record<string, string>)[key] = String(
+      (source as unknown as Record<string, string>)[key] ?? "",
+    );
+  }
+
+  for (const field of PO_FIELDS) {
+    if (!field.copyFromFirst) continue;
+    (target as unknown as Record<string, string>)[field.key] = String(
+      (source as unknown as Record<string, string>)[field.key] ?? "",
+    );
+  }
+
+  if (source.cnf_entries?.length) {
+    target.cnf_entries = structuredClone(source.cnf_entries);
+    clearPoLevelCnfFields(target);
+  }
 }
