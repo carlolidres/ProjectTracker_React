@@ -126,7 +126,7 @@ const PO_FIELD_META: PoFieldMeta[] = [
 
   { key: "endorsement_report_status", label: "Endorsement Report Status", role: "VAL" },
 
-  { key: "endorsement_acceptance_target_date", label: "Target Date of Endorsement Acceptance", role: "VAL" },
+  { key: "endorsement_acceptance_target_date", label: "Endorsement Target Date", role: "VAL" },
 
   { key: "ar_availability_date", label: "AR Availability Date", role: "QC" },
 

@@ -14,7 +14,7 @@ import {
   hasMissingFieldsForGroup,
 } from "@/lib/projectPriority";
 import {
-  isApprovedStatus, isOpenFinalStatus, valueOrNA,
+  isApprovedOrNotApplicableStatus, isOpenFinalStatus, valueOrNA,
 } from "@/lib/utils";
 import { listActiveProjects } from "@/services/projectService";
 import { listActiveSupportActivities } from "@/services/supportActivityService";
@@ -121,8 +121,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     worklist.push(buildWorklistItem(row));
 
     if (isOpen && cnfStatus !== "Approved") pendingCnf += 1;
-    if (isOpen && !isApprovedStatus(row.protocol_Status)) pendingProtocol += 1;
-    if (isOpen && !isApprovedStatus(row.validation_report_status)) pendingReport += 1;
+    if (isOpen && !isApprovedOrNotApplicableStatus(row.protocol_Status)) pendingProtocol += 1;
+    if (isOpen && !isApprovedOrNotApplicableStatus(row.validation_report_status)) pendingReport += 1;
 
     if (isOpen) {
       for (const group of PENDING_GROUPS) {

@@ -58,6 +58,17 @@ export function isApprovedStatus(status: string): boolean {
   return valueOrNA(status) === "Approved";
 }
 
+/** Exact registry value — not the empty-field display sentinel `N/A`. */
+export function isNotApplicableStatus(status: string): boolean {
+  return String(status ?? "").trim() === "Not Applicable";
+}
+
+/** VAL workflow statuses that resolve a status field and waive its paired target date. */
+export function isApprovedOrNotApplicableStatus(status: string): boolean {
+  const trimmed = String(status ?? "").trim();
+  return trimmed === "Approved" || trimmed === "Not Applicable";
+}
+
 export function isMissingValue(value: unknown): boolean {
   const normalized = valueOrNA(value);
   return normalized === "N/A" || normalized === "";

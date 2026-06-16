@@ -8,7 +8,12 @@ import {
 } from "@/lib/constants";
 import { fgDaysRemaining, fgSortValue } from "@/lib/fgUrgency";
 import { getTodayManila } from "@/lib/date";
-import { isApprovedStatus, isMissingValue, valueOrNA } from "@/lib/utils";
+import {
+  isValStatusFieldComplete,
+  isValStatusFieldKey,
+  isValTargetDateFieldComplete,
+} from "@/lib/valReportDates";
+import { isMissingValue, valueOrNA } from "@/lib/utils";
 import type { CnfEntry, ProjectRow } from "@/types";
 
 export type FocusGroup = "AM/BM/PL" | "PP" | "TSD" | "VAL" | "QC" | "None";
@@ -33,7 +38,7 @@ const PRIORITY_ACTION_LABELS: Record<string, string> = {
   packaging_schedule: "Set Packaging Schedule",
   validation_report_target_date: "Set Validation Report Target Date",
   validation_report_status: "Complete Validation Report Status",
-  endorsement_acceptance_target_date: "Set Endorsement Acceptance Target Date",
+  endorsement_acceptance_target_date: "Set Endorsement Target Date",
   endorsement_report_status: "Complete Endorsement Report Status",
   final_status: "Complete Final Status",
   fg_month: "Set FG Month",
@@ -104,12 +109,28 @@ function fieldLabel(field: string): string {
   return PRIORITY_ACTION_LABELS[field]?.replace(/^Set |^Enter |^Complete |^Select /, "") ?? field;
 }
 
-function isFieldComplete(row: ProjectRow, field: string): boolean {
+export function isProjectFieldComplete(row: ProjectRow, field: string): boolean {
   if (field === "cnf_status") return valueOrNA(row.cnf_status) === "Approved";
-  if (field === "protocol_Status" || field === "validation_report_status" || field === "endorsement_report_status") {
-    return isApprovedStatus(String(row[field as keyof ProjectRow] ?? ""));
+  if (isValStatusFieldKey(field)) {
+    return isValStatusFieldComplete(String(row[field as keyof ProjectRow] ?? ""));
+  }
+  if (field === "client_approval_target_date") {
+    if (valueOrNA(row.cnf_status) === "Approved") return true;
+    return !isMissingValue(row.client_approval_target_date);
+  }
+  if (
+    field === "protocol_target_date"
+    || field === "val_interim_report_target_date"
+    || field === "validation_report_target_date"
+    || field === "endorsement_acceptance_target_date"
+  ) {
+    return isValTargetDateFieldComplete(row as unknown as Record<string, string | undefined>, field);
   }
   return !isMissingValue(row[field as keyof ProjectRow]);
+}
+
+function isFieldComplete(row: ProjectRow, field: string): boolean {
+  return isProjectFieldComplete(row, field);
 }
 
 function isCnfEntryFieldComplete(entry: CnfEntry, field: string): boolean {
@@ -197,7 +218,7 @@ export function hasMissingFieldsForGroup(row: ProjectRow, group: FocusGroup): bo
     );
   }
 
-  return fields.some((field) => isMissingValue(row[field as keyof ProjectRow]));
+  return fields.some((field) => !isProjectFieldComplete(row, field));
 }
 
 export interface ProjectPriorityMeta {

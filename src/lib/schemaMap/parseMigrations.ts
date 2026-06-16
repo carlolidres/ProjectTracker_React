@@ -94,19 +94,23 @@ function parseCreateTable(sql: string, tables: Map<string, SchemaTable>, edges: 
   }
 }
 
-function parseAlterTable(sql: string, tables: Map<string, SchemaTable>, edges: SchemaEdge[]) {
-  const addColumnPattern =
-    /alter\s+table\s+(?:if\s+exists\s+)?(?:(\w+)\.)?(\w+)\s+add\s+column\s+(?:if\s+not\s+exists\s+)?([^;]+);/gi;
-  let match: RegExpExecArray | null;
+function parseAlterAddColumns(
+  tableName: string,
+  schema: string,
+  alterBody: string,
+  tables: Map<string, SchemaTable>,
+  edges: SchemaEdge[],
+) {
+  if (!/\badd\s+column\b/i.test(alterBody)) return;
 
-  while ((match = addColumnPattern.exec(sql)) !== null) {
-    const name = match[2];
-    const column = parseColumnLine(match[3]);
+  const segments = alterBody.split(/\badd\s+column\s+(?:if\s+not\s+exists\s+)?/i).filter((part) => part.trim());
+  for (const segment of segments) {
+    const column = parseColumnLine(segment);
     if (!column) continue;
 
-    const table = tables.get(name) ?? {
-      name,
-      schema: match[1] ?? "public",
+    const table = tables.get(tableName) ?? {
+      name: tableName,
+      schema,
       columns: [],
       indexes: [],
       policies: [],
@@ -116,13 +120,23 @@ function parseAlterTable(sql: string, tables: Map<string, SchemaTable>, edges: S
     }
     if (column.references) {
       edges.push({
-        id: `${name}.${column.name}->${column.references.table}`,
-        source: name,
+        id: `${tableName}.${column.name}->${column.references.table}`,
+        source: tableName,
         target: column.references.table,
         label: column.name,
       });
     }
-    tables.set(name, table);
+    tables.set(tableName, table);
+  }
+}
+
+function parseAlterTable(sql: string, tables: Map<string, SchemaTable>, edges: SchemaEdge[]) {
+  const alterPattern =
+    /alter\s+table\s+(?:only\s+)?(?:if\s+exists\s+)?(?:(\w+)\.)?(\w+)\s+([\s\S]*?);/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = alterPattern.exec(sql)) !== null) {
+    parseAlterAddColumns(match[2], match[1] ?? "public", match[3], tables, edges);
   }
 }
 
@@ -137,11 +151,13 @@ function parseIndexesAndPolicies(sql: string, tables: Map<string, SchemaTable>) 
     }
   }
 
-  const policyPattern = /create\s+policy\s+"([^"]+)"\s+on\s+(?:public\.)?(\w+)/gi;
+  const policyPattern =
+    /create\s+policy\s+(?:"([^"]+)"|(\w+))\s+on\s+(?:only\s+)?(?:public\.)?(\w+)/gi;
   while ((match = policyPattern.exec(sql)) !== null) {
-    const [, policyName, tableName] = match;
+    const policyName = match[1] ?? match[2];
+    const tableName = match[3];
     const table = tables.get(tableName);
-    if (table && !table.policies.includes(policyName)) {
+    if (table && policyName && !table.policies.includes(policyName)) {
       table.policies.push(policyName);
     }
   }
