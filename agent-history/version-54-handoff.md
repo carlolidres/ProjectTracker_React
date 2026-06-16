@@ -6,7 +6,7 @@ Date: 2026-06-16
 
 Previous Version: `agent-history/version-53-handoff.md`
 
-Project Status: **Consolidated v52–v54 feature set committed and deployed — Supabase migrations 021–024 must be applied for full functionality**
+Project Status: **v54 consolidated release committed — deploy via GitHub Pages on push to main**
 
 ---
 
@@ -64,7 +64,7 @@ This release bundles work documented in `version-52-handoff.md` and `version-53-
 ## Git Traceability
 
 - Commit message: `v54: validation overhaul, logic violations, copy PO fix, feedback alerts`
-- Commit hash: *(pending)*
+- Commit hash: `4d2d59e`
 
 ---
 
