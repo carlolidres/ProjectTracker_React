@@ -20,7 +20,7 @@ Project Status: **v60 — CNF Tracker migration slice, feedback Not Accepted TTL
 6. **CNF Tracker close** validation via `cnfClosureValidation.ts` (approved CNF status shortcut or gate fields Approved/NA).
 7. Admin **Data Map**: expanded integrity findings and click-to-highlight related table subgraph.
 8. User feedback: rename admin disposition to **Not Accepted**, 3-day TTL for **Addressed** and **Not Accepted** (migration 028).
-9. Handoff, git commit --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>" (v60), and GitHub Pages deploy.
+9. Handoff, git commit (v60), and GitHub Pages deploy.
 
 ---
 
@@ -101,8 +101,8 @@ Project Status: **v60 — CNF Tracker migration slice, feedback Not Accepted TTL
 
 ## Git Traceability
 
-- Commit message: *(filled after commit)*
-- Commit hash: *(filled after commit)*
+- Commit message: `v60: CNF Tracker, feedback TTL, and close validation`
+- Commit hash: 37e6cd9
 
 ---
 
@@ -120,4 +120,6 @@ Project Status: **v60 — CNF Tracker migration slice, feedback Not Accepted TTL
 ## Summary Since v59
 
 v59 delivered QA CNF layout and QRMR FG Month linkage. v60 adds the CNF Tracker feature surface (DB + UI + services), QA Risk Control on CNF entries, project and CNF closure validation, Data Map integrity subgraph UX, and feedback Not Accepted with shared 3-day TTL (migration 028).
+
+
 
