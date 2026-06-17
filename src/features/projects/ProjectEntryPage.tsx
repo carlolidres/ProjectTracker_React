@@ -16,6 +16,7 @@ import {
   clearProjectEntryDraft,
   loadProjectEntryDraft,
   saveProjectEntryDraft,
+  useDebouncedDraftPersist,
   useFlushOnPageHide,
 } from "@/lib/formDraftStorage";
 import { diagLog, useDiagLifecycle } from "@/lib/sessionDiagnostics";
@@ -315,11 +316,34 @@ export function ProjectEntryPage() {
     if (user?.id) clearProjectEntryDraft(user.id);
   }
 
+  function restoreProjectDraft(draft: ReturnType<typeof loadProjectEntryDraft>) {
+    if (!draft) return;
+    diagLog("form", "restored project entry draft from localStorage", {
+      openKeys: draft.openKeys.length,
+      activeTab: draft.activeTab,
+      projectIdParam: draft.projectIdParam,
+    });
+    syncProjectCnfEntryCounts(draft.project);
+    const restored = withDefaultProjectOwner(draft.project, profile);
+    baselineProjectRef.current = structuredClone(restored);
+    setProject(restored);
+    setSavedFgMonths(draft.savedFgMonths);
+    setOpenKeys(draft.openKeys);
+    setActiveTab(draft.activeTab);
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const draft = user?.id ? loadProjectEntryDraft(user.id) : null;
+
       if (projectIdParam) {
+        if (draft?.projectIdParam === projectIdParam) {
+          restoreProjectDraft(draft);
+          return;
+        }
+
         const existing = await getProjectById(projectIdParam);
         if (existing) {
           syncProjectCnfEntryCounts(existing);
@@ -329,23 +353,8 @@ export function ProjectEntryPage() {
           setSavedFgMonths(collectSavedFgMonths(withLink));
           setOpenKeys([]);
         }
-      } else if (user?.id) {
-        const draft = loadProjectEntryDraft(user.id);
-        if (draft) {
-          diagLog("form", "restored project entry draft from localStorage", {
-            openKeys: draft.openKeys.length,
-            activeTab: draft.activeTab,
-          });
-          syncProjectCnfEntryCounts(draft.project);
-          const restored = withDefaultProjectOwner(draft.project, profile);
-          baselineProjectRef.current = structuredClone(restored);
-          setProject(restored);
-          setSavedFgMonths(collectSavedFgMonths(draft.project));
-          setOpenKeys(draft.openKeys);
-          setActiveTab(draft.activeTab);
-        } else {
-          await prepareNewProject();
-        }
+      } else if (draft) {
+        restoreProjectDraft(draft);
       } else {
         await prepareNewProject();
       }
@@ -354,12 +363,18 @@ export function ProjectEntryPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectIdParam, user?.id]);
+  }, [projectIdParam, user?.id, profile]);
 
   const persistProjectDraft = useCallback(() => {
-    if (projectIdParam || !user?.id || loading) return;
-    saveProjectEntryDraft(user.id, { project, openKeys, activeTab });
-  }, [project, openKeys, activeTab, projectIdParam, user?.id, loading]);
+    if (!user?.id || loading) return;
+    saveProjectEntryDraft(user.id, {
+      project,
+      openKeys,
+      activeTab,
+      projectIdParam,
+      savedFgMonths,
+    });
+  }, [project, openKeys, activeTab, projectIdParam, savedFgMonths, user?.id, loading]);
 
   useEffect(() => {
     void load();
@@ -373,13 +388,7 @@ export function ProjectEntryPage() {
     });
   }, [profile?.first_name, profile?.role, projectIdParam, loading, profile]);
 
-  useEffect(() => {
-    if (projectIdParam || !user?.id || loading) return;
-    const timer = window.setTimeout(() => {
-      persistProjectDraft();
-    }, 400);
-    return () => window.clearTimeout(timer);
-  }, [persistProjectDraft, projectIdParam, user?.id, loading]);
+  useDebouncedDraftPersist(persistProjectDraft, Boolean(user?.id && !loading));
 
   useFlushOnPageHide(persistProjectDraft);
 
@@ -619,8 +628,14 @@ export function ProjectEntryPage() {
       const valid = new Set(collectAllCollapseKeys(baseline));
       return current.filter((key) => valid.has(key));
     });
-    if (!projectIdParam && user?.id) {
-      saveProjectEntryDraft(user.id, { project: baseline, openKeys, activeTab });
+    if (user?.id) {
+      saveProjectEntryDraft(user.id, {
+        project: baseline,
+        openKeys,
+        activeTab,
+        projectIdParam,
+        savedFgMonths: collectSavedFgMonths(baseline),
+      });
     }
   }
 

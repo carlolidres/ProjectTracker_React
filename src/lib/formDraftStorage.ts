@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { ProjectTab } from "@/lib/projectFormFields";
 import type { ProjectHierarchy, SupportActivity } from "@/types";
+import type { CnfTrackerStatus } from "@/types/cnfTracker";
 
 const DRAFT_PREFIX = "project-tracker:draft:";
 
@@ -8,6 +9,21 @@ export interface ProjectEntryDraft {
   project: ProjectHierarchy;
   openKeys: string[];
   activeTab: ProjectTab;
+  projectIdParam: string | null;
+  savedFgMonths: Record<string, string>;
+}
+
+export interface CnfTrackerFormDraft {
+  cnf_tracker_id: string;
+  cnf_reference: string;
+  cnf_initiator: string;
+  tracker_status: CnfTrackerStatus;
+}
+
+export interface CnfTrackerDraft {
+  form: CnfTrackerFormDraft;
+  initiatorTouched: boolean;
+  trackerIdParam: string | null;
 }
 
 function draftKey(userId: string, formKey: string): string {
@@ -18,11 +34,16 @@ function parseProjectEntryDraft(raw: string): ProjectEntryDraft | null {
   try {
     const parsed = JSON.parse(raw) as ProjectEntryDraft | ProjectHierarchy;
     if (parsed && typeof parsed === "object" && "project" in parsed) {
-      const draft = parsed as ProjectEntryDraft;
+      const draft = parsed as Partial<ProjectEntryDraft>;
       return {
-        project: draft.project,
+        project: draft.project as ProjectHierarchy,
         openKeys: Array.isArray(draft.openKeys) ? draft.openKeys : [],
         activeTab: draft.activeTab ?? "AM/BM/PL",
+        projectIdParam: draft.projectIdParam ?? null,
+        savedFgMonths:
+          draft.savedFgMonths && typeof draft.savedFgMonths === "object"
+            ? draft.savedFgMonths
+            : {},
       };
     }
     if (parsed && typeof parsed === "object" && "batches" in parsed) {
@@ -30,6 +51,8 @@ function parseProjectEntryDraft(raw: string): ProjectEntryDraft | null {
         project: parsed as ProjectHierarchy,
         openKeys: [],
         activeTab: "AM/BM/PL",
+        projectIdParam: null,
+        savedFgMonths: {},
       };
     }
     return null;
@@ -84,10 +107,52 @@ export function clearSupportActivityDraft(userId: string): void {
   localStorage.removeItem(draftKey(userId, "support-activities"));
 }
 
+function parseCnfTrackerDraft(raw: string): CnfTrackerDraft | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<CnfTrackerDraft>;
+    if (!parsed?.form || typeof parsed.form !== "object") return null;
+    const form = parsed.form;
+    return {
+      form: {
+        cnf_tracker_id: String(form.cnf_tracker_id ?? "N/A"),
+        cnf_reference: String(form.cnf_reference ?? ""),
+        cnf_initiator: String(form.cnf_initiator ?? "N/A"),
+        tracker_status: form.tracker_status === "Closed" ? "Closed" : "Open",
+      },
+      initiatorTouched: Boolean(parsed.initiatorTouched),
+      trackerIdParam: parsed.trackerIdParam ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function saveCnfTrackerDraft(userId: string, draft: CnfTrackerDraft): void {
+  if (typeof window === "undefined" || !userId) return;
+  try {
+    localStorage.setItem(draftKey(userId, "cnf-tracker"), JSON.stringify(draft));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+export function loadCnfTrackerDraft(userId: string): CnfTrackerDraft | null {
+  if (typeof window === "undefined" || !userId) return null;
+  const raw = localStorage.getItem(draftKey(userId, "cnf-tracker"));
+  if (!raw) return null;
+  return parseCnfTrackerDraft(raw);
+}
+
+export function clearCnfTrackerDraft(userId: string): void {
+  if (typeof window === "undefined" || !userId) return;
+  localStorage.removeItem(draftKey(userId, "cnf-tracker"));
+}
+
 export function clearAllFormDraftsForUser(userId: string): void {
   if (typeof window === "undefined" || !userId) return;
   clearProjectEntryDraft(userId);
   clearSupportActivityDraft(userId);
+  clearCnfTrackerDraft(userId);
 }
 
 export function clearAllFormDrafts(): void {
@@ -117,4 +182,23 @@ export function useFlushOnPageHide(flush: () => void): void {
       window.removeEventListener("pagehide", run);
     };
   }, [flush]);
+}
+
+/** Debounced draft save that flushes synchronously on unmount or dependency change. */
+export function useDebouncedDraftPersist(
+  persist: () => void,
+  enabled: boolean,
+  debounceMs = 400,
+  shouldFlushOnCleanup: () => boolean = () => true,
+): void {
+  useEffect(() => {
+    if (!enabled) return;
+    const timer = window.setTimeout(() => {
+      persist();
+    }, debounceMs);
+    return () => {
+      window.clearTimeout(timer);
+      if (shouldFlushOnCleanup()) persist();
+    };
+  }, [persist, enabled, debounceMs, shouldFlushOnCleanup]);
 }
