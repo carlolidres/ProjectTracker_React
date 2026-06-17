@@ -23,7 +23,7 @@ export type FocusGroup = "AM/BM/PL" | "QA" | "PP" | "TSD" | "VAL" | "QC" | "None
 const PRIORITY_ACTION_LABELS: Record<string, string> = {
   cnf_reference: "Enter CNF Reference",
   qrmr_ref_no: "Enter QRMR No.",
-  qrmr_status: "Complete QRMR Status",
+  qrmr_status: "Approve QRMR or mark Not Applicable",
   qrmr_target_date: "Set QRMR Target Date",
   change_description: "Enter Change Description",
   cnf_status: "Complete CNF Status / Client Approval",

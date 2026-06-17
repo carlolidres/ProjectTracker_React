@@ -17,6 +17,7 @@ import { buildFieldDomId } from "@/lib/duplicateReview";
 import { isCnfMotherLinked, isCnfMotherUnlinked, motherProjectUrl } from "@/lib/cnfMotherLink";
 import { isFgMonthLocked } from "@/lib/fgMonthLock";
 import { bmrLockReason, isBmrFieldKey, isBmrLockedForBatch, isProjectBmrLocked } from "@/lib/bmrLock";
+import { applyQrmrTargetDatesFromFgMonth } from "@/lib/qrmrFgMonth";
 import { endorsementDateFromValidationTarget, isPoFieldDisabledByValNotApplicable, isQaCnfFieldDisabledByNotApplicable } from "@/lib/valReportDates";
 import {
   clonePoForAdd,
@@ -315,6 +316,9 @@ export function ProjectHierarchyForm({
                         const next = structuredClone(project);
                         const target = next.batches[batchIndex].mo_controls[moIndex].po_controls[poIndex];
                         setPoFieldValue(target, field.key, value);
+                        if (field.key === "fg_month") {
+                          applyQrmrTargetDatesFromFgMonth(target);
+                        }
                         if (field.key === "so_no" && isCanonicalPo(batchIndex, moIndex, poIndex)) {
                           next.so_no = value;
                         }
@@ -510,7 +514,7 @@ export function ProjectHierarchyForm({
                                 const cnfReadOnly =
                                   fieldLockProps.readOnly
                                   || cnfLinked
-                                  || (isQaTab && field.key === "cnf_reference");
+                                  || (isQaTab && (field.key === "cnf_reference" || field.key === "change_description"));
                                 return (
                                 <ProjectFieldControl
                                   key={field.key}

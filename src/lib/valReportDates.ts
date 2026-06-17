@@ -77,7 +77,7 @@ export function isQaCnfFieldDisabledByNotApplicable(entry: CnfEntry, fieldKey: s
 }
 
 export function isQaCnfFieldComplete(entry: CnfEntry, field: string): boolean {
-  if (field === "qrmr_status") return !isMissingValue(entry.qrmr_status);
+  if (field === "qrmr_status") return isApprovedOrNotApplicableStatus(entry.qrmr_status);
   if (field === "qrmr_ref_no") {
     if (isNotApplicableStatus(entry.qrmr_status)) return true;
     return !isMissingValue(entry.qrmr_ref_no);

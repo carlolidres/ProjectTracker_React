@@ -134,6 +134,14 @@ export const QA_CNF_FIELDS: ProjectFieldDef[] = [
     tooltip: "CNF reference from AM/BM/PL tab (read-only on QA tab).",
   },
   {
+    key: "change_description",
+    label: "Change Description",
+    type: "textarea",
+    role: "QA",
+    span: 3,
+    tooltip: "Change description from AM/BM/PL tab (read-only on QA tab).",
+  },
+  {
     key: "qrmr_ref_no",
     label: "QRMR No.",
     type: "alphanumeric",
@@ -146,14 +154,16 @@ export const QA_CNF_FIELDS: ProjectFieldDef[] = [
     type: "select",
     role: "QA",
     registry: "qrmr_status",
-    tooltip: "QRMR workflow status. Not Applicable disables QRMR No. and Target Date.",
+    tooltip:
+      "QRMR must be Approved or Not Applicable on or before the PO FG Month. Not Applicable disables QRMR No. and Target Date.",
   },
   {
     key: "qrmr_target_date",
     label: "Target Date",
     type: "date",
     role: "QA",
-    tooltip: "QRMR target date. Not required when Status is Approved or Not Applicable.",
+    tooltip:
+      "Defaults to the last day of the PO FG Month when FG Month is set. Not required when Status is Approved or Not Applicable.",
   },
 ];
 
