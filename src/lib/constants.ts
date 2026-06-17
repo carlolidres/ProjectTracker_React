@@ -13,6 +13,7 @@ export const DEFAULT_REGISTRY: Record<string, string[]> = {
   val_interim_report_status: ["In-process", "Routing", "Client Approval", "Approved", "Not Applicable"],
   validation_report_status: ["In-process", "Routing", "Client Approval", "Approved"],
   endorsement_report_status: ["In-process", "Routing", "Approved", "Not Applicable"],
+  qrmr_status: ["In-Process", "Routing", "Client Approval", "Approved", "Not Applicable"],
   final_status: ["OPEN", "CLOSED", "CANCELLED", "Others"],
   department: ["DPM", "LPM", "DPP", "LPP", "CO", "COS", "TOP", "STEROIDS", "CEPHA"],
   doc_status: ["In-process", "Routing", "Client Approval", "Approved"],
@@ -43,13 +44,26 @@ export const VAL_FIELDS = [
 
 export const QC_FIELDS = ["ar_availability_date"];
 
-export const CNF_ENTRY_KEYS = [
-  "cnf_reference", "qrmr_ref_no", "change_description",
+export const QA_FIELDS = ["qrmr_ref_no", "qrmr_status", "qrmr_target_date"];
+
+/** CNF entry fields owned by AM/BM/PL (QRMR fields live on the QA tab). */
+export const AM_CNF_ENTRY_KEYS = [
+  "cnf_reference", "change_description",
   "cnf_status", "client_approval_target_date", "remarks",
+] as const;
+
+export const QA_CNF_ENTRY_KEYS = [
+  "qrmr_ref_no", "qrmr_status", "qrmr_target_date",
+] as const;
+
+export const CNF_ENTRY_KEYS = [
+  ...AM_CNF_ENTRY_KEYS,
+  ...QA_CNF_ENTRY_KEYS,
 ] as const;
 
 export const ROLE_LABELS: Record<string, string> = {
   am_bm_pl: "AM/BM/PL",
+  qa: "QA",
   pp: "PP",
   tsd: "TSD",
   val: "VAL",

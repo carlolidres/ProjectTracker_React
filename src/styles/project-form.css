@@ -288,6 +288,7 @@
 }
 
 .project-tab-am { color: #0b6f71; background: #edf8f6; }
+.project-tab-qa { color: #8c4a24; background: #fdf3eb; }
 .project-tab-pp { color: #285b9c; background: #eff5fc; }
 .project-tab-tsd { color: #8a5a12; background: #fff7e8; }
 .project-tab-val { color: #6842a6; background: #f5f0fb; }
@@ -306,6 +307,12 @@
   --layer-accent: #0f8b8d;
   --layer-border: #b9d9d3;
   --layer-summary: #eaf6f3;
+}
+
+.project-tab-layer-qa {
+  --layer-accent: #b86a3a;
+  --layer-border: #e8cdb8;
+  --layer-summary: #fdf3eb;
 }
 
 .project-tab-layer-pp {
@@ -537,6 +544,11 @@
   background: rgba(15, 139, 141, 0.15);
 }
 
+[data-theme="dark"] .project-tab-qa {
+  color: #e0a67a;
+  background: rgba(184, 106, 58, 0.15);
+}
+
 [data-theme="dark"] .project-tab-pp {
   color: #8cb8e8;
   background: rgba(61, 111, 168, 0.15);
@@ -561,6 +573,12 @@
   --layer-accent: #4db8ba;
   --layer-border: rgba(77, 184, 186, 0.35);
   --layer-summary: rgba(15, 139, 141, 0.22);
+}
+
+[data-theme="dark"] .project-tab-layer-qa {
+  --layer-accent: #d4925e;
+  --layer-border: rgba(212, 146, 94, 0.35);
+  --layer-summary: rgba(184, 106, 58, 0.22);
 }
 
 [data-theme="dark"] .project-tab-layer-pp {

@@ -46,11 +46,12 @@ export function canCopyCnfFromProject(role: UserRole | undefined): boolean {
   return role === "admin" || role === "am_bm_pl";
 }
 
-export function canEditProjectFields(role: UserRole, fieldGroup: "am" | "pp" | "tsd" | "val" | "qc"): boolean {
+export function canEditProjectFields(role: UserRole, fieldGroup: "am" | "qa" | "pp" | "tsd" | "val" | "qc"): boolean {
   if (role === "admin") return true;
   if (role === "view") return false;
   const map: Record<string, UserRole[]> = {
     am: ["am_bm_pl"],
+    qa: ["qa"],
     pp: ["pp"],
     tsd: ["tsd"],
     val: ["val"],

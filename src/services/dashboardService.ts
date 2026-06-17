@@ -79,7 +79,7 @@ function buildMonthlyTrend(rows: ProjectRow[]) {
   return trend;
 }
 
-const PENDING_GROUPS = ["AM/BM/PL", "PP", "TSD", "VAL", "QC"] as const;
+const PENDING_GROUPS = ["AM/BM/PL", "QA", "PP", "TSD", "VAL", "QC"] as const;
 type PendingRoleKey = (typeof PENDING_GROUPS)[number];
 
 export async function getDashboardData(): Promise<DashboardData> {
@@ -91,7 +91,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const projects: Record<string, boolean> = {};
   const cnfStatusCounts = { "CNF Creation": 0, Routing: 0, "Client Approval": 0, Approved: 0 };
   const finalStatusCounts = { OPEN: 0, CLOSED: 0, CANCELLED: 0, Others: 0 };
-  const pendingRoleCounts: Record<PendingRoleKey, number> = { "AM/BM/PL": 0, PP: 0, TSD: 0, VAL: 0, QC: 0 };
+  const pendingRoleCounts: Record<PendingRoleKey, number> = { "AM/BM/PL": 0, QA: 0, PP: 0, TSD: 0, VAL: 0, QC: 0 };
 
   let openCount = 0;
   let closedCount = 0;

@@ -1,8 +1,8 @@
-import { CNF_ENTRY_KEYS } from "@/lib/constants";
+import { AM_CNF_ENTRY_KEYS, CNF_ENTRY_KEYS } from "@/lib/constants";
 
-export type ProjectTab = "AM/BM/PL" | "PP" | "TSD" | "VAL" | "QC";
+export type ProjectTab = "AM/BM/PL" | "QA" | "PP" | "TSD" | "VAL" | "QC";
 
-export const PROJECT_TABS: ProjectTab[] = ["AM/BM/PL", "PP", "TSD", "VAL", "QC"];
+export const PROJECT_TABS: ProjectTab[] = ["AM/BM/PL", "QA", "PP", "TSD", "VAL", "QC"];
 
 export type ProjectFieldType =
   | "readonly"
@@ -89,7 +89,6 @@ export const PO_FIELDS: ProjectFieldDef[] = [
     tooltip: "Select the unit of measure: BXs, BTs, Sachets, Unit, Tubes, Blisters, Strips, Packs, Units, or Pcs.",
   },
   { key: "cnf_reference", label: "CNF Reference", type: "alphanumeric", role: "AM/BM/PL", copyFromFirst: true, tooltip: "CNF reference number. Use Copy from 1st PO when applicable." },
-  { key: "qrmr_ref_no", label: "QRMR Ref No.", type: "alphanumeric", role: "AM/BM/PL", tooltip: "QRMR reference (alphanumeric)." },
   { key: "change_description", label: "Change Description", type: "textarea", role: "AM/BM/PL", span: 3, tooltip: "Describe the change." },
   { key: "cnf_status", label: "CNF Status", type: "select", role: "AM/BM/PL", registry: "cnf_status", tooltip: "CNF Creation, Routing, Client Approval, or Approved." },
   { key: "client_approval_target_date", label: "Client Approval Target", type: "date", role: "AM/BM/PL", tooltip: "Target date for client approval." },
@@ -123,8 +122,40 @@ export const PO_FIELDS: ProjectFieldDef[] = [
 ];
 
 export const CNF_FIELDS: ProjectFieldDef[] = PO_FIELDS.filter((field) =>
-  (CNF_ENTRY_KEYS as readonly string[]).includes(field.key),
+  (AM_CNF_ENTRY_KEYS as readonly string[]).includes(field.key),
 );
+
+export const QA_CNF_FIELDS: ProjectFieldDef[] = [
+  {
+    key: "cnf_reference",
+    label: "CNF Reference",
+    type: "readonly",
+    role: "QA",
+    tooltip: "CNF reference from AM/BM/PL tab (read-only on QA tab).",
+  },
+  {
+    key: "qrmr_ref_no",
+    label: "QRMR No.",
+    type: "alphanumeric",
+    role: "QA",
+    tooltip: "QRMR reference number for this CNF entry.",
+  },
+  {
+    key: "qrmr_status",
+    label: "Status",
+    type: "select",
+    role: "QA",
+    registry: "qrmr_status",
+    tooltip: "QRMR workflow status. Not Applicable disables QRMR No. and Target Date.",
+  },
+  {
+    key: "qrmr_target_date",
+    label: "Target Date",
+    type: "date",
+    role: "QA",
+    tooltip: "QRMR target date. Not required when Status is Approved or Not Applicable.",
+  },
+];
 
 /** Copied from PO 1 → PO 2+ within the same MO when using "Copy from 1st PO" on AM/BM/PL. */
 export const COPY_FROM_FIRST_PO_AM_FIELDS = [
@@ -146,12 +177,14 @@ export const PO_FIELDS_BY_TAB = (tab: ProjectTab): ProjectFieldDef[] =>
 
 export function projectTabKey(tab: ProjectTab): string {
   if (tab === "AM/BM/PL") return "am";
+  if (tab === "QA") return "qa";
   return tab.toLowerCase();
 }
 
-export function tabToFieldGroup(tab: ProjectTab): "am" | "pp" | "tsd" | "val" | "qc" {
-  const map: Record<ProjectTab, "am" | "pp" | "tsd" | "val" | "qc"> = {
+export function tabToFieldGroup(tab: ProjectTab): "am" | "qa" | "pp" | "tsd" | "val" | "qc" {
+  const map: Record<ProjectTab, "am" | "qa" | "pp" | "tsd" | "val" | "qc"> = {
     "AM/BM/PL": "am",
+    QA: "qa",
     PP: "pp",
     TSD: "tsd",
     VAL: "val",

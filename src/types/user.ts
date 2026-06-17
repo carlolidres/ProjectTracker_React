@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 
 export type UserRole =
   | "am_bm_pl"
+  | "qa"
   | "pp"
   | "tsd"
   | "val"

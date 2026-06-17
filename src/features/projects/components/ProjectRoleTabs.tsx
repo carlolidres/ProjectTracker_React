@@ -1,4 +1,5 @@
 import {
+  AuditOutlined,
   ExperimentOutlined,
   KeyOutlined,
   ProjectOutlined,
@@ -10,6 +11,7 @@ import { PROJECT_TABS, projectTabKey } from "@/lib/projectFormFields";
 
 const TAB_ICONS: Record<ProjectTab, React.ReactNode> = {
   "AM/BM/PL": <UserAddOutlined />,
+  QA: <AuditOutlined />,
   PP: <ProjectOutlined />,
   TSD: <KeyOutlined />,
   VAL: <ExperimentOutlined />,

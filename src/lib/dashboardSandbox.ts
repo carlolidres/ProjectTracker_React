@@ -202,6 +202,7 @@ export function getSandboxDashboardData(): DashboardData {
     },
     pendingRoleCounts: {
       "AM/BM/PL": 5,
+      QA: 2,
       PP: 8,
       TSD: 6,
       VAL: 4,

@@ -7,6 +7,7 @@ const LEGACY_ROLE_MAP: Record<string, UserRole> = {
   nb: "am_bm_pl",
   pl: "am_bm_pl",
   am_bm_pl: "am_bm_pl",
+  qa: "qa",
   pp: "pp",
   tsd: "tsd",
   val: "val",

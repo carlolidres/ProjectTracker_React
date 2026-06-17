@@ -8,6 +8,7 @@ import {
   PO_FIELDS_BY_TAB,
   PO_ORDER_QUANTITY_UOM_KEYS,
   PROJECT_LEVEL_VAL_FIELDS,
+  QA_CNF_FIELDS,
   type ProjectFieldDef,
   type ProjectTab,
   projectTabKey,
@@ -16,7 +17,7 @@ import { buildFieldDomId } from "@/lib/duplicateReview";
 import { isCnfMotherLinked, isCnfMotherUnlinked, motherProjectUrl } from "@/lib/cnfMotherLink";
 import { isFgMonthLocked } from "@/lib/fgMonthLock";
 import { bmrLockReason, isBmrFieldKey, isBmrLockedForBatch, isProjectBmrLocked } from "@/lib/bmrLock";
-import { endorsementDateFromValidationTarget } from "@/lib/valReportDates";
+import { endorsementDateFromValidationTarget, isPoFieldDisabledByValNotApplicable, isQaCnfFieldDisabledByNotApplicable } from "@/lib/valReportDates";
 import {
   clonePoForAdd,
   emptyCnfEntry,
@@ -155,6 +156,9 @@ export function ProjectHierarchyForm({
 }: ProjectHierarchyFormProps) {
   useDiagLifecycle("ProjectHierarchyForm");
   const isAmTab = activeTab === "AM/BM/PL";
+  const isQaTab = activeTab === "QA";
+  const showCnfSection = isAmTab || isQaTab;
+  const cnfFieldsForTab = isQaTab ? QA_CNF_FIELDS : CNF_FIELDS;
   const isTsdTab = activeTab === "TSD";
   const poFields = PO_FIELDS_BY_TAB(activeTab);
   const showTsdBmrLockBanner = isTsdTab && isProjectBmrLocked(project);
@@ -290,6 +294,7 @@ export function ProjectHierarchyForm({
                       field.key === "fg_month" &&
                       isFgMonthLocked(savedFgMonths, batchIndex, moIndex, poIndex);
                     const bmrFieldLocked = bmrLocked && isBmrFieldKey(field.key);
+                    const valNaDisabled = isPoFieldDisabledByValNotApplicable(po, field.key);
 
                     return (
                     <ProjectFieldControl
@@ -303,8 +308,8 @@ export function ProjectHierarchyForm({
                         fieldKey: field.key,
                       })}
                       value={poFieldDisplayValue(field.key, po, batchIndex, moIndex, poIndex)}
-                      readOnly={fieldLockProps.readOnly || fgMonthLocked || bmrFieldLocked}
-                      disabled={fieldLockProps.disabled}
+                      readOnly={fieldLockProps.readOnly || fgMonthLocked || bmrFieldLocked || valNaDisabled}
+                      disabled={fieldLockProps.disabled || valNaDisabled}
                       registry={registry}
                       onChange={(value) => {
                         const next = structuredClone(project);
@@ -345,11 +350,11 @@ export function ProjectHierarchyForm({
                   return renderField(group[0]);
                 },
               )}
-              {isAmTab ? (
+              {showCnfSection ? (
                 <div className="project-cnf-list project-field-span-3">
                   <div className="project-cnf-heading">
-                    <h4>CNF Entries</h4>
-                    {isCanonicalPo(batchIndex, moIndex, poIndex) ? (
+                    <h4>{isQaTab ? "QRMR Entries" : "CNF Entries"}</h4>
+                    {isAmTab && isCanonicalPo(batchIndex, moIndex, poIndex) ? (
                       <Space size={4}>
                         {cnfLinked ? (
                           <Tag color="blue">Linked to Mother Project</Tag>
@@ -427,9 +432,11 @@ export function ProjectHierarchyForm({
                       items={[
                         {
                           key: cnfKey(poKeyValue, cnfIndex),
-                          label: `CNF Entry ${cnfIndex + 1}`,
+                          label: isQaTab
+                            ? `CNF Entry ${cnfIndex + 1}${entry.cnf_reference ? `: ${valueOrNA(entry.cnf_reference)}` : ""}`
+                            : `CNF Entry ${cnfIndex + 1}`,
                           extra:
-                            isCanonicalPo(batchIndex, moIndex, poIndex) && cnfIndex === 0 ? (
+                            isAmTab && isCanonicalPo(batchIndex, moIndex, poIndex) && cnfIndex === 0 ? (
                               <Space size={4} onClick={(e) => e.stopPropagation()}>
                                 {canCopyCnfFromProject && !cnfLinked && !cnfMotherLink ? (
                                   <Tooltip title="Copy from another Project">
@@ -475,7 +482,7 @@ export function ProjectHierarchyForm({
                                   </Button>
                                 ) : null}
                               </Space>
-                            ) : isCanonicalPo(batchIndex, moIndex, poIndex) && canModifyCnf && cnfEntries.length > 1 ? (
+                            ) : isAmTab && isCanonicalPo(batchIndex, moIndex, poIndex) && canModifyCnf && cnfEntries.length > 1 ? (
                               <Button
                                 size="small"
                                 danger
@@ -498,7 +505,13 @@ export function ProjectHierarchyForm({
                             ) : null,
                           children: (
                             <div className="project-form-grid">
-                              {CNF_FIELDS.map((field) => (
+                              {cnfFieldsForTab.map((field) => {
+                                const qaNaDisabled = isQaCnfFieldDisabledByNotApplicable(entry, field.key);
+                                const cnfReadOnly =
+                                  fieldLockProps.readOnly
+                                  || cnfLinked
+                                  || (isQaTab && field.key === "cnf_reference");
+                                return (
                                 <ProjectFieldControl
                                   key={field.key}
                                   field={field}
@@ -511,8 +524,8 @@ export function ProjectHierarchyForm({
                                     fieldKey: field.key,
                                   })}
                                   value={String(entry[field.key as keyof CnfEntry] ?? "")}
-                                  readOnly={fieldLockProps.readOnly || cnfLinked}
-                                  disabled={fieldLockProps.disabled || cnfLinked}
+                                  readOnly={cnfReadOnly}
+                                  disabled={fieldLockProps.disabled || cnfLinked || qaNaDisabled}
                                   registry={registry}
                                   onChange={(value) =>
                                     updateCnfEntry(
@@ -525,7 +538,8 @@ export function ProjectHierarchyForm({
                                     )
                                   }
                                 />
-                              ))}
+                              );
+                              })}
                             </div>
                           ),
                         },
@@ -637,6 +651,8 @@ export function ProjectHierarchyForm({
                 prod_ver: "",
                 cnf_reference: "",
                 qrmr_ref_no: "",
+                qrmr_status: "",
+                qrmr_target_date: "",
                 change_description: "",
                 cnf_status: "",
                 client_approval_target_date: "",

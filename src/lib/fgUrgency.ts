@@ -121,6 +121,7 @@ export const DUE_WINDOW_FILTER_OPTIONS = [
 
 export const PENDING_ROLE_FILTER_OPTIONS = [
   { label: "AM / BM / PL", value: "AM/BM/PL" },
+  { label: "QA", value: "QA" },
   { label: "PP", value: "PP" },
   { label: "TSD", value: "TSD" },
   { label: "VAL", value: "VAL" },

@@ -230,6 +230,7 @@ export function DashboardPage() {
       data
         ? ([
             ["AM / BM / PL", data.pendingRoleCounts["AM/BM/PL"]],
+            ["QA", data.pendingRoleCounts.QA],
             ["PP", data.pendingRoleCounts.PP],
             ["TSD", data.pendingRoleCounts.TSD],
             ["VAL", data.pendingRoleCounts.VAL],

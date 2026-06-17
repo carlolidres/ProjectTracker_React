@@ -33,6 +33,8 @@ export function applyCnfEntriesToProject(project: ProjectHierarchy, entries: Cnf
   const first = canonicalPo.cnf_entries[0] ?? emptyCnfEntry();
   canonicalPo.cnf_reference = first.cnf_reference;
   canonicalPo.qrmr_ref_no = first.qrmr_ref_no;
+  canonicalPo.qrmr_status = first.qrmr_status;
+  canonicalPo.qrmr_target_date = first.qrmr_target_date;
   canonicalPo.change_description = first.change_description;
   canonicalPo.cnf_status = first.cnf_status;
   canonicalPo.client_approval_target_date = first.client_approval_target_date;

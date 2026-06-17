@@ -53,7 +53,7 @@ const roleUsers: SeedUser[] = [
     fullName: "Project Tracker Admin",
     role: "admin",
   },
-  ...(["am_bm_pl", "pp", "tsd", "val", "qc", "view"] as UserRole[]).map(
+  ...(["am_bm_pl", "qa", "pp", "tsd", "val", "qc", "view"] as UserRole[]).map(
     (role) => ({
       email: `project-tracker.${role}@example.test`,
       password: dummyPassword,

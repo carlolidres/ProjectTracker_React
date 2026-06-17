@@ -7,6 +7,8 @@ export function emptyCnfEntry(): CnfEntry {
   return {
     cnf_reference: "",
     qrmr_ref_no: "",
+    qrmr_status: "",
+    qrmr_target_date: "",
     change_description: "",
     cnf_status: "",
     client_approval_target_date: "",

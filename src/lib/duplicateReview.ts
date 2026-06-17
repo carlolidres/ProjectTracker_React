@@ -1,4 +1,4 @@
-import { AM_FIELDS, PP_FIELDS, QC_FIELDS, TSD_FIELDS, VAL_FIELDS } from "@/lib/constants";
+import { AM_FIELDS, PP_FIELDS, QA_FIELDS, QC_FIELDS, TSD_FIELDS, VAL_FIELDS } from "@/lib/constants";
 
 import { PO_FIELDS, type ProjectTab } from "@/lib/projectFormFields";
 
@@ -47,19 +47,17 @@ export interface DuplicateGroup {
 
 
 const CNF_FIELD_KEYS = [
-
   "cnf_reference",
-
-  "qrmr_ref_no",
-
   "change_description",
-
   "cnf_status",
-
   "client_approval_target_date",
-
   "remarks",
+] as const;
 
+const QA_CNF_FIELD_KEYS = [
+  "qrmr_ref_no",
+  "qrmr_status",
+  "qrmr_target_date",
 ] as const;
 
 
@@ -148,6 +146,18 @@ const PO_FIELD_META: PoFieldMeta[] = [
 
   })),
 
+  ...QA_CNF_FIELD_KEYS.map((key) => ({
+
+    key,
+
+    label: key.replace(/_/g, " "),
+
+    role: "QA" as ProjectTab,
+
+    isCnf: true,
+
+  })),
+
 ];
 
 
@@ -189,6 +199,7 @@ export function buildFieldDomId(params: {
 function fieldRole(key: string): ProjectTab {
 
   if (AM_FIELDS.includes(key)) return "AM/BM/PL";
+  if (QA_FIELDS.includes(key)) return "QA";
 
   if (PP_FIELDS.includes(key)) return "PP";
 

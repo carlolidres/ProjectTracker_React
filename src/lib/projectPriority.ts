@@ -1,6 +1,7 @@
 import {
+  AM_CNF_ENTRY_KEYS,
   AM_FIELDS,
-  CNF_ENTRY_KEYS,
+  QA_CNF_ENTRY_KEYS,
   PP_FIELDS,
   QC_FIELDS,
   TSD_FIELDS,
@@ -9,6 +10,7 @@ import {
 import { fgDaysRemaining, fgSortValue } from "@/lib/fgUrgency";
 import { getTodayManila } from "@/lib/date";
 import {
+  isQaCnfFieldComplete,
   isValStatusFieldComplete,
   isValStatusFieldKey,
   isValTargetDateFieldComplete,
@@ -16,11 +18,13 @@ import {
 import { isMissingValue, valueOrNA } from "@/lib/utils";
 import type { CnfEntry, ProjectRow } from "@/types";
 
-export type FocusGroup = "AM/BM/PL" | "PP" | "TSD" | "VAL" | "QC" | "None";
+export type FocusGroup = "AM/BM/PL" | "QA" | "PP" | "TSD" | "VAL" | "QC" | "None";
 
 const PRIORITY_ACTION_LABELS: Record<string, string> = {
   cnf_reference: "Enter CNF Reference",
-  qrmr_ref_no: "Enter QRMR Ref No.",
+  qrmr_ref_no: "Enter QRMR No.",
+  qrmr_status: "Complete QRMR Status",
+  qrmr_target_date: "Set QRMR Target Date",
   change_description: "Enter Change Description",
   cnf_status: "Complete CNF Status / Client Approval",
   client_approval_target_date: "Set Client Approval Target Date",
@@ -48,7 +52,9 @@ const FIELD_TO_GROUP: Record<string, FocusGroup> = {
   fg_month: "AM/BM/PL",
   client_approval_target_date: "AM/BM/PL",
   cnf_reference: "AM/BM/PL",
-  qrmr_ref_no: "AM/BM/PL",
+  qrmr_ref_no: "QA",
+  qrmr_status: "QA",
+  qrmr_target_date: "QA",
   change_description: "AM/BM/PL",
   cnf_status: "AM/BM/PL",
   remarks: "AM/BM/PL",
@@ -134,8 +140,19 @@ function isFieldComplete(row: ProjectRow, field: string): boolean {
 }
 
 function isCnfEntryFieldComplete(entry: CnfEntry, field: string): boolean {
+  if ((QA_CNF_ENTRY_KEYS as readonly string[]).includes(field)) {
+    return isQaCnfFieldComplete(entry, field);
+  }
   if (field === "cnf_status") return valueOrNA(entry.cnf_status) === "Approved";
   return !isMissingValue(entry[field as keyof CnfEntry]);
+}
+
+function isAmCnfEntryIncomplete(entry: CnfEntry): boolean {
+  return AM_CNF_ENTRY_KEYS.some((key) => !isCnfEntryFieldComplete(entry, key));
+}
+
+function isQaCnfEntryIncomplete(entry: CnfEntry): boolean {
+  return QA_CNF_ENTRY_KEYS.some((key) => !isCnfEntryFieldComplete(entry, key));
 }
 
 export function countIncompleteMilestones(row: ProjectRow): number {
@@ -145,7 +162,13 @@ export function countIncompleteMilestones(row: ProjectRow): number {
 
   const entries = parseCnfEntriesJson(row);
   entries.forEach((entry, index) => {
-    for (const key of CNF_ENTRY_KEYS) {
+    for (const key of AM_CNF_ENTRY_KEYS) {
+      if (!isCnfEntryFieldComplete(entry, key)) {
+        count += 1;
+        if (index > 0) break;
+      }
+    }
+    for (const key of QA_CNF_ENTRY_KEYS) {
       if (!isCnfEntryFieldComplete(entry, key)) {
         count += 1;
         if (index > 0) break;
@@ -166,7 +189,16 @@ export function getNextRequiredAction(row: ProjectRow): string {
   const entries = parseCnfEntriesJson(row);
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index];
-    for (const key of CNF_ENTRY_KEYS) {
+    for (const key of AM_CNF_ENTRY_KEYS) {
+      if (!isCnfEntryFieldComplete(entry, key)) {
+        const prefix = entries.length > 1 ? `CNF Entry ${index + 1}: ` : "";
+        return `${prefix}${PRIORITY_ACTION_LABELS[key] ?? `Complete ${fieldLabel(key)}`}`;
+      }
+    }
+  }
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    for (const key of QA_CNF_ENTRY_KEYS) {
       if (!isCnfEntryFieldComplete(entry, key)) {
         const prefix = entries.length > 1 ? `CNF Entry ${index + 1}: ` : "";
         return `${prefix}${PRIORITY_ACTION_LABELS[key] ?? `Complete ${fieldLabel(key)}`}`;
@@ -186,11 +218,10 @@ export function getFocusGroup(row: ProjectRow): FocusGroup {
 
   const entries = parseCnfEntriesJson(row);
   for (const entry of entries) {
-    for (const key of CNF_ENTRY_KEYS) {
-      if (!isCnfEntryFieldComplete(entry, key)) {
-        return "AM/BM/PL";
-      }
-    }
+    if (isAmCnfEntryIncomplete(entry)) return "AM/BM/PL";
+  }
+  for (const entry of entries) {
+    if (isQaCnfEntryIncomplete(entry)) return "QA";
   }
 
   return "None";
@@ -199,7 +230,8 @@ export function getFocusGroup(row: ProjectRow): FocusGroup {
 export function hasMissingFieldsForGroup(row: ProjectRow, group: FocusGroup): boolean {
   if (group === "None") return false;
   const fieldMap: Record<FocusGroup, string[]> = {
-    "AM/BM/PL": [...AM_FIELDS, ...CNF_ENTRY_KEYS],
+    "AM/BM/PL": [...AM_FIELDS, ...AM_CNF_ENTRY_KEYS],
+    QA: [...QA_CNF_ENTRY_KEYS],
     PP: PP_FIELDS,
     TSD: TSD_FIELDS,
     VAL: VAL_FIELDS,
@@ -208,13 +240,19 @@ export function hasMissingFieldsForGroup(row: ProjectRow, group: FocusGroup): bo
   };
 
   const fields = fieldMap[group];
-  if (fields.some((field) => (CNF_ENTRY_KEYS as readonly string[]).includes(field as typeof CNF_ENTRY_KEYS[number]))) {
+  if (group === "AM/BM/PL" || group === "QA") {
+    const entryKeys = group === "AM/BM/PL" ? AM_CNF_ENTRY_KEYS : QA_CNF_ENTRY_KEYS;
     const entries = parseCnfEntriesJson(row);
+    const poFields = fields.filter(
+      (field) => !(entryKeys as readonly string[]).includes(field as typeof entryKeys[number]),
+    );
+    const poIncomplete = poFields.some((field) => !isProjectFieldComplete(row, field));
+    if (poIncomplete) return true;
     if (!entries.length) {
-      return CNF_ENTRY_KEYS.some((key) => isMissingValue(row[key as keyof ProjectRow]));
+      return entryKeys.some((key) => isMissingValue(row[key as keyof ProjectRow]));
     }
     return entries.some((entry) =>
-      CNF_ENTRY_KEYS.some((key) => isCnfEntryFieldComplete(entry, key) === false),
+      entryKeys.some((key) => isCnfEntryFieldComplete(entry, key) === false),
     );
   }
 
