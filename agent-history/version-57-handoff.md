@@ -37,7 +37,7 @@ Follow-up to v56: split single migration `025_qa_cnf_fields.sql` into `025_qa_ro
 ## Git Traceability
 
 - Commit message: `v57: split QA enum migration for PostgreSQL two-step apply`
-- Commit hash: `(pending second commit)`
+- Commit hash: `e7d0dcf`
 
 ---
 
