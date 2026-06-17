@@ -43,7 +43,7 @@ Fix Supabase error when running `026_qa_cnf_fields.sql`:
 ## Git Traceability
 
 - Commit message: `v58: fix pt_current_user_role enum coalesce in migration 026`
-- Commit hash: *(pending)*
+- Commit hash: `fcc3a69`
 
 ---
 
