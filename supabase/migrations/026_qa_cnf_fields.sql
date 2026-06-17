@@ -12,7 +12,7 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path = public
 AS $$
-  SELECT CASE lower(coalesce(value, ''))
+  SELECT CASE lower(nullif(trim(value), ''))
     WHEN 'am_bm_pl' THEN 'am_bm_pl'::public.user_role
     WHEN 'qa' THEN 'qa'::public.user_role
     WHEN 'pp' THEN 'pp'::public.user_role
@@ -31,20 +31,24 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT CASE lower(coalesce(p.role, ''))
-    WHEN 'admin' THEN 'admin'
-    WHEN 'am' THEN 'am_bm_pl'
-    WHEN 'bm' THEN 'am_bm_pl'
-    WHEN 'nb' THEN 'am_bm_pl'
-    WHEN 'pl' THEN 'am_bm_pl'
-    WHEN 'am_bm_pl' THEN 'am_bm_pl'
-    WHEN 'qa' THEN 'qa'
-    WHEN 'pp' THEN 'pp'
-    WHEN 'tsd' THEN 'tsd'
-    WHEN 'val' THEN 'val'
-    WHEN 'qc' THEN 'qc'
-    WHEN 'view' THEN 'view'
-    ELSE NULL
+  SELECT CASE
+    WHEN p.role IS NULL THEN NULL
+    ELSE
+      CASE lower(p.role::text)
+        WHEN 'admin' THEN 'admin'
+        WHEN 'am' THEN 'am_bm_pl'
+        WHEN 'bm' THEN 'am_bm_pl'
+        WHEN 'nb' THEN 'am_bm_pl'
+        WHEN 'pl' THEN 'am_bm_pl'
+        WHEN 'am_bm_pl' THEN 'am_bm_pl'
+        WHEN 'qa' THEN 'qa'
+        WHEN 'pp' THEN 'pp'
+        WHEN 'tsd' THEN 'tsd'
+        WHEN 'val' THEN 'val'
+        WHEN 'qc' THEN 'qc'
+        WHEN 'view' THEN 'view'
+        ELSE NULL
+      END
   END
   FROM public.profiles p
   WHERE p.id = auth.uid()
