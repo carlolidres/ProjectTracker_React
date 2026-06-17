@@ -212,6 +212,7 @@ export function DataMapPage() {
   const graph = useMemo(() => parseMigrationGraph(), []);
   const [search, setSearch] = useState("");
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [highlightTables, setHighlightTables] = useState<Set<string>>(new Set());
 
   const filteredTables = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -225,13 +226,29 @@ export function DataMapPage() {
 
   const visibleNames = useMemo(() => new Set(filteredTables.map((table) => table.name)), [filteredTables]);
 
+  const subgraphTables = useMemo(() => {
+    if (!highlightTables.size) return filteredTables;
+    return filteredTables.filter((table) => highlightTables.has(table.name));
+  }, [filteredTables, highlightTables]);
+
+  const subgraphNames = useMemo(
+    () => new Set(subgraphTables.map((table) => table.name)),
+    [subgraphTables],
+  );
+
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<SchemaNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   useEffect(() => {
-    setNodes(buildGraphNodes(filteredTables, graph.edges));
-    setEdges(buildFlowEdges(graph, visibleNames));
-  }, [filteredTables, graph, visibleNames, setNodes, setEdges]);
+    const canvasTables = highlightTables.size ? subgraphTables : filteredTables;
+    const canvasNames = highlightTables.size ? subgraphNames : visibleNames;
+    const built = buildGraphNodes(canvasTables, graph.edges).map((node) => ({
+      ...node,
+      selected: highlightTables.has(node.id) || node.id === selectedTable,
+    }));
+    setNodes(built);
+    setEdges(buildFlowEdges(graph, canvasNames));
+  }, [filteredTables, graph, visibleNames, subgraphTables, subgraphNames, highlightTables, selectedTable, setNodes, setEdges]);
 
   const findings = useMemo(
     () => buildIntegrityReport(graph, selectedTable ?? undefined),
@@ -242,6 +259,15 @@ export function DataMapPage() {
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedTable(node.id);
+    setHighlightTables(new Set());
+  }, []);
+
+  const onFindingClick = useCallback((finding: IntegrityFinding) => {
+    if (finding.table) setSelectedTable(finding.table);
+    const related = new Set(
+      [finding.table, ...(finding.relatedTables ?? [])].filter((name): name is string => Boolean(name)),
+    );
+    setHighlightTables(related);
   }, []);
 
   return (
@@ -300,7 +326,11 @@ export function DataMapPage() {
                   size="small"
                   dataSource={findings}
                   renderItem={(item) => (
-                    <List.Item>
+                    <List.Item
+                      className="data-map-finding-item"
+                      onClick={() => onFindingClick(item)}
+                      style={{ cursor: "pointer" }}
+                    >
                       <div className="data-map-finding">
                         <Space wrap size={4}>
                           <Tag color={severityColors[item.severity]}>{item.severity}</Tag>

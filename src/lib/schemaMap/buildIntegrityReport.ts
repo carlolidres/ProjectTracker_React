@@ -8,6 +8,7 @@ export interface IntegrityFinding {
   title: string;
   detail: string;
   table?: string;
+  relatedTables?: string[];
 }
 
 function tableByName(graph: SchemaGraph, name: string): SchemaTable | undefined {
@@ -111,13 +112,66 @@ export function buildIntegrityReport(graph: SchemaGraph, selectedTable?: string)
     table: "cnf_projects",
   });
 
+  findings.push({
+    id: "qa-qrmr-fg-month-deadline",
+    severity: "logic",
+    title: "QRMR must meet FG Month deadline",
+    detail:
+      "QRMR status must be Approved or Not Applicable on or before the last day of the PO FG Month. Target dates auto-sync from FG Month in the React form (qrmrFgMonth.ts).",
+    table: "cnf_projects",
+    relatedTables: ["cnf_projects"],
+  });
+
+  findings.push({
+    id: "qa-risk-control-field",
+    severity: "integrity",
+    title: "QA risk_control stored in cnf_entries_json",
+    detail:
+      "The QA Risk Control field is persisted per CNF entry inside cnf_entries_json (migration 027 note). No dedicated flat column exists on cnf_projects.",
+    table: "cnf_projects",
+    relatedTables: ["cnf_projects"],
+  });
+
+  findings.push({
+    id: "cnf-entries-json-canonical-sync",
+    severity: "integrity",
+    title: "CNF entries JSON mirrors canonical PO flat fields",
+    detail:
+      "Per-entry CNF/QRMR data lives in cnf_entries_json while flat cnf_reference and related columns mirror the first entry on each PO line. Application logic must keep JSON and flat columns in sync on save.",
+    table: "cnf_projects",
+    relatedTables: ["cnf_projects"],
+  });
+
+  const tracker = tableByName(graph, "cnf_tracker_records");
+  if (tracker) {
+    findings.push({
+      id: "cnf-tracker-closure-gates",
+      severity: "logic",
+      title: "CNF Tracker close validation gates",
+      detail:
+        "CNF Tracker can close when any matching project CNF entry is Approved, or when QRMR and all validation report statuses on the first matching PO are Approved or Not Applicable. Enforced in cnfClosureValidation.ts.",
+      table: "cnf_tracker_records",
+      relatedTables: ["cnf_tracker_records", "cnf_projects"],
+    });
+  }
+
+  findings.push({
+    id: "project-close-val-report-gate",
+    severity: "logic",
+    title: "Project CLOSED requires Approved validation report",
+    detail:
+      "Final Status CLOSED on the canonical PO requires val_interim_report_status or validation_report_status to be Approved. Not Applicable on interim does not qualify. Enforced in projectCloseValidation.ts.",
+    table: "cnf_projects",
+    relatedTables: ["cnf_projects"],
+  });
+
   const feedback = tableByName(graph, "app_feedback");
   if (feedback && !feedback.columns.some((column) => column.name === "status")) {
     findings.push({
       id: "feedback-status-column",
       severity: "integrity",
       title: "app_feedback.status column not found",
-      detail: "Apply migration 023 so administrators can mark feedback as Addressed or Not Addressed.",
+      detail: "Apply migration 023 so administrators can mark feedback as Addressed or Not Accepted.",
       table: "app_feedback",
     });
   }

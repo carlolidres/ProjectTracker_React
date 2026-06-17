@@ -3,8 +3,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { valueOrNA } from "@/lib/utils";
 
 async function getNextSequentialId(
-  table: "cnf_projects" | "support_activities" | "lessons_learned",
-  column: "project_id" | "lesson_id",
+  table: "cnf_projects" | "support_activities" | "lessons_learned" | "cnf_tracker_records",
+  column: "project_id" | "lesson_id" | "cnf_tracker_id",
   prefix: string,
   padLength: number,
   count = 1,
@@ -30,6 +30,12 @@ async function getNextSequentialId(
 /** Legacy format: PROJ-YYYY-001 (sampleApp/Code.gs generateProjectId_) */
 export async function getNextProjectId(): Promise<string> {
   const [id] = await getNextSequentialId("cnf_projects", "project_id", "PROJ-", 3);
+  return id;
+}
+
+/** Format: CNF-YYYY-001 */
+export async function getNextCnfTrackerId(): Promise<string> {
+  const [id] = await getNextSequentialId("cnf_tracker_records", "cnf_tracker_id", "CNF-", 3);
   return id;
 }
 

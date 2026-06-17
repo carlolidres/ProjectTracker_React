@@ -20,7 +20,7 @@ import { useAuth } from "@/app/auth-provider";
 import { formatAppDateTime } from "@/lib/date";
 import {
   formatFeedbackForCopy,
-  feedbackAddressedExpiryLabel,
+  feedbackStatusExpiryLabel,
   listAppFeedback,
   submitAppFeedback,
   updateFeedbackStatus,
@@ -145,8 +145,20 @@ function FeedbackSubmitModal({
   );
 }
 
-function feedbackStatusLabel(status: FeedbackStatus) {
-  return status === "addressed" ? "Addressed" : "Not Addressed";
+function feedbackStatusDisplay(item: AppFeedback): { label: string; color: string } {
+  if (item.status === "addressed") {
+    return { label: "Addressed", color: "green" };
+  }
+  if (item.not_accepted_at) {
+    return { label: "Not Accepted", color: "default" };
+  }
+  return { label: "Pending", color: "orange" };
+}
+
+function feedbackStatusSelectValue(item: AppFeedback): FeedbackStatus | undefined {
+  if (item.status === "addressed") return "addressed";
+  if (item.not_accepted_at) return "not_addressed";
+  return undefined;
 }
 
 const FEEDBACK_LAST_SEEN_STORAGE = "pt-admin-feedback-last-seen";
@@ -177,6 +189,7 @@ function hasUnreadFeedback(items: AppFeedback[]): boolean {
   return items.some(
     (item) =>
       item.status === "not_addressed" &&
+      !item.not_accepted_at &&
       (!lastSeen || item.created_at > lastSeen),
   );
 }
@@ -237,6 +250,7 @@ function FeedbackInboxModal({
                 ...entry,
                 status,
                 addressed_at: status === "addressed" ? new Date().toISOString() : null,
+                not_accepted_at: status === "not_addressed" ? new Date().toISOString() : null,
               }
             : entry,
         ),
@@ -262,7 +276,7 @@ function FeedbackInboxModal({
       <div className="feedback-chat-window">
         <div className="feedback-chat-bubble feedback-chat-bubble-system">
           <Typography.Text>
-            Messages submitted by non-admin users. Addressed items are automatically removed after 72 hours.
+            Messages submitted by non-admin users. Addressed and Not Accepted items are automatically removed after 3 days.
           </Typography.Text>
         </div>
 
@@ -280,7 +294,15 @@ function FeedbackInboxModal({
           </div>
         ) : items.length ? (
           <div className="feedback-inbox-list">
-            {items.map((item) => (
+            {items.map((item) => {
+              const statusDisplay = feedbackStatusDisplay(item);
+              const statusExpiry = item.status === "addressed"
+                ? feedbackStatusExpiryLabel(item.addressed_at)
+                : item.not_accepted_at
+                  ? feedbackStatusExpiryLabel(item.not_accepted_at)
+                  : null;
+
+              return (
               <article key={item.id} className="feedback-inbox-item">
                 <div className="feedback-inbox-item-header">
                   <Space size={6} wrap>
@@ -288,18 +310,19 @@ function FeedbackInboxModal({
                     <Tag color={item.feedback_type === "bug" ? "red" : "blue"}>
                       {feedbackTypeLabel(item.feedback_type)}
                     </Tag>
-                    <Tag color={item.status === "addressed" ? "green" : "default"}>
-                      {feedbackStatusLabel(item.status ?? "not_addressed")}
+                    <Tag color={statusDisplay.color}>
+                      {statusDisplay.label}
                     </Tag>
                   </Space>
                   <Space size={4}>
                     <Select
                       size="small"
-                      value={item.status ?? "not_addressed"}
+                      value={feedbackStatusSelectValue(item)}
+                      placeholder="Set status"
                       loading={updatingId === item.id}
                       disabled={updatingId === item.id}
                       options={[
-                        { value: "not_addressed", label: "Not Addressed" },
+                        { value: "not_addressed", label: "Not Accepted" },
                         { value: "addressed", label: "Addressed" },
                       ]}
                       onChange={(value) => void handleStatusChange(item, value as FeedbackStatus)}
@@ -320,12 +343,11 @@ function FeedbackInboxModal({
                 <Typography.Text type="secondary" className="feedback-inbox-meta">
                   {formatAppDateTime(item.created_at)}
                   {item.page_path ? ` · ${item.page_path}` : ""}
-                  {item.status === "addressed" && feedbackAddressedExpiryLabel(item.addressed_at)
-                    ? ` · ${feedbackAddressedExpiryLabel(item.addressed_at)}`
-                    : ""}
+                  {statusExpiry ? ` · ${statusExpiry}` : ""}
                 </Typography.Text>
               </article>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <Empty description="No user feedback yet" />

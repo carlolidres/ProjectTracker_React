@@ -114,6 +114,7 @@ function extractPoFields(row: ProjectRow): PoControl {
     qrmr_ref_no: row.qrmr_ref_no,
     qrmr_status: row.qrmr_status,
     qrmr_target_date: row.qrmr_target_date,
+    risk_control: "",
     change_description: row.change_description,
     cnf_status: row.cnf_status,
     client_approval_target_date: row.client_approval_target_date,
@@ -148,6 +149,10 @@ function extractPoFields(row: ProjectRow): PoControl {
     cnf_entries_json: row.cnf_entries_json,
   };
   po.cnf_entries = parseCnfEntries(row);
+  const firstEntry = po.cnf_entries[0];
+  if (firstEntry) {
+    po.risk_control = firstEntry.risk_control;
+  }
   return po;
 }
 

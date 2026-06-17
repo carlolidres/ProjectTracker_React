@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?!= include('Style'); ?>
+  </head>
+  <body>
+    <div id="loadingBar" class="loading-bar"></div>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">CNF</div>
+          <div>
+            <div class="brand-title">CNF Tracker</div>
+            <div class="brand-subtitle">Validation Control</div>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="Primary navigation">
+          <button class="nav-item active" data-page="dashboardPage">Dashboard</button>
+          <button class="nav-item" data-page="formsPage">Forms</button>
+          <button class="nav-item" data-page="databasePage">Database</button>
+          <button class="nav-item" data-page="endorsementPage">Endorsement Tracker</button>
+          <button class="nav-item" data-page="auditPage">Audit Trail</button>
+          <button class="nav-item" data-page="registryPage">Registry</button>
+          <button class="nav-item" data-page="archivedPage">Archived</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span class="dot"></span>
+          <span>Asia/Manila</span>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1 id="pageTitle">Dashboard</h1>
+            <p id="pageMeta">Loading workspace...</p>
+          </div>
+          <div class="topbar-actions">
+            <button id="refreshButton" class="icon-button" title="Refresh current view" aria-label="Refresh current view">&#8635;</button>
+            <button id="notificationButton" class="notification-button" title="Priority CNF alerts" aria-label="Priority CNF alerts">
+              <span class="bell-shape"></span>
+              <span id="notificationCount" class="notification-count">0</span>
+            </button>
+          </div>
+        </header>
+
+        <section id="dashboardPage" class="page active">
+          <div class="card-grid dashboard-cards">
+            <article class="metric-card"><span>Total Open CNFs</span><strong id="cardTotalOpen">0</strong></article>
+            <article class="metric-card"><span>Total Closed CNFs</span><strong id="cardTotalClosed">0</strong></article>
+            <article class="metric-card critical"><span>Critical CNFs</span><strong id="cardCritical">0</strong></article>
+            <article class="metric-card high"><span>High Priority CNFs</span><strong id="cardHigh">0</strong></article>
+            <article class="metric-card"><span>Due Within 7 Days</span><strong id="cardDueWithin7">0</strong></article>
+            <article class="metric-card critical"><span>Overdue CNFs</span><strong id="cardOverdue">0</strong></article>
+            <article class="metric-card"><span>Pending Protocol</span><strong id="cardPendingProtocol">0</strong></article>
+            <article class="metric-card"><span>Pending Report</span><strong id="cardPendingReport">0</strong></article>
+            <article class="metric-card"><span>Pending Endorsement</span><strong id="cardPendingEndorsement">0</strong></article>
+          </div>
+
+          <div class="priority-grid">
+            <div class="panel priority-panel">
+              <div class="panel-header">
+                <h2>Priority List for Process CNFs</h2>
+                <div class="table-tools compact">
+                  <input id="dashboardProcessSearch" type="search" placeholder="Search Process list">
+                </div>
+              </div>
+              <div id="processPriorityTable" class="table-wrap fixed-table"></div>
+            </div>
+            <div class="panel priority-panel">
+              <div class="panel-header">
+                <h2>Priority List for Non-Process CNFs</h2>
+                <div class="table-tools compact">
+                  <input id="dashboardNonProcessSearch" type="search" placeholder="Search Non-Process list">
+                </div>
+              </div>
+              <div id="nonProcessPriorityTable" class="table-wrap fixed-table"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="formsPage" class="page">
+          <div class="workspace-hero">
+            <div>
+              <p class="eyebrow">CNF - Validation Execution</p>
+              <h2>Create CNF</h2>
+              <p>Adaptive product, batch, validation document, and closure controls.</p>
+            </div>
+          </div>
+
+          <div id="cnfInlineWorkspace"></div>
+        </section>
+
+        <section id="databasePage" class="page">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>CNF Database</h2>
+              <div class="button-row">
+                <button id="databaseImportButton" class="secondary-button">Import Data</button>
+                <button id="databaseExportButton" class="secondary-button">Export Data</button>
+                <button id="databaseRefreshButton" class="secondary-button">Refresh</button>
+              </div>
+            </div>
+            <div class="table-tools database-tools simplified-tools">
+              <label>Global Search<input id="databaseSearch" type="search" placeholder="Search database records"></label>
+              <label>Initiator<select id="databaseInitiatorFilter"><option value="">All</option></select></label>
+              <label>Billing Month<select id="databaseBillingMonth"><option value="">All months</option></select></label>
+              <label>Billing Year<select id="databaseBillingYear"><option value="">All years</option></select></label>
+              <label>Implementation Month<select id="databaseImplementationMonth"><option value="">All months</option></select></label>
+              <label>Implementation Year<select id="databaseImplementationYear"><option value="">All years</option></select></label>
+              <label class="span-2">Missing Data Filter<select id="databaseMissingFilter"><option value="">All Records</option></select></label>
+            </div>
+            <div id="databaseTable" class="table-wrap"></div>
+          </div>
+        </section>
+
+        <section id="endorsementPage" class="page">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Endorsement Tracker</h2>
+              <div class="button-row">
+                <button id="newEndorsementButton" class="primary-button">+ Add Item</button>
+                <button id="endorsementRefreshButton" class="secondary-button">Refresh</button>
+              </div>
+            </div>
+            <div class="table-tools endorsement-tools simplified-tools">
+              <label>Global Search<input id="endorsementSearch" type="search" placeholder="Search endorsement records"></label>
+              <label>Target Implementation Month<select id="endorsementImplementationMonth"><option value="">All months</option></select></label>
+              <label>Target Implementation Year<select id="endorsementImplementationYear"><option value="">All years</option></select></label>
+              <label>Implemented By<select id="endorsementImplementedByFilter"><option value="">All</option></select></label>
+              <label>Implementation Status<select id="endorsementImplementationStatusFilter"><option value="">All</option></select></label>
+            </div>
+            <div id="endorsementTable" class="table-wrap"></div>
+          </div>
+        </section>
+
+        <section id="auditPage" class="page">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Audit Trail</h2>
+              <button id="auditRefreshButton" class="secondary-button">Refresh</button>
+            </div>
+            <div class="table-tools audit-tools">
+              <input id="auditSearch" type="search" placeholder="Global search">
+              <input id="auditStartDate" type="date">
+              <input id="auditEndDate" type="date">
+              <input id="auditUserFilter" type="search" placeholder="User">
+              <select id="auditModuleFilter"><option value="">All Modules</option></select>
+              <select id="auditActionFilter"><option value="">All Actions</option></select>
+              <input id="auditCnfFilter" type="search" placeholder="CNF No.">
+              <input id="auditFieldFilter" type="search" placeholder="Field Name">
+            </div>
+            <div id="auditTable" class="table-wrap"></div>
+          </div>
+        </section>
+
+        <section id="registryPage" class="page">
+          <div class="workspace-hero">
+            <div>
+              <p class="eyebrow">CNF - Master Data</p>
+              <h2>Registry / Master Data</h2>
+              <p>Manage dropdown values for forms. Deactivated values stay available for traceability.</p>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="registry-toolbar">
+              <select id="registryTypeFilter"><option value="">All Registry Types</option></select>
+              <input id="registryValueInput" type="text" placeholder="Add new value">
+              <button id="newRegistryButton" class="primary-button compact-action" title="Add registry value" aria-label="Add registry value">+</button>
+              <button id="registryRefreshButton" class="secondary-button">Refresh</button>
+            </div>
+            <div id="registryTable" class="registry-list"></div>
+          </div>
+        </section>
+
+        <section id="archivedPage" class="page">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Archived CNFs</h2>
+              <div class="button-row">
+                <button id="archivedImportButton" class="secondary-button">Import Data</button>
+                <button id="archivedExportButton" class="secondary-button">Export Data</button>
+                <button id="archivedRefreshButton" class="secondary-button">Refresh</button>
+              </div>
+            </div>
+            <div class="table-tools">
+              <input id="archivedSearch" type="search" placeholder="Search archived records">
+              <select id="archivedYearFilter"><option value="">All Years</option></select>
+            </div>
+            <div id="archivedTable" class="table-wrap"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="modalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 id="modalTitle">Modal</h2>
+          <button id="modalCloseButton" class="icon-button" aria-label="Close modal">&times;</button>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+        <div id="modalFooter" class="modal-footer"></div>
+      </div>
+    </div>
+
+    <div id="toastHost" class="toast-host" aria-live="polite"></div>
+
+    <?!= include('Script'); ?>
+  </body>
+</html>

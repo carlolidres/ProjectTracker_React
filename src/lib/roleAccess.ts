@@ -10,6 +10,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/projects", roles: "all" },
   { path: "/projects/database", roles: "all" },
   { path: "/support-activities", roles: "all" },
+  { path: "/cnf-tracker", roles: "all" },
   { path: "/lessons-learned", roles: "all" },
   { path: "/audit-trail", roles: "all" },
   { path: "/archived", roles: ["admin"] },
@@ -44,6 +45,10 @@ export function isViewerRole(role: UserRole | undefined): boolean {
 
 export function canCopyCnfFromProject(role: UserRole | undefined): boolean {
   return role === "admin" || role === "am_bm_pl";
+}
+
+export function canEditCnfTracker(role: UserRole | undefined): boolean {
+  return role === "admin" || role === "qa" || role === "val";
 }
 
 export function canEditProjectFields(role: UserRole, fieldGroup: "am" | "qa" | "pp" | "tsd" | "val" | "qc"): boolean {

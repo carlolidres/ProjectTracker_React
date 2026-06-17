@@ -171,6 +171,21 @@
   border-color: var(--border) !important;
 }
 
+.project-field-view-only .ant-input[readonly]:not(:disabled),
+.project-field-view-only .ant-input-outlined[readonly]:not(:disabled) {
+  color: var(--text);
+  background: var(--panel);
+  border-color: var(--border);
+  cursor: default;
+}
+
+.project-field .ant-input[readonly]:not(:disabled) {
+  color: var(--text);
+  background: var(--panel);
+  border-color: var(--border);
+  cursor: default;
+}
+
 .project-field-view-only-select.ant-select .ant-select-selection-item {
   user-select: none;
 }

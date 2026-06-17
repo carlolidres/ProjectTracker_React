@@ -1,6 +1,7 @@
 import {
   ApartmentOutlined,
   AuditOutlined,
+  BookOutlined,
   CloseOutlined,
   DashboardOutlined,
   DatabaseOutlined,
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
   { label: "Projects", href: "/projects", icon: FileTextOutlined },
   { label: "Projects Database", href: "/projects/database", icon: DatabaseOutlined },
   { label: "Support Activities", href: "/support-activities", icon: ToolOutlined },
+  { label: "CNF Tracker", href: "/cnf-tracker", icon: BookOutlined },
   { label: "Lessons Learned", href: "/lessons-learned", icon: ReadOutlined },
   { label: "Audit Trail", href: "/audit-trail", icon: AuditOutlined },
 ];

@@ -53,7 +53,7 @@ export const AM_CNF_ENTRY_KEYS = [
 ] as const;
 
 export const QA_CNF_ENTRY_KEYS = [
-  "qrmr_ref_no", "qrmr_status", "qrmr_target_date",
+  "qrmr_ref_no", "qrmr_status", "qrmr_target_date", "risk_control",
 ] as const;
 
 export const CNF_ENTRY_KEYS = [

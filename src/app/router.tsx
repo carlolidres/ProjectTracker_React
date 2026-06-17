@@ -10,6 +10,7 @@ import { LessonsLearnedPage } from "@/features/lessons-learned/LessonsLearnedPag
 import { ArchivedPage } from "@/features/archived/ArchivedPage";
 import { RegistryPage } from "@/features/registry/RegistryPage";
 import { AdminUsersPage } from "@/features/admin/AdminUsersPage";
+import { CnfTrackerPage } from "@/features/cnf-tracker/CnfTrackerPage";
 import { DataMapPage } from "@/features/admin/DataMapPage";
 
 export function AppRouter() {
@@ -21,6 +22,7 @@ export function AppRouter() {
       <Route path="/projects" element={<ProtectedRoute><ProjectEntryPage /></ProtectedRoute>} />
       <Route path="/projects/database" element={<ProtectedRoute><ProjectsDatabasePage /></ProtectedRoute>} />
       <Route path="/support-activities" element={<ProtectedRoute><SupportActivitiesPage /></ProtectedRoute>} />
+      <Route path="/cnf-tracker" element={<ProtectedRoute><CnfTrackerPage /></ProtectedRoute>} />
       <Route path="/lessons-learned" element={<ProtectedRoute><LessonsLearnedPage /></ProtectedRoute>} />
       <Route path="/audit-trail" element={<ProtectedRoute><AuditTrailPage /></ProtectedRoute>} />
       <Route

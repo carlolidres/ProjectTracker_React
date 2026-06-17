@@ -1,0 +1,112 @@
+.cnf-tracker-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cnf-tracker-sticky-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 12px 0;
+  background: var(--bg);
+}
+
+.cnf-tracker-sticky-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cnf-tracker-panel {
+  margin-top: 0;
+}
+
+.cnf-tracker-section {
+  margin-bottom: 24px;
+}
+
+.cnf-tracker-section .ant-typography-h5 {
+  margin-bottom: 12px !important;
+}
+
+.cnf-tracker-readonly-block {
+  min-height: 32px;
+  padding: 4px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cnf-tracker-field-span-3 {
+  grid-column: span 3;
+}
+
+.cnf-tracker-section-card {
+  margin-bottom: 16px;
+}
+
+.cnf-tracker-closure-message {
+  white-space: pre-wrap;
+  margin: 0;
+  font-family: inherit;
+}
+
+.cnf-tracker-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 12px;
+}
+
+@media (max-width: 900px) {
+  .cnf-tracker-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cnf-tracker-field-span-3 {
+    grid-column: span 1;
+  }
+}
+
+.cnf-reference-picker-trigger {
+  color: var(--text-muted, rgba(0, 0, 0, 0.45));
+  padding-inline: 4px;
+}
+
+.cnf-reference-picker-trigger:hover,
+.cnf-reference-picker-trigger:focus-visible {
+  color: var(--primary, #1677ff);
+}
+
+.cnf-reference-picker-modal .cnf-reference-picker-search {
+  margin-bottom: 12px;
+}
+
+.cnf-tracker-po-table .cnf-tracker-po-table-scroll {
+  outline: none;
+}
+
+.cnf-tracker-po-table .cnf-tracker-po-table-scroll:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, #1677ff) 25%, transparent);
+  border-radius: 6px;
+}
+
+.cnf-tracker-po-table .ant-table-wrapper {
+  max-width: 100%;
+}
+
+.cnf-tracker-po-table .ant-table-cell-fix-left {
+  background: var(--panel, #fff);
+}
+
+[data-theme="dark"] .cnf-tracker-po-table .ant-table-cell-fix-left {
+  background: var(--panel, #141414);
+}

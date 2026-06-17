@@ -3,6 +3,7 @@ export interface CnfEntry {
   qrmr_ref_no: string;
   qrmr_status: string;
   qrmr_target_date: string;
+  risk_control: string;
   change_description: string;
   cnf_status: string;
   client_approval_target_date: string;
@@ -24,6 +25,7 @@ export interface PoControl {
   qrmr_ref_no: string;
   qrmr_status: string;
   qrmr_target_date: string;
+  risk_control: string;
   change_description: string;
   cnf_status: string;
   client_approval_target_date: string;
@@ -134,6 +136,7 @@ export interface ProjectRow {
   qrmr_ref_no: string;
   qrmr_status: string;
   qrmr_target_date: string;
+  risk_control: string;
   change_description: string;
   cnf_status: string;
   client_approval_target_date: string;

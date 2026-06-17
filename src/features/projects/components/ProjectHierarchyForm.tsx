@@ -1,5 +1,5 @@
 import { CopyOutlined, DeleteOutlined, DisconnectOutlined, LinkOutlined, LockOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Collapse, Space, Tag, Tooltip, Typography } from "antd";
+import { Button, Collapse, Modal, Space, Tag, Tooltip, Typography, message } from "antd";
 import { ProjectFieldControl } from "@/features/projects/components/ProjectFieldControl";
 import {
   BATCH_FIELDS,
@@ -18,6 +18,10 @@ import { isCnfMotherLinked, isCnfMotherUnlinked, motherProjectUrl } from "@/lib/
 import { isFgMonthLocked } from "@/lib/fgMonthLock";
 import { bmrLockReason, isBmrFieldKey, isBmrLockedForBatch, isProjectBmrLocked } from "@/lib/bmrLock";
 import { applyQrmrTargetDatesFromFgMonth } from "@/lib/qrmrFgMonth";
+import {
+  formatProjectCloseBlockerMessage,
+  validateProjectClose,
+} from "@/lib/projectCloseValidation";
 import { endorsementDateFromValidationTarget, isPoFieldDisabledByValNotApplicable, isQaCnfFieldDisabledByNotApplicable } from "@/lib/valReportDates";
 import {
   clonePoForAdd,
@@ -27,7 +31,7 @@ import {
   syncProjectCnfEntryCounts,
 } from "@/lib/projectHierarchy";
 import type { CnfEntry, PoControl, ProjectCnfMotherLink, ProjectHierarchy } from "@/types";
-import { generateHierarchyId, isMissingValue, valueOrNA } from "@/lib/utils";
+import { generateHierarchyId, isApprovedStatus, isMissingValue, valueOrNA } from "@/lib/utils";
 import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
 
 import {
@@ -313,6 +317,23 @@ export function ProjectHierarchyForm({
                       disabled={fieldLockProps.disabled || valNaDisabled}
                       registry={registry}
                       onChange={(value) => {
+                        if (field.key === "final_status" && value.toUpperCase() === "CLOSED") {
+                          const canonicalPo = project.batches[0]?.mo_controls[0]?.po_controls[0];
+                          const closeResult = validateProjectClose(canonicalPo);
+                          if (!closeResult.canClose) {
+                            Modal.warning({
+                              title: "Cannot set Final Status to CLOSED",
+                              width: 520,
+                              content: (
+                                <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", margin: 0 }}>
+                                  {formatProjectCloseBlockerMessage(closeResult)}
+                                </pre>
+                              ),
+                            });
+                            return;
+                          }
+                        }
+
                         const next = structuredClone(project);
                         const target = next.batches[batchIndex].mo_controls[moIndex].po_controls[poIndex];
                         setPoFieldValue(target, field.key, value);
@@ -333,6 +354,14 @@ export function ProjectHierarchyForm({
                           if (endorsementDate) {
                             target.endorsement_acceptance_target_date = endorsementDate;
                           }
+                        }
+                        if (
+                          isCanonicalPo(batchIndex, moIndex, poIndex) &&
+                          (field.key === "validation_report_status" || field.key === "val_interim_report_status") &&
+                          isApprovedStatus(value) &&
+                          target.final_status.toUpperCase() !== "CLOSED"
+                        ) {
+                          message.info("Validation report is Approved. You may set Final Status to CLOSED when ready.");
                         }
                         onChange(next);
                       }}
@@ -657,6 +686,7 @@ export function ProjectHierarchyForm({
                 qrmr_ref_no: "",
                 qrmr_status: "",
                 qrmr_target_date: "",
+                risk_control: "",
                 change_description: "",
                 cnf_status: "",
                 client_approval_target_date: "",

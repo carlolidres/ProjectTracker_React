@@ -13,10 +13,11 @@ export interface AppFeedback {
   page_path: string | null;
   status: FeedbackStatus;
   addressed_at: string | null;
+  not_accepted_at: string | null;
   created_at: string;
 }
 
-const FEEDBACK_ADDRESSED_TTL_HOURS = 72;
+const FEEDBACK_STATUS_TTL_HOURS = 72;
 
 export async function purgeExpiredAddressedFeedback(): Promise<number> {
   const { data, error } = await supabase.rpc("purge_expired_addressed_feedback");
@@ -48,16 +49,16 @@ export async function listAppFeedback(): Promise<AppFeedback[]> {
 
   const { data, error } = await supabase
     .from("app_feedback")
-    .select("id, user_id, user_email, feedback_type, message, page_path, status, addressed_at, created_at")
+    .select("id, user_id, user_email, feedback_type, message, page_path, status, addressed_at, not_accepted_at, created_at")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
   return (data ?? []) as AppFeedback[];
 }
 
-export function feedbackAddressedExpiryLabel(addressedAt: string | null | undefined): string | null {
-  if (!addressedAt) return null;
-  const expiresAt = new Date(addressedAt).getTime() + FEEDBACK_ADDRESSED_TTL_HOURS * 60 * 60 * 1000;
+export function feedbackStatusExpiryLabel(resolvedAt: string | null | undefined): string | null {
+  if (!resolvedAt) return null;
+  const expiresAt = new Date(resolvedAt).getTime() + FEEDBACK_STATUS_TTL_HOURS * 60 * 60 * 1000;
   const remainingMs = expiresAt - Date.now();
   if (remainingMs <= 0) return "Scheduled for removal";
   const hoursLeft = Math.ceil(remainingMs / (60 * 60 * 1000));
@@ -66,8 +67,19 @@ export function feedbackAddressedExpiryLabel(addressedAt: string | null | undefi
     : `Auto-deletes in ${Math.ceil(hoursLeft / 24)}d`;
 }
 
+/** @deprecated Use feedbackStatusExpiryLabel */
+export function feedbackAddressedExpiryLabel(addressedAt: string | null | undefined): string | null {
+  return feedbackStatusExpiryLabel(addressedAt);
+}
+
 export async function updateFeedbackStatus(id: string, status: FeedbackStatus) {
-  const { error } = await supabase.from("app_feedback").update({ status }).eq("id", id);
+  const patch: { status: FeedbackStatus; not_accepted_at?: string | null } = { status };
+  if (status === "not_addressed") {
+    patch.not_accepted_at = new Date().toISOString();
+  } else {
+    patch.not_accepted_at = null;
+  }
+  const { error } = await supabase.from("app_feedback").update(patch).eq("id", id);
   if (error) throw error;
 }
 

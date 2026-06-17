@@ -1,0 +1,2823 @@
+<script>
+  const SHEET_NAMES = {
+    CNF: 'CNF_DATABASE',
+    ENDORSEMENT: 'ENDORSEMENT_TRACKER',
+    AUDIT: 'AUDIT_TRAIL',
+    REGISTRY: 'REGISTRY',
+    ARCHIVED: 'ARCHIVED'
+  };
+
+  const PRIMARY_KEY = 'Date and Time Entry / Primary Key';
+  const STATUS_OPTIONS = ['In-process', 'Routing', 'Client Approval', 'Signed', 'Cancelled', 'Not Applicable', 'NA'];
+  const IMPLEMENTATION_STATUS_OPTIONS = ['Planned', 'Ongoing', 'Done', 'Cancelled', 'NA'];
+  const PRIORITY_LEVEL_OPTIONS = ['Overdue', 'Due today', 'Due within 15 days', 'Due within 30 days', 'Due within 1 month', 'Due within 3 months', 'Low'];
+  const BILLING_STATUS_OPTIONS = ['Billable', 'Not Billable'];
+  const DATE_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const CLOSURE_FINAL_STATUSES = ['Signed', 'Cancelled', 'Not Applicable', 'NA'];
+  const ENDORSEMENT_CLOSURE_FINAL_STATUSES = ['Signed', 'Cancelled', 'Not Applicable'];
+  const ENDORSEMENT_FINAL_STATUSES = ['Cancelled', 'Not Applicable', 'NA'];
+  const REGISTRY_TYPES = ['Department', 'Study', 'Client', 'Document Status', 'CNF Status', 'Priority Level', 'Endorsement Status', 'Billing'];
+  const CNF_BRANCH_FIELDS = [
+    { label: 'MO/BMR', refKey: 'moBmrRefNo', statusKey: 'moBmrStatus' },
+    { label: 'PO/BPR', refKey: 'poBprRefNo', statusKey: 'poBprStatus' },
+    { label: 'Protocol', refKey: 'protocolNo', statusKey: 'protocolStatus' },
+    { label: 'Interim', refKey: 'interimNo', statusKey: 'interimStatus' },
+    { label: 'Report', refKey: 'reportNo', statusKey: 'reportStatus' },
+    { label: 'Endorsement', refKey: 'endorsementNo', statusKey: 'endorsementStatus' }
+  ];
+
+  const DATABASE_COLUMNS = [
+    { key: 'CNF No.', label: 'CNF No.' },
+    { key: 'CNF Initiator', label: 'Initiator' },
+    { key: 'QRMR No.', label: 'QRMR No.' },
+    { key: 'CNF Categorization', label: 'CNF Categorization' },
+    { key: 'Product Name / Project', label: 'Product/Project' },
+    { key: 'Product Code', label: 'Product Code' },
+    { key: 'Client', label: 'Client' },
+    { key: 'Department', label: 'Department' },
+    { key: 'Study', label: 'Study' },
+    { key: 'Batch No.', label: 'Batch No.' },
+    { key: 'Batch', label: 'Batch' },
+    { key: 'MO/BMR Ref. No.', label: 'MO/BMR Ref. No.' },
+    { key: 'MO/BMR Status', label: 'MO/BMR Status' },
+    { key: 'PO/BPR Ref. No.', label: 'PO/BPR Ref. No.' },
+    { key: 'PO/BPR Status', label: 'PO/BPR Status' },
+    { key: 'Protocol Status', label: 'Protocol Status' },
+    { key: 'Interim Status', label: 'Interim Status' },
+    { key: 'Report Status', label: 'Report Status' },
+    { key: 'Endorsement Status', label: 'Endorsement Status' },
+    { key: 'Billing Status', label: 'Billing Status' },
+    { key: 'Billing Department Notified', label: 'Billing Department Notified' },
+    { key: 'CNF Status', label: 'CNF Status' },
+    { key: 'Target Implementation Date', label: 'Target Implementation Date' },
+    { key: 'Target Billing / Delivery Date', label: 'Target Billing / Delivery Date' },
+    { key: 'Product/Project Entry Status', label: 'Product/Project Status' },
+    { key: 'Product/Project Remarks', label: 'Product/Project Remarks', className: 'remarks-cell' },
+    { key: 'Priority Level', label: 'Priority Level' }
+  ];
+
+  const FORM_COLUMNS = [
+    { key: 'CNF No.', label: 'CNF No.' },
+    { key: 'CNF Categorization', label: 'CNF Categorization' },
+    { key: 'Product Name / Project', label: 'Product/Project' },
+    { key: 'Product Code', label: 'Product Code' },
+    { key: 'Client', label: 'Client' },
+    { key: 'Department', label: 'Department' },
+    { key: 'Study', label: 'Study' },
+    { key: 'Batch No.', label: 'Batch No.' },
+    { key: 'Batch', label: 'Batch' },
+    { key: 'CNF Status', label: 'CNF Status' },
+    { key: 'Priority Level', label: 'Priority Level' }
+  ];
+
+  const ENDORSEMENT_COLUMNS = [
+    { key: 'CNF No.', label: 'CNF No.' },
+    { key: 'Product', label: 'Product/Project' },
+    { key: 'Product Code', label: 'Product Code' },
+    { key: 'CNF Categorization', label: 'CNF Categorization' },
+    { key: 'Endorsement No.', label: 'Endorsement No.' },
+    { key: 'Endorsement Status', label: 'Endorsement Status' },
+    { key: 'Target Implementation Date', label: 'Target Implementation Date' },
+    { key: 'Days Remaining', label: 'Days Remaining' },
+    { key: 'Implemented By', label: 'Implemented By' },
+    { key: 'Implementation Status', label: 'Implementation Status' },
+    { key: 'Target Verification Date', label: 'Target Verification Date' },
+    { key: 'Verified By Validation', label: 'Verified By Validation' },
+    { key: 'Validation Verification Date', label: 'Validation Verification Date' },
+    { key: 'Verified By GMP', label: 'Verified By GMP' },
+    { key: 'GMP Verification Date', label: 'GMP Verification Date' },
+    { key: 'Endorsement Item', label: 'Remarks / Details', className: 'remarks-cell' },
+    { key: 'Priority Level', label: 'Priority Level' },
+    { key: 'Critical Reason', label: 'Critical Reason', className: 'remarks-cell' }
+  ];
+
+  const DATABASE_SEARCH_FIELDS = [
+    'CNF No.', 'CNF Initiator', 'Initiator', 'Product Name / Project', 'Product', 'Product Code',
+    'Client', 'Description of Change', 'Department', 'Study', 'Batch No.', 'MO/BMR Ref. No.',
+    'PO/BPR Ref. No.', 'Protocol No.', 'Interim No.', 'Report No.', 'Endorsement No.',
+    'CNF Status', 'Priority Level'
+  ];
+
+  const ENDORSEMENT_SEARCH_FIELDS = [
+    'CNF No.', 'Product', 'Product Name / Project', 'Product Code', 'CNF Categorization',
+    'Endorsement No.', 'Endorsement Status', 'Target Implementation Date', 'Implemented By',
+    'Implementation Status', 'Target Verification Date', 'Verified By Validation',
+    'Validation Verification Date', 'Verified By GMP', 'GMP Verification Date',
+    'Endorsement Item', 'Remarks / Details', 'Priority Level', 'Critical Reason'
+  ];
+
+  const MISSING_FILTER_OPTIONS = [
+    { value: '', label: 'All Records' },
+    { value: 'batch', label: 'Without Batch No.' },
+    { value: 'implementation', label: 'Without Target Implementation Date' },
+    { value: 'billing', label: 'Without Target Billing / Delivery Date' },
+    { value: 'batchImplementationBilling', label: 'Without Batch No., Implementation Date, or Billing Date' },
+    { value: 'initiator', label: 'Without Initiator' },
+    { value: 'critical', label: 'Without Any Critical Tracking Field' }
+  ];
+
+  const AUDIT_COLUMNS = [
+    { key: 'Timestamp', label: 'Date and Time' },
+    { key: 'User', label: 'User' },
+    { key: 'Action', label: 'Action' },
+    { key: 'Module', label: 'Module / Menu' },
+    { key: 'Record ID', label: 'Record ID / CNF No.' },
+    { key: 'CNF No.', label: 'CNF No.' },
+    { key: 'Field Name', label: 'Field Name' },
+    { key: 'Old Value', label: 'Previous Value' },
+    { key: 'New Value', label: 'New Value' },
+    { key: 'Remarks', label: 'Remarks / Details', className: 'remarks-cell' }
+  ];
+
+  const ARCHIVED_COLUMNS = [
+    { key: PRIMARY_KEY, label: 'Primary Key' },
+    { key: 'CNF No.', label: 'CNF No.' },
+    { key: 'CNF Categorization', label: 'CNF Categorization' },
+    { key: 'Product Name / Project', label: 'Product/Project' },
+    { key: 'Product Code', label: 'Product Code' },
+    { key: 'Client', label: 'Client' },
+    { key: 'Batch No.', label: 'Batch No.' },
+    { key: 'Batch', label: 'Batch' },
+    { key: 'CNF Status', label: 'CNF Status' },
+    { key: 'Priority Level', label: 'Priority Level' },
+    { key: 'Archived By', label: 'Archived By' },
+    { key: 'Archived At', label: 'Archived At' },
+    { key: 'Archive Remarks', label: 'Archive Remarks', className: 'remarks-cell' }
+  ];
+
+  const CNF_EXPORT_HEADERS = [
+    PRIMARY_KEY,
+    'CNF No.',
+    'CNF Initiator',
+    'QRMR No.',
+    'CNF Categorization',
+    'Product Name / Project',
+    'Product Code',
+    'Client',
+    'Description of Change',
+    'Department',
+    'Study',
+    'No. of Batch per Study',
+    'Batch No.',
+    'Batch',
+    'Target Implementation Date',
+    'Target Billing / Delivery Date',
+    'MO/BMR Ref. No.',
+    'MO/BMR Status',
+    'PO/BPR Ref. No.',
+    'PO/BPR Status',
+    'Protocol No.',
+    'Protocol Status',
+    'Interim No.',
+    'Interim Status',
+    'Report No.',
+    'Report Status',
+    'Endorsement No.',
+    'Endorsement Status',
+    'Billing Status',
+    'Billing Department Notified',
+    'Product/Project Entry Status',
+    'Product/Project Remarks',
+    'CNF Status',
+    'Closed Date',
+    'Priority Level',
+    'Open Branch Remarks',
+    'Created By',
+    'Created At',
+    'Updated By',
+    'Updated At',
+    'Is Archived',
+    'Is Active'
+  ];
+
+  const ARCHIVED_EXPORT_HEADERS = CNF_EXPORT_HEADERS.concat([
+    'Archived By',
+    'Archived At',
+    'Archive Remarks'
+  ]);
+
+  const AppState = {
+    currentPage: 'dashboardPage',
+    cnfRows: [],
+    endorsementRows: [],
+    auditRows: [],
+    registryRows: [],
+    archivedRows: [],
+    registry: {},
+    loadingCount: 0,
+    sort: {
+      database: { key: 'Target Implementation Date', direction: 'asc' },
+      forms: { key: 'CNF No.', direction: 'asc' },
+      endorsement: { key: 'Endorsement No.', direction: 'asc' },
+      audit: { key: 'Timestamp', direction: 'desc' },
+      archived: { key: PRIMARY_KEY, direction: 'desc' },
+      registry: { key: 'Registry Type', direction: 'asc' },
+      worklist: { key: 'priorityLevel', direction: 'asc' }
+    },
+    editingCnfKey: null,
+    editingEndorsementId: null,
+    editingRegistry: null,
+    pendingEndorsementContext: null,
+    cnfFormProducts: [],
+    endorsementFormItems: [],
+    pendingImport: null,
+    highlightedEndorsementId: null,
+    endorsementFocus: null,
+    pageSize: 100,
+    totals: {},
+    hasMore: {},
+    offsets: {},
+    filterRenderFrame: null,
+    filterRenderTimer: null,
+    loaded: {},
+    inFlight: {}
+  };
+
+  document.addEventListener('DOMContentLoaded', initApp);
+
+  function initApp() {
+    bindNavigation();
+    bindGlobalActions();
+    bindFilters();
+    restoreUiState();
+    runServer('initializeDatabase', [], function (result) {
+      setText('pageMeta', 'Database initialized. ' + ((result && result.timezone) || 'Asia/Manila') + ' time is used for records.');
+      loadRegistryConfig(function () {
+        loadCurrentPageIfNeeded();
+      });
+    });
+  }
+
+  function bindNavigation() {
+    document.querySelectorAll('.nav-item').forEach(function (button) {
+      button.addEventListener('click', function () {
+        navigateTo(button.dataset.page);
+      });
+    });
+  }
+
+  function restoreUiState() {
+    const lastPage = sessionStorage.getItem('cnfTracker:lastPage');
+    if (lastPage && byId(lastPage)) {
+      AppState.currentPage = lastPage;
+      document.querySelectorAll('.page').forEach(function (page) {
+        page.classList.toggle('active', page.id === lastPage);
+      });
+      document.querySelectorAll('.nav-item').forEach(function (button) {
+        button.classList.toggle('active', button.dataset.page === lastPage);
+      });
+      const title = document.querySelector('.nav-item[data-page="' + lastPage + '"]');
+      if (title) setText('pageTitle', title.textContent);
+    }
+  }
+
+  function bindGlobalActions() {
+    byId('refreshButton').addEventListener('click', refreshCurrentPage);
+    byId('notificationButton').addEventListener('click', function () {
+      navigateTo('dashboardPage');
+      if (byId('dashboardProcessSearch')) byId('dashboardProcessSearch').value = '';
+      if (byId('dashboardNonProcessSearch')) byId('dashboardNonProcessSearch').value = '';
+      renderPriorityWorklists(AppState.lastWorklist || []);
+    });
+
+    byId('databaseRefreshButton').addEventListener('click', loadCnfData);
+    byId('databaseImportButton').addEventListener('click', function () { openImportModal('Database'); });
+    byId('databaseExportButton').addEventListener('click', function () { openExportModal('Database'); });
+    byId('newEndorsementButton').addEventListener('click', function () { openEndorsementModal('create'); });
+    byId('endorsementRefreshButton').addEventListener('click', loadEndorsements);
+    byId('auditRefreshButton').addEventListener('click', loadAuditTrail);
+    byId('newRegistryButton').addEventListener('click', function () { addRegistryValueInline(byId('newRegistryButton')); });
+    byId('registryValueInput').addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') addRegistryValueInline(byId('newRegistryButton'));
+    });
+    byId('registryRefreshButton').addEventListener('click', loadRegistryPage);
+    byId('archivedImportButton').addEventListener('click', function () { openImportModal('Archived'); });
+    byId('archivedExportButton').addEventListener('click', function () { openExportModal('Archived'); });
+    byId('archivedRefreshButton').addEventListener('click', loadArchived);
+    byId('modalCloseButton').addEventListener('click', closeModal);
+  }
+
+  function bindFilters() {
+    [
+      'dashboardProcessSearch',
+      'dashboardNonProcessSearch',
+      'databaseSearch',
+      'databaseInitiatorFilter',
+      'databaseBillingMonth',
+      'databaseBillingYear',
+      'databaseImplementationMonth',
+      'databaseImplementationYear',
+      'databaseMissingFilter',
+      'endorsementSearch',
+      'endorsementImplementationMonth',
+      'endorsementImplementationYear',
+      'endorsementImplementedByFilter',
+      'endorsementImplementationStatusFilter',
+      'auditSearch',
+      'auditStartDate',
+      'auditEndDate',
+      'auditUserFilter',
+      'auditModuleFilter',
+      'auditActionFilter',
+      'auditCnfFilter',
+      'auditFieldFilter',
+      'registryTypeFilter',
+      'archivedSearch',
+      'archivedYearFilter'
+    ].forEach(function (id) {
+      const element = byId(id);
+      if (!element) return;
+      element.addEventListener('input', function () {
+        if (id.indexOf('endorsement') === 0) clearEndorsementFocus();
+        scheduleRenderCurrentPage();
+      });
+      element.addEventListener('change', function () {
+        if (id.indexOf('endorsement') === 0) clearEndorsementFocus();
+        scheduleRenderCurrentPage();
+      });
+    });
+  }
+
+  function navigateTo(pageId) {
+    AppState.currentPage = pageId;
+    document.querySelectorAll('.page').forEach(function (page) {
+      page.classList.toggle('active', page.id === pageId);
+    });
+    document.querySelectorAll('.nav-item').forEach(function (button) {
+      button.classList.toggle('active', button.dataset.page === pageId);
+    });
+
+    const titles = {
+      dashboardPage: 'Dashboard',
+      formsPage: 'Forms',
+      databasePage: 'Database',
+      endorsementPage: 'Endorsement Tracker',
+      auditPage: 'Audit Trail',
+      registryPage: 'Registry',
+      archivedPage: 'Archived'
+    };
+    setText('pageTitle', titles[pageId] || 'CNF Tracker');
+    sessionStorage.setItem('cnfTracker:lastPage', pageId);
+    loadCurrentPageIfNeeded();
+  }
+
+  function refreshCurrentPage() {
+    if (AppState.currentPage === 'dashboardPage') loadDashboard(true);
+    if (AppState.currentPage === 'formsPage') {
+      if (!byId('cnfForm')) renderInlineCnfForm('create');
+      loadCnfData(null, true);
+      loadEndorsements(function () {
+        renderCnfBranchStatus();
+      }, true);
+    }
+    if (AppState.currentPage === 'databasePage') loadCnfData(null, true);
+    if (AppState.currentPage === 'endorsementPage') loadEndorsements(null, true);
+    if (AppState.currentPage === 'auditPage') loadAuditTrail(true);
+    if (AppState.currentPage === 'registryPage') loadRegistryPage(true);
+    if (AppState.currentPage === 'archivedPage') loadArchived(true);
+  }
+
+  function loadCurrentPageIfNeeded() {
+    if (AppState.currentPage === 'dashboardPage') loadDashboard();
+    if (AppState.currentPage === 'formsPage') {
+      if (!byId('cnfForm')) renderInlineCnfForm('create');
+      if (!AppState.loaded.cnf) loadCnfData();
+      if (!AppState.loaded.endorsement) loadEndorsements(renderCnfBranchStatus);
+      renderCnfBranchStatus();
+    }
+    if (AppState.currentPage === 'databasePage') {
+      if (AppState.loaded.cnf) renderDatabaseTable();
+      else loadCnfData();
+    }
+    if (AppState.currentPage === 'endorsementPage') {
+      if (AppState.loaded.endorsement) renderEndorsementTable();
+      else loadEndorsements();
+    }
+    if (AppState.currentPage === 'auditPage') {
+      if (AppState.loaded.audit) renderAuditTable();
+      else loadAuditTrail();
+    }
+    if (AppState.currentPage === 'registryPage') loadRegistryPage();
+    if (AppState.currentPage === 'archivedPage') {
+      if (AppState.loaded.archived) renderArchivedTable();
+      else loadArchived();
+    }
+  }
+
+  function scheduleRenderCurrentPage() {
+    clearTimeout(AppState.filterRenderTimer);
+    AppState.filterRenderTimer = setTimeout(function () {
+      if (AppState.currentPage === 'databasePage') {
+        loadCnfData(null, true);
+      } else if (AppState.currentPage === 'endorsementPage') {
+        loadEndorsements(null, true);
+      } else if (AppState.currentPage === 'auditPage') {
+        loadAuditTrail(true);
+      } else {
+        renderCurrentPage();
+      }
+    }, 350);
+  }
+
+  function renderCurrentPage() {
+    if (AppState.currentPage === 'dashboardPage') renderPriorityWorklists(AppState.lastWorklist || []);
+    if (AppState.currentPage === 'formsPage') {
+      renderCnfBranchStatus();
+    }
+    if (AppState.currentPage === 'databasePage') renderDatabaseTable();
+    if (AppState.currentPage === 'endorsementPage') renderEndorsementTable();
+    if (AppState.currentPage === 'auditPage') renderAuditTable();
+    if (AppState.currentPage === 'registryPage') renderRegistryTable();
+    if (AppState.currentPage === 'archivedPage') renderArchivedTable();
+  }
+
+  function loadRegistryConfig(callback) {
+    runServer('getRegistryValuesForTypes', [['Client', 'Department', 'Study']], function (registry) {
+      AppState.registry = registry || {};
+      populateStaticFilters();
+      if (callback) callback();
+    });
+  }
+
+  function loadDashboard(force) {
+    if (AppState.inFlight.dashboard) return;
+    AppState.inFlight.dashboard = true;
+    runServer('getDashboardData', [], function (data) {
+      AppState.inFlight.dashboard = false;
+      const cards = data.cards || {};
+      setText('cardTotalOpen', cards.totalOpen || 0);
+      setText('cardTotalClosed', cards.totalClosed || 0);
+      setText('cardCritical', cards.critical || 0);
+      setText('cardHigh', cards.high || 0);
+      setText('cardDueWithin7', cards.dueWithin7 || 0);
+      setText('cardOverdue', cards.overdue || 0);
+      setText('cardPendingProtocol', cards.pendingProtocol || 0);
+      setText('cardPendingReport', cards.pendingReport || 0);
+      setText('cardPendingEndorsement', cards.pendingEndorsement || 0);
+      AppState.lastWorklist = data.worklist || [];
+      byId('notificationCount').textContent = AppState.lastWorklist.filter(function (row) {
+        return Number(row.priorityRank || 999) < 999;
+      }).length;
+      setText('pageMeta', 'Dashboard refreshed at ' + (data.generatedAt || 'NA') + '.');
+      AppState.loaded.dashboard = true;
+      renderPriorityWorklists(AppState.lastWorklist);
+    }, function () { AppState.inFlight.dashboard = false; });
+  }
+
+  function loadCnfData(callback, force, append) {
+    if (AppState.inFlight.cnf) return;
+    AppState.inFlight.cnf = true;
+    const offset = append ? (AppState.cnfRows || []).length : 0;
+    runServer('getPagedSheetData', [SHEET_NAMES.CNF, { limit: AppState.pageSize, offset: offset, filters: getDatabaseFilterPayload() }], function (data) {
+      AppState.inFlight.cnf = false;
+      AppState.cnfRows = append ? AppState.cnfRows.concat(data.rows || []) : (data.rows || []);
+      AppState.offsets.cnf = AppState.cnfRows.length;
+      AppState.totals.cnf = data.total || AppState.cnfRows.length;
+      AppState.hasMore.cnf = Boolean(data.hasMore);
+      AppState.loaded.cnf = true;
+      populateCnfFilters();
+      renderDatabaseTable();
+      updateNotificationFromCnfRows();
+      if (callback) callback();
+    }, function () { AppState.inFlight.cnf = false; });
+  }
+
+  function loadEndorsements(callback, force, append) {
+    if (AppState.inFlight.endorsement) return;
+    AppState.inFlight.endorsement = true;
+    const offset = append ? (AppState.endorsementRows || []).length : 0;
+    runServer('getPagedSheetData', [SHEET_NAMES.ENDORSEMENT, { limit: AppState.pageSize, offset: offset, filters: getEndorsementFilterPayload() }], function (data) {
+      AppState.inFlight.endorsement = false;
+      AppState.endorsementRows = append ? AppState.endorsementRows.concat(data.rows || []) : (data.rows || []);
+      AppState.offsets.endorsement = AppState.endorsementRows.length;
+      AppState.totals.endorsement = data.total || AppState.endorsementRows.length;
+      AppState.hasMore.endorsement = Boolean(data.hasMore);
+      AppState.loaded.endorsement = true;
+      populateEndorsementFilters();
+      renderEndorsementTable();
+      if (callback) callback();
+    }, function () { AppState.inFlight.endorsement = false; });
+  }
+
+  function loadAuditTrail(force, append) {
+    if (AppState.inFlight.audit) return;
+    AppState.inFlight.audit = true;
+    const offset = append ? (AppState.auditRows || []).length : 0;
+    runServer('getPagedSheetData', [SHEET_NAMES.AUDIT, { limit: AppState.pageSize, offset: offset, filters: getAuditFilterPayload() }], function (data) {
+      AppState.inFlight.audit = false;
+      AppState.auditRows = append ? AppState.auditRows.concat(data.rows || []) : (data.rows || []);
+      AppState.offsets.audit = AppState.auditRows.length;
+      AppState.totals.audit = data.total || AppState.auditRows.length;
+      AppState.hasMore.audit = Boolean(data.hasMore);
+      AppState.loaded.audit = true;
+      populateAuditFilters();
+      renderAuditTable();
+    }, function () { AppState.inFlight.audit = false; });
+  }
+
+  function loadRegistryPage(force) {
+    if (AppState.inFlight.registry) return;
+    AppState.inFlight.registry = true;
+    runServer('getSheetData', [SHEET_NAMES.REGISTRY], function (data) {
+      AppState.inFlight.registry = false;
+      AppState.registryRows = data.rows || [];
+      AppState.loaded.registry = true;
+      populateRegistryFilters();
+      renderRegistryTable();
+      loadRegistryConfig();
+    }, function () { AppState.inFlight.registry = false; });
+  }
+
+  function loadArchived(force, append) {
+    if (AppState.inFlight.archived) return;
+    AppState.inFlight.archived = true;
+    const offset = append ? (AppState.archivedRows || []).length : 0;
+    runServer('getPagedSheetData', [SHEET_NAMES.ARCHIVED, { limit: AppState.pageSize, offset: offset, filters: getArchivedFilterPayload() }], function (data) {
+      AppState.inFlight.archived = false;
+      AppState.archivedRows = append ? AppState.archivedRows.concat(data.rows || []) : (data.rows || []);
+      AppState.offsets.archived = AppState.archivedRows.length;
+      AppState.totals.archived = data.total || AppState.archivedRows.length;
+      AppState.hasMore.archived = Boolean(data.hasMore);
+      AppState.loaded.archived = true;
+      populateArchivedFilters();
+      renderArchivedTable();
+    }, function () { AppState.inFlight.archived = false; });
+  }
+
+  function getDatabaseFilterPayload() {
+    return {
+      search: getInputValue('databaseSearch'),
+      initiator: getInputValue('databaseInitiatorFilter'),
+      billingMonth: getInputValue('databaseBillingMonth'),
+      billingYear: getInputValue('databaseBillingYear'),
+      implementationMonth: getInputValue('databaseImplementationMonth'),
+      implementationYear: getInputValue('databaseImplementationYear'),
+      missingFilter: getInputValue('databaseMissingFilter')
+    };
+  }
+
+  function getEndorsementFilterPayload() {
+    return {
+      search: getInputValue('endorsementSearch'),
+      implementationMonth: getInputValue('endorsementImplementationMonth'),
+      implementationYear: getInputValue('endorsementImplementationYear'),
+      implementedBy: getInputValue('endorsementImplementedByFilter'),
+      implementationStatus: getInputValue('endorsementImplementationStatusFilter')
+    };
+  }
+
+  function getAuditFilterPayload() {
+    return {
+      search: getInputValue('auditSearch'),
+      startDate: getInputValue('auditStartDate'),
+      endDate: getInputValue('auditEndDate'),
+      user: getInputValue('auditUserFilter'),
+      module: getInputValue('auditModuleFilter'),
+      action: getInputValue('auditActionFilter'),
+      cnfNo: getInputValue('auditCnfFilter'),
+      fieldName: getInputValue('auditFieldFilter')
+    };
+  }
+
+  function getArchivedFilterPayload() {
+    return {
+      search: getInputValue('archivedSearch'),
+      year: getInputValue('archivedYearFilter')
+    };
+  }
+
+  function renderPriorityWorklists(rows) {
+    renderPriorityWorklist('processPriorityTable', rows, 'Process', byId('dashboardProcessSearch') ? byId('dashboardProcessSearch').value : '');
+    renderPriorityWorklist('nonProcessPriorityTable', rows, 'Non-Process', byId('dashboardNonProcessSearch') ? byId('dashboardNonProcessSearch').value : '');
+  }
+
+  function renderPriorityWorklist(containerId, rows, category, searchValue) {
+    const search = lower(searchValue);
+    let filtered = (rows || []).filter(function (row) {
+      return getValue(row, 'cnfCategorization') === category && (!search || rowMatchesSearch(row, search));
+    });
+    filtered = sortPriorityRows(filtered);
+    renderTable(containerId, filtered, [
+      { key: 'priorityLevel', label: 'Priority Level' },
+      { key: 'cnfNo', label: 'CNF No.' },
+      { key: 'product', label: 'Product/Project' },
+      { key: 'productCode', label: 'Product Code' },
+      { key: 'cnfCategorization', label: 'CNF Categorization' },
+      { key: 'endorsementNo', label: 'Endorsement No.' },
+      { key: 'endorsementStatus', label: 'Endorsement Status' },
+      { key: 'targetImplementationDate', label: 'Endorsement Target Implementation Date' },
+      { key: 'daysRemaining', label: 'Days Remaining' },
+      { key: 'implementedBy', label: 'Implemented By' },
+      { key: 'implementationStatus', label: 'Implementation Status' },
+      { key: 'reasonForPriority', label: 'Critical Reason', className: 'remarks-cell' }
+    ], {
+      sortKey: 'worklist',
+      rowId: function (row) {
+        return [row.source || 'cnf', row.endorsementId || '', row.cnfNo, row.endorsementNo || '', row.productCode || ''].map(valueOrNA).join('|');
+      },
+      rowClickAction: 'open-priority-item',
+      onRowClick: handlePriorityRowClick,
+      emptyText: 'No urgent ' + category + ' CNFs are currently in the worklist.',
+      limit: 100
+    });
+  }
+
+  function renderFormsTable() {
+    if (!byId('formsTable')) return;
+    const search = lower(byId('formsSearch').value);
+    const status = byId('formsStatusFilter').value;
+    const priority = byId('formsPriorityFilter').value;
+    let rows = AppState.cnfRows.filter(function (row) {
+      return (!search || rowMatchesSearch(row, search)) &&
+        (!status || row['CNF Status'] === status) &&
+        (!priority || row['Priority Level'] === priority);
+    });
+    rows = sortRows(rows, AppState.sort.forms);
+    renderTable('formsTable', rows, FORM_COLUMNS, {
+      sortKey: 'forms',
+      rowIdKey: PRIMARY_KEY,
+      actions: [
+        { label: 'Open', action: 'edit-cnf' },
+        { label: 'Edit', action: 'edit-cnf' },
+        { label: 'Archive', action: 'archive-cnf', danger: true }
+      ],
+      onAction: handleCnfAction,
+      emptyText: 'No active CNF forms found.'
+    });
+  }
+
+  function renderDatabaseTable() {
+    let rows = getFilteredDatabaseRows();
+    rows = sortRows(rows, AppState.sort.database);
+    renderTable('databaseTable', rows, DATABASE_COLUMNS, {
+      sortKey: 'database',
+      totalRows: AppState.totals.cnf,
+      hasMore: AppState.hasMore.cnf,
+      onLoadMore: function () { loadCnfData(null, false, true); },
+      rowIdKey: PRIMARY_KEY,
+      rowClickAction: 'edit-cnf',
+      actions: [
+        { label: 'Open', action: 'edit-cnf' },
+        { label: 'Archive', action: 'archive-cnf', danger: true }
+      ],
+      onAction: handleCnfAction,
+      emptyText: 'No active database records match the current filters.'
+    });
+  }
+
+  function renderEndorsementTable() {
+    const search = lower(byId('endorsementSearch').value);
+    const implementationMonth = byId('endorsementImplementationMonth').value;
+    const implementationYear = byId('endorsementImplementationYear').value;
+    const implementedBy = byId('endorsementImplementedByFilter').value;
+    const implementationStatus = byId('endorsementImplementationStatusFilter').value;
+    let rows = AppState.endorsementRows.map(enrichEndorsementRow).filter(function (row) {
+      return (!AppState.endorsementFocus || endorsementMatchesFocus(row, AppState.endorsementFocus)) &&
+        (!search || rowMatchesFieldSearch(row, search, ENDORSEMENT_SEARCH_FIELDS)) &&
+        monthYearMatches(row['Target Implementation Date'], implementationMonth, implementationYear) &&
+        (!implementedBy || row['Implemented By'] === implementedBy) &&
+        (!implementationStatus || row['Implementation Status'] === implementationStatus);
+    });
+    rows = sortRows(rows, AppState.sort.endorsement);
+    renderTable('endorsementTable', rows, ENDORSEMENT_COLUMNS, {
+      sortKey: 'endorsement',
+      totalRows: AppState.totals.endorsement,
+      hasMore: AppState.hasMore.endorsement,
+      onLoadMore: function () { loadEndorsements(null, false, true); },
+      rowIdKey: 'Endorsement ID',
+      rowClass: function (row) {
+        return AppState.highlightedEndorsementId && row['Endorsement ID'] === AppState.highlightedEndorsementId ? 'highlight-row' : '';
+      },
+      actions: [
+        { label: '+', action: 'add-endorsement-same' },
+        { label: 'View', action: 'view-endorsement' },
+        { label: 'Edit', action: 'edit-endorsement' }
+      ],
+      onAction: handleEndorsementAction,
+      emptyText: 'No active endorsement items found.'
+    });
+  }
+
+  function renderAuditTable() {
+    let rows = AppState.auditRows.slice();
+    rows = sortRows(rows, AppState.sort.audit);
+    renderTable('auditTable', rows, AUDIT_COLUMNS, {
+      sortKey: 'audit',
+      totalRows: AppState.totals.audit,
+      hasMore: AppState.hasMore.audit,
+      onLoadMore: function () { loadAuditTrail(false, true); },
+      emptyText: hasActiveAuditFilters() ? 'No audit records match the current filters.' : 'No audit trail records found.'
+    });
+  }
+
+  function hasActiveAuditFilters() {
+    return ['auditSearch', 'auditStartDate', 'auditEndDate', 'auditUserFilter', 'auditModuleFilter', 'auditActionFilter', 'auditCnfFilter', 'auditFieldFilter'].some(function (id) {
+      return valueOrNA(getInputValue(id)) !== 'NA';
+    });
+  }
+
+  function renderRegistryTable() {
+    const type = byId('registryTypeFilter').value || REGISTRY_TYPES[0];
+    let rows = AppState.registryRows.filter(function (row) {
+      return row['Registry Type'] === type;
+    });
+    rows = sortRows(rows, AppState.sort.registry);
+    const container = byId('registryTable');
+    if (!rows.length) {
+      container.innerHTML = '<div class="empty-state">No registry values found.</div>';
+      return;
+    }
+    container.innerHTML = rows.map(function (row) {
+      const rowId = encodeURIComponent(row['Registry Type'] + '|' + row['Registry Value']);
+      const isInactive = row.Status === 'Inactive';
+      return [
+        '<div class="registry-row ' + (isInactive ? 'inactive' : '') + '">',
+        '<div class="registry-value">',
+        '<strong>' + escapeHtml(row['Registry Value']) + '</strong>',
+        '<span>' + escapeHtml(row.Status || 'Active') + '</span>',
+        '</div>',
+        '<div class="registry-row-actions">',
+        isInactive
+          ? '<button class="row-action" data-action="restore-registry" data-row-id="' + rowId + '">Restore</button>'
+          : '<button class="row-action danger" data-action="deactivate-registry" data-row-id="' + rowId + '">Deactivate</button>',
+        '</div>',
+        '</div>'
+      ].join('');
+    }).join('');
+    container.querySelectorAll('button[data-action]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        handleRegistryAction(button.dataset.action, decodeURIComponent(button.dataset.rowId));
+      });
+    });
+  }
+
+  function renderArchivedTable() {
+    let rows = getFilteredArchivedRows();
+    rows = sortRows(rows, AppState.sort.archived);
+    renderTable('archivedTable', rows, ARCHIVED_COLUMNS, {
+      sortKey: 'archived',
+      totalRows: AppState.totals.archived,
+      hasMore: AppState.hasMore.archived,
+      onLoadMore: function () { loadArchived(false, true); },
+      rowIdKey: PRIMARY_KEY,
+      rowClickAction: 'open-archived-form',
+      actions: [
+        { label: 'Open', action: 'open-archived-form' },
+        { label: 'Restore', action: 'restore-archived' }
+      ],
+      onAction: handleArchivedAction,
+      emptyText: 'No archived records found.'
+    });
+  }
+
+  function renderTable(containerId, rows, columns, options) {
+    const config = options || {};
+    const container = byId(containerId);
+    const displayRows = rows.slice(0, config.limit || 100);
+    if (!rows.length) {
+      container.innerHTML = '<div class="empty-state">' + escapeHtml(config.emptyText || 'No records found.') + '</div>';
+      return;
+    }
+
+    const headers = columns.map(function (column) {
+      return '<th class="sortable" data-sort-key="' + escapeHtml(column.key) + '">' + escapeHtml(column.label) + '</th>';
+    }).join('') + (config.actions ? '<th>Actions</th>' : '');
+
+    const body = displayRows.map(function (row) {
+      const rowId = config.rowId ? config.rowId(row) : row[config.rowIdKey || PRIMARY_KEY] || '';
+      const cells = columns.map(function (column) {
+        const raw = getValue(row, column.key);
+        const missingClass = isImportantMissingCell(column.key, raw) ? ' missing-cell' : '';
+        return '<td class="' + escapeHtml((column.className || '') + missingClass) + '">' + renderCell(raw, column.key) + '</td>';
+      }).join('');
+      const actions = config.actions ? '<td class="actions-cell">' + config.actions.map(function (action) {
+        return '<button class="row-action ' + (action.danger ? 'danger' : '') +
+          '" data-action="' + escapeHtml(action.action) +
+          '" data-row-id="' + encodeURIComponent(rowId) + '">' + escapeHtml(action.label) + '</button>';
+      }).join('') + '</td>' : '';
+      const clickableAttrs = config.rowClickAction
+        ? ' class="' + escapeHtml(['clickable-row', config.rowClass ? config.rowClass(row) : ''].filter(Boolean).join(' ')) + '" data-row-action="' + escapeHtml(config.rowClickAction) + '" data-row-id="' + encodeURIComponent(rowId) + '"'
+        : '';
+      const plainClass = !config.rowClickAction && config.rowClass ? ' class="' + escapeHtml(config.rowClass(row)) + '"' : '';
+      return '<tr' + (clickableAttrs || plainClass) + '>' + cells + actions + '</tr>';
+    }).join('');
+
+    const totalRows = Number(config.totalRows || rows.length);
+    const more = totalRows > displayRows.length
+      ? '<div class="table-footnote">Showing ' + displayRows.length + ' of ' + totalRows + ' matching records.' +
+        (config.hasMore ? ' <button type="button" class="row-action" data-load-more="true">Load More</button>' : ' Refine the search or filters to narrow the list.') +
+        '</div>'
+      : '';
+    container.innerHTML = '<table><thead><tr>' + headers + '</tr></thead><tbody>' + body + '</tbody></table>' + more;
+
+    container.querySelectorAll('th.sortable').forEach(function (th) {
+      th.addEventListener('click', function () {
+        const sortKey = config.sortKey;
+        if (!sortKey) return;
+        const key = th.dataset.sortKey;
+        if (AppState.sort[sortKey].key === key) {
+          AppState.sort[sortKey].direction = AppState.sort[sortKey].direction === 'asc' ? 'desc' : 'asc';
+        } else {
+          AppState.sort[sortKey] = { key: key, direction: 'asc' };
+        }
+        renderCurrentPage();
+      });
+    });
+
+    if (config.actions) {
+      container.querySelectorAll('button[data-action]').forEach(function (button) {
+        button.addEventListener('click', function (event) {
+          event.stopPropagation();
+          config.onAction(button.dataset.action, decodeURIComponent(button.dataset.rowId));
+        });
+      });
+    }
+
+    if (config.rowClickAction) {
+      container.querySelectorAll('tr[data-row-action]').forEach(function (row) {
+        row.addEventListener('click', function () {
+          const rowId = decodeURIComponent(row.dataset.rowId || '');
+          if (config.onRowClick) {
+            config.onRowClick(row.dataset.rowAction, rowId);
+          } else if (config.onAction) {
+            config.onAction(row.dataset.rowAction, rowId);
+          }
+        });
+      });
+    }
+
+    if (config.hasMore && config.onLoadMore) {
+      const loadMore = container.querySelector('[data-load-more]');
+      if (loadMore) {
+        loadMore.addEventListener('click', function () {
+          config.onLoadMore();
+        });
+      }
+    }
+  }
+
+  function isImportantMissingCell(key, value) {
+    return ['Target Implementation Date', 'Target Billing / Delivery Date', 'Batch No.', 'CNF Initiator'].indexOf(key) !== -1 &&
+      ['NA', '', 'Undefined', 'Not Defined'].indexOf(valueOrNA(value)) !== -1;
+  }
+
+  function handleCnfAction(action, primaryKey) {
+    const row = AppState.cnfRows.find(function (item) { return item[PRIMARY_KEY] === primaryKey; });
+    if (!row) return;
+    if (action === 'view-cnf' || action === 'edit-cnf' || action === 'open-cnf-form') openCnfModal('edit', row);
+    if (action === 'archive-cnf') {
+      openConfirmModal('Archive CNF Record', 'Archive this CNF record?', function () {
+        runServer('archiveRecord', [primaryKey], function (result) {
+          showToast(result.message || 'CNF record archived.', 'success');
+          closeModal();
+          loadCnfData();
+          if (AppState.currentPage === 'dashboardPage') loadDashboard();
+        });
+      });
+    }
+  }
+
+  function handlePriorityRowClick(action, rowId) {
+    const parts = rowId.split('|');
+    const source = parts[0];
+    const endorsementId = parts[1];
+    const cnfNo = parts[2];
+    const endorsementNo = parts[3];
+    const productCode = parts[4];
+    if (source === 'endorsement') {
+      openEndorsementFromPriority({
+        endorsementId: endorsementId,
+        cnfNo: cnfNo,
+        endorsementNo: endorsementNo,
+        productCode: productCode
+      });
+      return;
+    }
+    const batchNo = parts[3];
+    const batch = parts[4];
+    const row = AppState.cnfRows.find(function (item) {
+      return getValue(item, 'CNF No.') === cnfNo &&
+        (!batchNo || batchNo === 'NA' || getValue(item, 'Batch No.') === batchNo) &&
+        (!batch || batch === 'NA' || getValue(item, 'Batch') === batch);
+    }) || AppState.cnfRows.find(function (item) {
+      return getValue(item, 'CNF No.') === cnfNo;
+    });
+    if (!row) {
+      loadCnfData(function () { handlePriorityRowClick(action, rowId); });
+      return;
+    }
+    openCnfModal('edit', row);
+  }
+
+  function openEndorsementFromPriority(focus) {
+    AppState.endorsementFocus = focus;
+    AppState.highlightedEndorsementId = focus.endorsementId;
+    ['endorsementSearch', 'endorsementImplementationMonth', 'endorsementImplementationYear', 'endorsementImplementedByFilter', 'endorsementImplementationStatusFilter'].forEach(function (id) {
+      if (byId(id)) byId(id).value = '';
+    });
+    navigateTo('endorsementPage');
+    const renderFocused = function () {
+      renderEndorsementTable();
+      setTimeout(function () {
+        const row = document.querySelector('#endorsementTable tr.highlight-row');
+        if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 80);
+    };
+    if (AppState.loaded.endorsement) {
+      renderFocused();
+    } else {
+      let attempts = 0;
+      const waitForRows = setInterval(function () {
+        attempts += 1;
+        if (AppState.loaded.endorsement || attempts > 20) {
+          clearInterval(waitForRows);
+          renderFocused();
+        }
+      }, 150);
+    }
+  }
+
+  function clearEndorsementFocus() {
+    AppState.endorsementFocus = null;
+    AppState.highlightedEndorsementId = null;
+  }
+
+  function handleEndorsementAction(action, recordId) {
+    const row = AppState.endorsementRows.find(function (item) { return item['Endorsement ID'] === recordId; });
+    if (!row) return;
+    if (action === 'view-endorsement') openRecordViewModal('Endorsement Item', row);
+    if (action === 'edit-endorsement') openEndorsementModal('edit', row);
+    if (action === 'add-endorsement-same') {
+      openEndorsementModal('create', {
+        'CNF No.': row['CNF No.'],
+        Product: row.Product,
+        'Product Code': row['Product Code'],
+        'Endorsement No.': row['Endorsement No.'],
+        'Endorsement Status': row['Endorsement Status']
+      });
+    }
+  }
+
+  function handleRegistryAction(action, rowId) {
+    const parts = rowId.split('|');
+    const row = AppState.registryRows.find(function (item) {
+      return item['Registry Type'] === parts[0] && item['Registry Value'] === parts.slice(1).join('|');
+    });
+    if (!row) return;
+    if (action === 'edit-registry') openRegistryModal('edit', row);
+    if (action === 'restore-registry') {
+      runServer('saveRegistryValue', [{
+        action: 'update',
+        originalType: row['Registry Type'],
+        originalValue: row['Registry Value'],
+        registryType: row['Registry Type'],
+        registryValue: row['Registry Value'],
+        description: row.Description,
+        status: 'Active'
+      }], function (result) {
+        showToast(result.message || 'Registry value restored.', 'success');
+        loadRegistryPage();
+      });
+    }
+    if (action === 'deactivate-registry') {
+      openConfirmModal('Deactivate Registry Value', 'Deactivate this registry value?', function () {
+        runServer('saveRegistryValue', [{
+          action: 'deactivate',
+          originalType: row['Registry Type'],
+          originalValue: row['Registry Value'],
+          registryType: row['Registry Type'],
+          registryValue: row['Registry Value'],
+          description: row.Description
+        }], function (result) {
+          showToast(result.message || 'Registry value deactivated.', 'success');
+          closeModal();
+          loadRegistryPage();
+        });
+      });
+    }
+  }
+
+  function handleArchivedAction(action, primaryKey) {
+    const row = AppState.archivedRows.find(function (item) { return item[PRIMARY_KEY] === primaryKey; });
+    if (!row) return;
+    if (action === 'view-archived' || action === 'open-archived-form') openArchivedCnfInForm(row);
+    if (action === 'restore-archived') {
+      openConfirmModal('Restore Archived Record', 'Restore this archived record to the active database?', function () {
+        runServer('restoreArchivedRecord', [primaryKey], function (result) {
+          showToast(result.message || 'Archived record restored.', 'success');
+          closeModal();
+          loadArchived();
+          loadCnfData();
+          if (AppState.currentPage === 'dashboardPage') loadDashboard();
+        });
+      });
+    }
+  }
+
+  function openArchivedCnfInForm(row) {
+    openCnfModal('create', row);
+    showToast('Archived CNF loaded into the form. Saving will create an active CNF record.', 'warning');
+  }
+
+  function openCnfModal(mode, row) {
+    navigateTo('formsPage');
+    renderInlineCnfForm(mode, row);
+  }
+
+  function renderInlineCnfForm(mode, row) {
+    const isEdit = mode === 'edit';
+    AppState.editingCnfKey = isEdit && row ? row[PRIMARY_KEY] : null;
+    const record = row || {};
+    AppState.cnfFormProducts = buildCnfProductState(record, isEdit);
+    byId('cnfInlineWorkspace').innerHTML = [
+      '<section class="cnf-form-layout">',
+      '<article class="panel cnf-editor-panel">',
+      '<div class="panel-header cnf-inline-header">',
+      '<div><h2>' + (isEdit ? 'Edit CNF Record' : 'CNF Form') + '</h2>',
+      '<p>' + (isEdit ? 'Saving here updates the selected CNF and its product children.' : 'Create the CNF parent and related product child records together.') + '</p></div>',
+      '<div class="button-row">',
+      '<button id="inlineNewCnfButton" class="secondary-button" type="button">New</button>',
+      '</div></div>',
+      '<div id="cnfFormNotifications" class="form-notifications"></div>',
+      '<div class="inline-form-body">' + buildCnfFormHtml(record) + '</div>',
+      '</article>',
+      '<aside class="panel branch-panel">',
+      '<div class="panel-header"><div><h2>Branch Status</h2>',
+      '<p>CNF closes only when all related branches are signed, cancelled, or NA.</p></div></div>',
+      '<div id="cnfBranchStatus" class="branch-status-list"></div>',
+      '</aside>',
+      '</section>'
+    ].join('');
+    renderCnfProductSections();
+    byId('addProductButton').addEventListener('click', function () {
+      const openStates = getCnfProductOpenStates();
+      AppState.cnfFormProducts = collectCnfProductsFromDom(true);
+      AppState.cnfFormProducts.push(createBlankCnfProduct(null, AppState.cnfFormProducts[0]));
+      openStates.push(true);
+      renderCnfProductSections(openStates);
+    });
+    byId('expandAllProductsButton').addEventListener('click', function () {
+      setCnfProductOpenStates(true);
+    });
+    byId('collapseAllProductsButton').addEventListener('click', function () {
+      setCnfProductOpenStates(false);
+    });
+    byId('inlineNewCnfButton').addEventListener('click', function () { renderInlineCnfForm('create'); });
+    byId('cnfForm').addEventListener('submit', function (event) {
+      event.preventDefault();
+      submitCnfForm(byId('inlineSaveCnfButton'));
+    });
+    byId('cnfInlineWorkspace').oninput = renderCnfBranchStatus;
+    byId('cnfInlineWorkspace').onchange = renderCnfBranchStatus;
+    byId('cnfCategorization').addEventListener('change', handleCnfCategorizationChange);
+    applyNADefaults(byId('cnfInlineWorkspace'));
+    handleCnfCategorizationChange();
+    updateBillingControls();
+    byId('cnfInlineWorkspace').querySelectorAll('[data-billing-watch]').forEach(function (field) {
+      field.addEventListener('change', updateBillingControls);
+      field.addEventListener('input', updateBillingControls);
+    });
+    renderCnfBranchStatus();
+  }
+
+  function buildCnfFormHtml(record) {
+    return [
+      '<form id="cnfForm">',
+      '<div class="form-section"><div class="form-grid">',
+      selectHtml('cnfCategorization', 'CNF Categorization', ['Process', 'Non-Process'], record['CNF Categorization'] || 'Process', true),
+      '</div></div>',
+      '<div class="form-section"><h3>CNF Information</h3><div class="form-grid">',
+      fieldHtml('cnfNo', 'CNF No.', record['CNF No.'], 'text', true),
+      fieldHtml('cnfInitiator', 'CNF Initiator', record['CNF Initiator'], 'text', true),
+      optionalFieldHtml('qrmrNo', 'QRMR No.', record['QRMR No.']),
+      '</div></div>',
+      '<div class="form-section product-toolbar"><button type="button" id="addProductButton" class="secondary-button">+ Add Product/Project</button><button type="button" id="expandAllProductsButton" class="secondary-button">Expand All</button><button type="button" id="collapseAllProductsButton" class="secondary-button">Collapse All</button></div>',
+      '<div id="productSections" class="product-section-list"></div>',
+      '<div class="form-section"><h3>CNF Closure</h3><div class="form-grid">',
+      selectHtml('cnfStatus', 'CNF Status', ['Open', 'Closed'], record['CNF Status'] || 'Open'),
+      dateFieldHtml('closedDate', 'Closed Date', record['Closed Date'] || 'NA'),
+      '</div></div>',
+      '<div class="form-actions-bar"><button id="inlineSaveCnfButton" class="primary-button" type="submit">Save CNF</button></div>',
+      '</form>'
+    ].join('');
+  }
+
+  function buildCnfProductState(record, isEdit) {
+    if (!isEdit) return [createBlankCnfProduct(record)];
+    const cnfNo = getValue(record, 'CNF No.');
+    const rows = AppState.cnfRows.filter(function (item) {
+      return getValue(item, 'CNF No.') === cnfNo;
+    });
+    if (!rows.length) return [createBlankCnfProduct(record)];
+
+    const groups = [];
+    const byKey = {};
+    rows.forEach(function (item) {
+      const key = [
+        getValue(item, 'Product Name / Project'),
+        getValue(item, 'Product Code'),
+        getValue(item, 'Client'),
+        getValue(item, 'Description of Change'),
+        getValue(item, 'Department'),
+        getValue(item, 'Study'),
+        getValue(item, 'Target Implementation Date'),
+        getValue(item, 'Target Billing / Delivery Date'),
+        getValue(item, 'MO/BMR Ref. No.'),
+        getValue(item, 'PO/BPR Ref. No.'),
+        getValue(item, 'Protocol No.'),
+        getValue(item, 'Report No.'),
+        getValue(item, 'Endorsement No.'),
+        getValue(item, 'Product/Project Entry Status'),
+        getValue(item, 'Product/Project Remarks')
+      ].join('|');
+      if (!byKey[key]) {
+        byKey[key] = createBlankCnfProduct(item);
+        byKey[key].batches = [];
+        groups.push(byKey[key]);
+      }
+      byKey[key].batches.push({
+        primaryKey: getValue(item, PRIMARY_KEY),
+        batchNo: getValue(item, 'Batch No.'),
+        batch: getValue(item, 'Batch'),
+        interimNo: getValue(item, 'Interim No.'),
+        interimStatus: getValue(item, 'Interim Status')
+      });
+    });
+
+    return groups.map(function (product) {
+      product.noOfBatchPerStudy = Math.max(0, Number(product.noOfBatchPerStudy || product.batches.length || 0));
+      product.batches = normalizeClientBatches(product.batches, product.noOfBatchPerStudy);
+      return product;
+    });
+  }
+
+  function createBlankCnfProduct(record, commonSource) {
+    const source = record || {};
+    const common = commonSource || {};
+    const isNonProcess = byId('cnfCategorization') && byId('cnfCategorization').value === 'Non-Process';
+    const count = Math.max(0, Number(source['No. of Batch per Study'] || (isNonProcess ? 0 : 1)));
+    return {
+      productName: getValue(source, 'Product Name / Project') === 'NA' ? '' : getValue(source, 'Product Name / Project'),
+      productCode: getValue(source, 'Product Code') === 'NA' ? '' : getValue(source, 'Product Code'),
+      client: getValue(source, 'Client') !== 'NA' ? getValue(source, 'Client') : valueOrNA(common.client || 'NA'),
+      descriptionOfChange: getValue(source, 'Description of Change') !== 'NA'
+        ? getValue(source, 'Description of Change')
+        : (!record && valueOrNA(common.descriptionOfChange) !== 'NA' ? common.descriptionOfChange : ''),
+      department: getValue(source, 'Department') === 'NA' ? valueOrNA(common.department || 'Validation') : getValue(source, 'Department'),
+      study: getValue(source, 'Study') === 'NA' ? valueOrNA(common.study || 'Process Validation') : getValue(source, 'Study'),
+      noOfBatchPerStudy: valueOrNA(common.noOfBatchPerStudy) !== 'NA' && !record ? common.noOfBatchPerStudy : count,
+      targetImplementationDate: getValue(source, 'Target Implementation Date'),
+      targetBillingDeliveryDate: getValue(source, 'Target Billing / Delivery Date'),
+      moBmrRefNo: getValue(source, 'MO/BMR Ref. No.'),
+      moBmrStatus: getValue(source, 'MO/BMR Status'),
+      poBprRefNo: getValue(source, 'PO/BPR Ref. No.'),
+      poBprStatus: getValue(source, 'PO/BPR Status'),
+      protocolNo: getValue(source, 'Protocol No.'),
+      protocolStatus: getValue(source, 'Protocol Status'),
+      interimNo: getValue(source, 'Interim No.'),
+      interimStatus: getValue(source, 'Interim Status'),
+      reportNo: getValue(source, 'Report No.'),
+      reportStatus: getValue(source, 'Report Status'),
+      endorsementNo: getValue(source, 'Endorsement No.'),
+      endorsementStatus: getValue(source, 'Endorsement Status'),
+      billingStatus: getValue(source, 'Billing Status') === 'NA' ? 'Not Billable' : getValue(source, 'Billing Status'),
+      billingDepartmentNotified: getValue(source, 'Billing Department Notified') === 'Yes' ? 'Yes' : 'No',
+      entryStatus: getValue(source, 'Product/Project Entry Status') === 'Inactive' ? 'Inactive' : 'Active',
+      productRemarks: getValue(source, 'Product/Project Remarks') === 'NA' ? '' : getValue(source, 'Product/Project Remarks'),
+      copiedFromProductOne: Boolean(commonSource && !record),
+      zeroBatchPrimaryKey: getValue(source, PRIMARY_KEY),
+      batches: normalizeClientBatches([{
+        primaryKey: getValue(source, PRIMARY_KEY),
+        batchNo: getValue(source, 'Batch No.') === 'NA' ? '' : getValue(source, 'Batch No.'),
+        batch: getValue(source, 'Batch'),
+        interimNo: getValue(source, 'Interim No.'),
+        interimStatus: getValue(source, 'Interim Status')
+      }], valueOrNA(common.noOfBatchPerStudy) !== 'NA' && !record ? common.noOfBatchPerStudy : count)
+    };
+  }
+
+  function getCnfProductOpenStates() {
+    const container = byId('productSections');
+    if (!container) return [];
+    return Array.prototype.map.call(container.querySelectorAll('.product-section'), function (section) {
+      return section.open;
+    });
+  }
+
+  function setCnfProductOpenStates(isOpen) {
+    const container = byId('productSections');
+    if (!container) return;
+    container.querySelectorAll('.product-section').forEach(function (section) {
+      section.open = isOpen;
+    });
+    renderCnfBranchStatus();
+  }
+
+  function renderCnfProductSections(openStates) {
+    const container = byId('productSections');
+    const productOpenStates = openStates || getCnfProductOpenStates();
+    container.innerHTML = AppState.cnfFormProducts.map(function (product, index) {
+      return cnfProductSectionHtml(product, index, productOpenStates[index] !== false);
+    }).join('');
+
+    container.querySelectorAll('[data-remove-product]').forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (AppState.cnfFormProducts.length === 1) {
+          showToast('At least one product is required.', 'warning');
+          return;
+        }
+        const removeIndex = Number(button.dataset.removeProduct);
+        confirmCriticalRemove(function () {
+          const openStates = getCnfProductOpenStates();
+          AppState.cnfFormProducts = collectCnfProductsFromDom(true);
+          AppState.cnfFormProducts.splice(removeIndex, 1);
+          openStates.splice(removeIndex, 1);
+          renderCnfProductSections(openStates);
+        });
+      });
+    });
+
+    container.querySelectorAll('[data-inactivate-product]').forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        const openStates = getCnfProductOpenStates();
+        AppState.cnfFormProducts = collectCnfProductsFromDom(true);
+        AppState.cnfFormProducts[Number(button.dataset.inactivateProduct)].entryStatus = 'Inactive';
+        renderCnfProductSections(openStates);
+      });
+    });
+
+    container.querySelectorAll('[data-reactivate-product]').forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        const openStates = getCnfProductOpenStates();
+        AppState.cnfFormProducts = collectCnfProductsFromDom(true);
+        AppState.cnfFormProducts[Number(button.dataset.reactivateProduct)].entryStatus = 'Active';
+        renderCnfProductSections(openStates);
+      });
+    });
+
+    container.querySelectorAll('[data-apply-product-one]').forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        const openStates = getCnfProductOpenStates();
+        AppState.cnfFormProducts = collectCnfProductsFromDom(true);
+        const source = AppState.cnfFormProducts[0] || {};
+        const target = AppState.cnfFormProducts[Number(button.dataset.applyProductOne)];
+        ['client', 'descriptionOfChange', 'department', 'study', 'noOfBatchPerStudy'].forEach(function (key) {
+          target[key] = source[key];
+        });
+        target.copiedFromProductOne = true;
+        target.batches = normalizeClientBatches(target.batches, target.noOfBatchPerStudy);
+        renderCnfProductSections(openStates);
+      });
+    });
+
+    container.querySelectorAll('[data-batch-count]').forEach(function (input) {
+      input.addEventListener('input', function () {
+        const openStates = getCnfProductOpenStates();
+        AppState.cnfFormProducts = collectCnfProductsFromDom(true);
+        const index = Number(input.dataset.batchCount);
+        const product = AppState.cnfFormProducts[index];
+        product.noOfBatchPerStudy = Math.max(0, Number(input.value || 0));
+        product.batches = normalizeClientBatches(product.batches, product.noOfBatchPerStudy);
+        renderCnfProductSections(openStates);
+      });
+    });
+
+    container.querySelectorAll('.product-section').forEach(function (section) {
+      section.addEventListener('toggle', renderCnfBranchStatus);
+    });
+
+    applyNADefaults(container);
+    renderCnfBranchStatus();
+  }
+
+  function renderCnfBranchStatus() {
+    const container = byId('cnfBranchStatus');
+    if (!container) return;
+    const products = collectCnfProductsFromDom(true);
+    const openStates = getCnfProductOpenStates();
+    container.innerHTML = products.map(function (product, index) {
+      const inactive = valueOrNA(product.entryStatus) === 'Inactive';
+      const isOpen = openStates[index] !== false;
+      const name = valueOrNA(product.productName) === 'NA' ? 'Product/Project ' + (index + 1) : product.productName;
+      const branches = isOpen ? CNF_BRANCH_FIELDS.map(function (field) {
+        if (field.label === 'Interim') {
+          const interims = normalizeClientBatches(product.batches, product.noOfBatchPerStudy);
+          return interims.map(function (interim, interimIndex) {
+            const refNo = valueOrNA(interim.interimNo);
+            const status = valueOrNA(interim.interimStatus);
+            return [
+              '<div class="branch-card ' + (inactive ? 'inactive-product' : '') + '">',
+              '<span>Interim ' + (interimIndex + 1) + '</span>',
+              '<strong>' + escapeHtml(refNo === 'NA' ? 'No document no.' : refNo) + '</strong>',
+              renderCell(status, 'Status'),
+              '</div>'
+            ].join('');
+          }).join('');
+        }
+        const refNo = valueOrNA(product[field.refKey]);
+        const status = valueOrNA(product[field.statusKey]);
+        const canOpenEndorsement = field.label === 'Endorsement' && status !== 'Not Applicable' && refNo !== 'NA' && AppState.endorsementRows.some(function (row) {
+          return getValue(row, 'Endorsement No.') === refNo;
+        });
+        return [
+          '<div class="branch-card ' + (inactive ? 'inactive-product' : '') + ' ' + (canOpenEndorsement ? 'clickable-branch' : '') + '"' + (canOpenEndorsement ? ' data-open-endorsement="' + escapeHtml(refNo) + '"' : '') + '>',
+          '<span>' + escapeHtml(field.label) + '</span>',
+          '<strong>' + escapeHtml(refNo === 'NA' ? 'No document no.' : refNo) + '</strong>',
+          renderCell(status, 'Status'),
+          '</div>'
+        ].join('');
+      }).join('') : '';
+      return [
+        '<section class="branch-product ' + (isOpen ? '' : 'branch-product-collapsed') + '">',
+        '<div class="branch-product-title">' + escapeHtml(name) + ' ' + (inactive ? badge('Inactive', 'flag') : badge('Active', 'flag')) + '</div>',
+        branches,
+        '</section>'
+      ].join('');
+    }).join('') || '<div class="empty-state">Start the CNF form to monitor document branches.</div>';
+    container.querySelectorAll('[data-open-endorsement]').forEach(function (card) {
+      card.addEventListener('click', function () {
+        navigateTo('endorsementPage');
+        byId('endorsementSearch').value = card.dataset.openEndorsement;
+        renderEndorsementTable();
+      });
+    });
+  }
+
+  function cnfProductSectionHtml(product, index, isOpen) {
+    const inactive = valueOrNA(product.entryStatus) === 'Inactive';
+    const removeButton = '<button type="button" class="row-action danger" data-remove-product="' + index + '">Remove</button>';
+    const statusButton = inactive
+      ? '<button type="button" class="row-action" data-reactivate-product="' + index + '">Reactivate</button>'
+      : '<button type="button" class="row-action" data-inactivate-product="' + index + '">Inactivate</button>';
+    const applyButton = index > 0 ? '<button type="button" class="row-action" data-apply-product-one="' + index + '">Apply Product/Project 1 Values</button>' : '';
+    const copiedNote = product.copiedFromProductOne ? '<p class="helper-note">Common fields were copied from Product/Project 1. You may edit them if needed.</p>' : '';
+    return [
+      '<details class="collapsible-section product-section ' + (inactive ? 'inactive-product' : '') + '"' + (isOpen ? ' open' : '') + '>',
+      '<summary><span>Product/Project ' + (index + 1) + ' ' + (inactive ? badge('Inactive', 'flag') : badge('Active', 'flag')) + '</span><span>' + statusButton + applyButton + removeButton + '</span></summary>',
+      copiedNote,
+      '<input type="hidden" id="product_' + index + '_entryStatus" value="' + escapeHtml(product.entryStatus || 'Active') + '">',
+      '<div class="form-section"><h3>Product/Project Information</h3><div class="form-grid">',
+      fieldHtml('product_' + index + '_productName', 'Product/Project', product.productName, 'text', true),
+      fieldHtml('product_' + index + '_productCode', 'Product Code', product.productCode, 'text', true),
+      selectHtml('product_' + index + '_client', 'Client', registryValues('Client', ['Internal', 'External', 'NA']), product.client, true),
+      textAreaHtml('product_' + index + '_descriptionOfChange', 'Description of Change', product.descriptionOfChange, true),
+      selectHtml('product_' + index + '_department', 'Department', registryValues('Department', ['Validation', 'QA', 'QC']), product.department, true),
+      selectHtml('product_' + index + '_study', 'Study', registryValues('Study', ['Process Validation', 'Cleaning Validation', 'Other']), product.study, true),
+      fieldHtml('product_' + index + '_noOfBatchPerStudy', 'No. of Batch per Study', product.noOfBatchPerStudy || '0', 'number', true, 'min="0" data-batch-count="' + index + '"'),
+      dateFieldHtml('product_' + index + '_targetImplementationDate', 'Target Implementation Date', product.targetImplementationDate),
+      dateFieldHtml('product_' + index + '_targetBillingDeliveryDate', 'Target Billing / Delivery Date', product.targetBillingDeliveryDate),
+      '</div></div>',
+      '<div class="form-section"><div class="form-grid">',
+      textAreaHtml('product_' + index + '_productRemarks', 'Product/Project Remarks', product.productRemarks, false),
+      '</div></div>',
+      '<div class="form-section"><h3>Batch Entries</h3><div class="batch-list">',
+      cnfBatchRowsHtml(product, index),
+      '</div></div>',
+      '<div class="form-section"><h3>Document Tracking</h3><div class="form-grid">',
+      optionalFieldHtml('product_' + index + '_moBmrRefNo', 'MO/BMR Ref. No.', product.moBmrRefNo),
+      selectHtml('product_' + index + '_moBmrStatus', 'MO/BMR Status', STATUS_OPTIONS, product.moBmrStatus || 'NA'),
+      optionalFieldHtml('product_' + index + '_poBprRefNo', 'PO/BPR Ref. No.', product.poBprRefNo),
+      selectHtml('product_' + index + '_poBprStatus', 'PO/BPR Status', STATUS_OPTIONS, product.poBprStatus || 'NA'),
+      optionalFieldHtml('product_' + index + '_protocolNo', 'Protocol No.', product.protocolNo),
+      selectHtml('product_' + index + '_protocolStatus', 'Protocol Status', STATUS_OPTIONS, product.protocolStatus || 'NA'),
+      cnfInterimFieldsHtml(product, index),
+      optionalFieldHtml('product_' + index + '_reportNo', 'Report No.', product.reportNo),
+      selectHtml('product_' + index + '_reportStatus', 'Report Status', STATUS_OPTIONS, product.reportStatus || 'NA'),
+      optionalFieldHtml('product_' + index + '_endorsementNo', 'Endorsement No.', product.endorsementNo),
+      selectHtml('product_' + index + '_endorsementStatus', 'Endorsement Status', STATUS_OPTIONS, product.endorsementStatus || 'NA'),
+      selectHtml('product_' + index + '_billingStatus', 'Billing Status', BILLING_STATUS_OPTIONS, product.billingStatus || 'Not Billable', false, 'data-billing-watch="true"'),
+      '<label class="checkbox-field span-2" id="product_' + index + '_billingNoticeWrap"><input id="product_' + index + '_billingDepartmentNotified" type="checkbox" data-billing-watch="true"' + (product.billingDepartmentNotified === 'Yes' ? ' checked' : '') + '> Billing Department has been notified<span class="billing-helper">Billing notification is not required for Not Billable CNFs.</span></label>',
+      '</div></div>',
+      '</details>'
+    ].join('');
+  }
+
+  function cnfBatchRowsHtml(product, productIndex) {
+    const count = Math.max(0, Number(product.noOfBatchPerStudy || 0));
+    if (count === 0) {
+      const key = product.zeroBatchPrimaryKey || (product.batches && product.batches[0] ? product.batches[0].primaryKey : 'NA');
+      return '<input type="hidden" id="product_' + productIndex + '_zeroBatchPrimaryKey" value="' + escapeHtml(key || 'NA') + '"><div class="empty-state">No batch entries required.</div>';
+    }
+    const batches = normalizeClientBatches(product.batches, count);
+    return batches.map(function (batch, index) {
+      const batchLabel = (index + 1) + ' of ' + count;
+      return [
+        '<div class="batch-row">',
+        '<input type="hidden" id="product_' + productIndex + '_batchPrimaryKey_' + index + '" value="' + escapeHtml(batch.primaryKey || 'NA') + '">',
+        fieldHtml('product_' + productIndex + '_batchNo_' + index, 'Batch No. ' + (index + 1), batch.batchNo, 'text', true),
+        '<div class="field"><label for="product_' + productIndex + '_batch_' + index + '">Batch sequence/status</label>',
+        '<input id="product_' + productIndex + '_batch_' + index + '" value="' + escapeHtml(batchLabel) + '" readonly></div>',
+        '</div>'
+      ].join('');
+    }).join('');
+  }
+
+  function cnfInterimFieldsHtml(product, productIndex) {
+    const count = Math.max(0, Number(product.noOfBatchPerStudy || 0));
+    const batches = normalizeClientBatches(product.batches, count);
+    return batches.map(function (batch, index) {
+      return [
+        optionalFieldHtml('product_' + productIndex + '_interimNo_' + index, 'Interim No. ' + (index + 1), batch.interimNo),
+        selectHtml('product_' + productIndex + '_interimStatus_' + index, 'Interim Status ' + (index + 1), STATUS_OPTIONS, batch.interimStatus || 'NA')
+      ].join('');
+    }).join('');
+  }
+
+  function normalizeClientBatches(batches, count) {
+    const supplied = Array.isArray(batches) ? batches : [];
+    const max = Math.max(0, Number(count || 0));
+    const output = [];
+    for (let i = 0; i < max; i += 1) {
+      const item = supplied[i] || {};
+      output.push({
+        primaryKey: valueOrNA(item.primaryKey),
+        batchNo: valueOrNA(item.batchNo) === 'NA' ? '' : valueOrNA(item.batchNo),
+        batch: (i + 1) + ' of ' + max,
+        interimNo: valueOrNA(item.interimNo),
+        interimStatus: valueOrNA(item.interimStatus)
+      });
+    }
+    return output;
+  }
+
+  function submitCnfForm(button) {
+    const payload = collectCnfPayload();
+    const missing = collectCnfWarningFields(payload);
+    const critical = collectCriticalNotifications(payload);
+    const closureBlocker = getClosureBlockerMessage(payload);
+    renderFormNotifications(missing, closureBlocker ? critical.concat([closureBlocker]) : critical);
+    if (closureBlocker) {
+      showToast(closureBlocker, 'error');
+      return;
+    }
+    setButtonBusy(button, true);
+    const done = function (result) {
+      setButtonBusy(button, false);
+      if (result && result.success === false) {
+        showToast(result.message || 'Unable to save the record. Please try again.', result.duplicate ? 'warning' : 'error');
+        return;
+      }
+      showToast(result.message || 'CNF saved successfully.', 'success');
+      renderInlineCnfForm('create');
+      loadCnfData();
+      if (AppState.currentPage === 'dashboardPage') loadDashboard();
+      if (result.redirectToEndorsement) {
+        navigateTo('endorsementPage');
+        openEndorsementModal('create', {
+          'Endorsement No.': result.endorsementNo
+        });
+      }
+    };
+    const failed = function () { setButtonBusy(button, false); };
+    if (AppState.editingCnfKey) {
+      runServer('updateCNFRecord', [AppState.editingCnfKey, payload], done, failed);
+    } else {
+      runServer('saveCNFRecord', [payload], done, failed);
+    }
+  }
+
+  function collectCnfPayload() {
+    return {
+      cnfNo: valueOrNA(byId('cnfNo').value),
+      cnfInitiator: valueOrNA(byId('cnfInitiator').value),
+      qrmrNo: valueOrNA(byId('qrmrNo').value),
+      cnfCategorization: valueOrNA(byId('cnfCategorization').value),
+      cnfStatus: valueOrNA(byId('cnfStatus').value || 'Open'),
+      closedDate: getDateInputValue('closedDate'),
+      products: collectCnfProductsFromDom(true)
+    };
+  }
+
+  function collectCnfProductsFromDom(includePrimaryKeys) {
+    const products = [];
+    const container = byId('productSections');
+    if (!container) return AppState.cnfFormProducts.length ? AppState.cnfFormProducts : [createBlankCnfProduct()];
+    container.querySelectorAll('.product-section').forEach(function (_, index) {
+      const count = Math.max(0, Number(getInputValue('product_' + index + '_noOfBatchPerStudy', '0')));
+      const batches = [];
+      if (count === 0) {
+        batches.push({
+          primaryKey: includePrimaryKeys ? valueOrNA(getInputValue('product_' + index + '_zeroBatchPrimaryKey', 'NA')) : 'NA',
+          batchNo: 'NA',
+          batch: 'NA',
+          interimNo: 'NA',
+          interimStatus: 'NA'
+        });
+      }
+      for (let batchIndex = 0; batchIndex < count; batchIndex += 1) {
+        batches.push({
+          primaryKey: includePrimaryKeys ? valueOrNA(getInputValue('product_' + index + '_batchPrimaryKey_' + batchIndex, 'NA')) : 'NA',
+          batchNo: valueOrNA(getInputValue('product_' + index + '_batchNo_' + batchIndex, '')),
+          batch: valueOrNA(getInputValue('product_' + index + '_batch_' + batchIndex, (batchIndex + 1) + ' of ' + count)),
+          interimNo: valueOrNA(getInputValue('product_' + index + '_interimNo_' + batchIndex)),
+          interimStatus: valueOrNA(getInputValue('product_' + index + '_interimStatus_' + batchIndex))
+        });
+      }
+      const firstBatch = batches[0] || {};
+      products.push({
+        productName: valueOrNA(getInputValue('product_' + index + '_productName')),
+        productCode: valueOrNA(getInputValue('product_' + index + '_productCode')),
+        client: valueOrNA(getInputValue('product_' + index + '_client')),
+        descriptionOfChange: valueOrNA(getInputValue('product_' + index + '_descriptionOfChange')),
+        department: valueOrNA(getInputValue('product_' + index + '_department')),
+        study: valueOrNA(getInputValue('product_' + index + '_study')),
+        noOfBatchPerStudy: count,
+        targetImplementationDate: getDateInputValue('product_' + index + '_targetImplementationDate'),
+        targetBillingDeliveryDate: getDateInputValue('product_' + index + '_targetBillingDeliveryDate'),
+        moBmrRefNo: valueOrNA(getInputValue('product_' + index + '_moBmrRefNo')),
+        moBmrStatus: valueOrNA(getInputValue('product_' + index + '_moBmrStatus')),
+        poBprRefNo: valueOrNA(getInputValue('product_' + index + '_poBprRefNo')),
+        poBprStatus: valueOrNA(getInputValue('product_' + index + '_poBprStatus')),
+        protocolNo: valueOrNA(getInputValue('product_' + index + '_protocolNo')),
+        protocolStatus: valueOrNA(getInputValue('product_' + index + '_protocolStatus')),
+        interimNo: valueOrNA(firstBatch.interimNo),
+        interimStatus: valueOrNA(firstBatch.interimStatus),
+        reportNo: valueOrNA(getInputValue('product_' + index + '_reportNo')),
+        reportStatus: valueOrNA(getInputValue('product_' + index + '_reportStatus')),
+        endorsementNo: valueOrNA(getInputValue('product_' + index + '_endorsementNo')),
+        endorsementStatus: valueOrNA(getInputValue('product_' + index + '_endorsementStatus')),
+        billingStatus: valueOrNA(getInputValue('product_' + index + '_billingStatus', 'Not Billable')),
+        billingDepartmentNotified: valueOrNA(getInputValue('product_' + index + '_billingStatus', 'Not Billable')) === 'Billable' && byId('product_' + index + '_billingDepartmentNotified') && byId('product_' + index + '_billingDepartmentNotified').checked ? 'Yes' : 'No',
+        entryStatus: valueOrNA(getInputValue('product_' + index + '_entryStatus', 'Active')),
+        productRemarks: valueOrNA(getInputValue('product_' + index + '_productRemarks', 'NA')),
+        batches: batches
+      });
+    });
+    return products;
+  }
+
+  function handleCnfCategorizationChange() {
+    const isNonProcess = byId('cnfCategorization') && byId('cnfCategorization').value === 'Non-Process';
+    AppState.cnfFormProducts = collectCnfProductsFromDom(true);
+    AppState.cnfFormProducts.forEach(function (product) {
+      if (isNonProcess) {
+        if (valueOrNA(product.noOfBatchPerStudy) === 'NA' || Number(product.noOfBatchPerStudy) === 1) {
+          product.noOfBatchPerStudy = 0;
+          product.batches = [];
+        }
+        if (valueOrNA(product.moBmrRefNo) === 'NA') product.moBmrRefNo = 'NA';
+        if (valueOrNA(product.moBmrStatus) === 'NA') product.moBmrStatus = 'NA';
+        if (valueOrNA(product.poBprRefNo) === 'NA') product.poBprRefNo = 'NA';
+        if (valueOrNA(product.poBprStatus) === 'NA') product.poBprStatus = 'NA';
+      }
+    });
+    renderCnfProductSections();
+  }
+
+  function validateCnfPayload(payload) {
+    return collectCnfWarningFields(payload);
+  }
+
+  function collectCnfWarningFields(payload) {
+    const missing = [];
+    const isNonProcess = valueOrNA(payload.cnfCategorization) === 'Non-Process';
+    (payload.products || []).forEach(function (product, index) {
+      if (valueOrNA(product.entryStatus) === 'Inactive') return;
+      const prefix = (payload.products || []).length > 1 ? 'Product/Project ' + (index + 1) + ' ' : '';
+      [
+        ['productName', 'Product/Project'],
+        ['productCode', 'Product Code'],
+        ['client', 'Client'],
+        ['descriptionOfChange', 'Description of Change'],
+        ['department', 'Department'],
+        ['study', 'Study'],
+        ['noOfBatchPerStudy', 'No. of Batch per Study'],
+        ['targetImplementationDate', 'Target Implementation Date'],
+        ['targetBillingDeliveryDate', 'Target Billing / Delivery Date']
+      ].forEach(function (item) {
+        if (valueOrNA(product[item[0]]) === 'NA') missing.push(prefix + item[1]);
+      });
+      if (Number(product.noOfBatchPerStudy || 0) > 0) (product.batches || []).forEach(function (batch, batchIndex) {
+        if (valueOrNA(batch.batchNo) === 'NA') missing.push(prefix + 'Batch No. ' + (batchIndex + 1));
+        if (valueOrNA(batch.batch) === 'NA') missing.push(prefix + 'Batch Sequence / Status');
+      });
+      const docs = isNonProcess ? [
+        ['protocolNo', 'Protocol No.'],
+        ['protocolStatus', 'Protocol Status']
+      ] : [
+        ['moBmrRefNo', 'MO/BMR Ref. No.'],
+        ['moBmrStatus', 'MO/BMR Status'],
+        ['poBprRefNo', 'PO/BPR Ref. No.'],
+        ['poBprStatus', 'PO/BPR Status'],
+        ['protocolNo', 'Protocol No.'],
+        ['protocolStatus', 'Protocol Status']
+      ];
+      docs.forEach(function (item) {
+        if (valueOrNA(product[item[0]]) === 'NA') missing.push(prefix + item[1]);
+      });
+      normalizeClientBatches(product.batches, product.noOfBatchPerStudy).forEach(function (batch, batchIndex) {
+        if (batch.interimStatus !== 'Not Applicable') {
+          if (valueOrNA(batch.interimNo) === 'NA') missing.push(prefix + 'Interim No. ' + (batchIndex + 1));
+          if (valueOrNA(batch.interimStatus) === 'NA') missing.push(prefix + 'Interim Status ' + (batchIndex + 1));
+        }
+      });
+      if (valueOrNA(product.reportNo) === 'NA') missing.push(prefix + 'Report No.');
+      if (valueOrNA(product.reportStatus) === 'NA') missing.push(prefix + 'Report Status');
+      if (product.endorsementStatus !== 'Not Applicable') {
+        if (valueOrNA(product.endorsementNo) === 'NA') missing.push(prefix + 'Endorsement No.');
+        if (valueOrNA(product.endorsementStatus) === 'NA') missing.push(prefix + 'Endorsement Status');
+      }
+    });
+    if (valueOrNA(payload.cnfCategorization) === 'NA') missing.push('CNF Categorization');
+    if (valueOrNA(payload.cnfStatus) === 'NA') missing.push('CNF Status');
+    if (valueOrNA(payload.closedDate) === 'NA') missing.push('Closed Date');
+    return missing;
+  }
+
+  function collectCriticalNotifications(payload) {
+    const messages = [];
+    const isNonProcess = valueOrNA(payload.cnfCategorization) === 'Non-Process';
+    (payload.products || []).forEach(function (product) {
+      if (valueOrNA(product.entryStatus) === 'Inactive') return;
+      const targetImplementationDue = isApproachingOrPast(product.targetImplementationDate);
+      const targetBillingDue = isApproachingOrPast(product.targetBillingDeliveryDate);
+      if (!isNonProcess && targetImplementationDue && valueOrNA(product.moBmrRefNo) === 'NA') messages.push('CNF is approaching the Target Implementation Date, but MO/BMR is not yet identified.');
+      if (!isNonProcess && targetImplementationDue && valueOrNA(product.poBprRefNo) === 'NA') messages.push('CNF is approaching the Target Implementation Date, but PO/BPR is not yet identified.');
+      if (targetImplementationDue && valueOrNA(product.protocolNo) === 'NA') messages.push(isNonProcess ? 'Non-Process CNF is nearing the Target Implementation Date, but Protocol is not yet identified.' : 'CNF is approaching the Target Implementation Date, but Protocol is not yet identified.');
+      const interims = normalizeClientBatches(product.batches, product.noOfBatchPerStudy);
+      const interimMissing = interims.some(function (batch) {
+        return batch.interimStatus !== 'Not Applicable' && valueOrNA(batch.interimNo) === 'NA';
+      });
+      const interimSigned = interims.some(function (batch) {
+        return valueOrNA(batch.interimStatus) === 'Signed';
+      });
+      if (targetBillingDue && (interimMissing || valueOrNA(product.reportNo) === 'NA')) {
+        messages.push('CNF is approaching the Target Billing / Delivery Date, but Interim Report or Full Report is not yet identified.');
+      }
+      if (product.billingStatus === 'Billable' && (interimSigned || product.reportStatus === 'Signed') && product.billingDepartmentNotified !== 'Yes') {
+        messages.push('CNF is billable, but the Billing Department has not yet been notified.');
+      }
+      if (product.reportStatus === 'Signed' && valueOrNA(product.endorsementStatus) === 'NA' && product.endorsementStatus !== 'Not Applicable') {
+        messages.push('Full Report is already signed, but Endorsement Report is not yet identified.');
+      }
+    });
+    return Array.from(new Set(messages));
+  }
+
+  function getClosureBlockerMessage(payload) {
+    if (valueOrNA(payload.cnfStatus) !== 'Closed') return '';
+    const products = payload.products || [];
+    const productOpen = products.some(function (product) {
+      if (valueOrNA(product.entryStatus) === 'Inactive') return false;
+      const tracked = valueOrNA(payload.cnfCategorization) === 'Non-Process'
+        ? ['protocolStatus', 'reportStatus']
+        : ['moBmrStatus', 'poBprStatus', 'protocolStatus', 'reportStatus'];
+      if (tracked.some(function (key) {
+        return CLOSURE_FINAL_STATUSES.indexOf(valueOrNA(product[key])) === -1;
+      })) return true;
+      if (normalizeClientBatches(product.batches, product.noOfBatchPerStudy).some(function (batch) {
+        return CLOSURE_FINAL_STATUSES.indexOf(valueOrNA(batch.interimStatus)) === -1;
+      })) return true;
+      if (valueOrNA(product.endorsementStatus) === 'Not Applicable') return false;
+      return valueOrNA(product.endorsementNo) === 'NA' ||
+        ENDORSEMENT_CLOSURE_FINAL_STATUSES.indexOf(valueOrNA(product.endorsementStatus)) === -1;
+    });
+    const endorsementOpen = products.some(function (product) {
+      if (valueOrNA(product.endorsementStatus) === 'Not Applicable') return false;
+      if (valueOrNA(product.endorsementNo) === 'NA') return true;
+      const related = AppState.endorsementRows.filter(function (row) {
+        return getValue(row, 'Endorsement No.') === valueOrNA(product.endorsementNo) ||
+          (getValue(row, 'CNF No.') === valueOrNA(payload.cnfNo) &&
+            getValue(row, 'Product Code') === valueOrNA(product.productCode));
+      });
+      if (!related.length) return ENDORSEMENT_CLOSURE_FINAL_STATUSES.indexOf(valueOrNA(product.endorsementStatus)) === -1;
+      return related.some(function (row) {
+        return valueOrNA(row['Closure Status']) !== 'Closed' ||
+          ENDORSEMENT_FINAL_STATUSES.indexOf(valueOrNA(row['Implementation Status'])) === -1;
+      });
+    });
+    if (productOpen && endorsementOpen) {
+      return 'This CNF cannot be closed yet because there are related Product/Project or Endorsement entries that are still open. Please close or complete the related Product/Project and Endorsement entries first.';
+    }
+    if (productOpen) {
+      return 'This CNF cannot be closed yet because one or more related Product/Project entries are still open. Please close or complete the Product/Project entries first.';
+    }
+    if (endorsementOpen) {
+      return 'This CNF cannot be closed yet because one or more related Endorsement entries are still open. Please close or complete the Endorsement entries first.';
+    }
+    return '';
+  }
+
+  function isApproachingOrPast(value) {
+    const date = parseDate(value);
+    if (!date) return false;
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const diff = Math.ceil((date.getTime() - start.getTime()) / 86400000);
+    return diff <= 14;
+  }
+
+  function renderFormNotifications(missing, critical) {
+    const host = byId('cnfFormNotifications');
+    if (!host) return;
+    const criticalHtml = (critical || []).map(function (message) {
+      return '<li>' + escapeHtml(message) + '</li>';
+    }).join('');
+    const missingHtml = (missing || []).map(function (field) {
+      return '<li>' + escapeHtml(field) + '</li>';
+    }).join('');
+    host.innerHTML = [
+      criticalHtml ? '<details class="notification-panel critical" open><summary><span>Critical Notifications</span><span class="notice-count">' + (critical || []).length + '</span></summary><ol>' + criticalHtml + '</ol></details>' : '',
+      missingHtml ? '<details class="notification-panel warning"' + (criticalHtml ? '' : '') + '><summary><span>Missing / NA Fields</span><span class="notice-count">' + (missing || []).length + '</span></summary><ol>' + missingHtml + '</ol></details>' : ''
+    ].join('');
+  }
+
+  function updateBillingControls() {
+    const products = collectCnfProductsFromDom(true);
+    products.forEach(function (product, index) {
+      const wrap = byId('product_' + index + '_billingNoticeWrap');
+      const checkbox = byId('product_' + index + '_billingDepartmentNotified');
+      if (!wrap || !checkbox) return;
+      const isBillable = product.billingStatus === 'Billable';
+      wrap.classList.toggle('billing-disabled', !isBillable);
+      checkbox.disabled = !isBillable;
+      if (!isBillable) checkbox.checked = false;
+    });
+    renderFormNotifications(collectCnfWarningFields(collectCnfPayload()), collectCriticalNotifications(collectCnfPayload()));
+  }
+
+  function addEndorsementTrace(record) {
+    const source = record || {};
+    const endorsementNo = getValue(source, 'Endorsement No.');
+    const cnfNo = getValue(source, 'CNF No.');
+    const match = AppState.cnfRows.find(function (row) {
+      return (endorsementNo !== 'NA' && getValue(row, 'Endorsement No.') === endorsementNo) ||
+        (cnfNo !== 'NA' && getValue(row, 'CNF No.') === cnfNo &&
+          (getValue(source, 'Product Code') === 'NA' || getValue(row, 'Product Code') === getValue(source, 'Product Code')));
+    });
+    if (!match) return source;
+    return Object.assign({}, source, {
+      'CNF No.': getValue(source, 'CNF No.') !== 'NA' ? getValue(source, 'CNF No.') : getValue(match, 'CNF No.'),
+      Product: getValue(source, 'Product') !== 'NA' ? getValue(source, 'Product') : getValue(match, 'Product Name / Project'),
+      'Product Code': getValue(source, 'Product Code') !== 'NA' ? getValue(source, 'Product Code') : getValue(match, 'Product Code'),
+      'Endorsement Status': getValue(source, 'Endorsement Status') !== 'NA' ? getValue(source, 'Endorsement Status') : getValue(match, 'Endorsement Status')
+    });
+  }
+
+  function openEndorsementModal(mode, row) {
+    AppState.editingEndorsementId = mode === 'edit' && row ? row['Endorsement ID'] : null;
+    const record = addEndorsementTrace(row || AppState.pendingEndorsementContext || {});
+    AppState.endorsementFormItems = buildEndorsementItemState(record, mode === 'edit');
+    openModal(mode === 'edit' ? 'Edit Endorsement Entry' : 'Add Endorsement Entry', buildEndorsementFormHtml(record), [
+      { label: 'Cancel', className: 'secondary-button', action: closeModal },
+      { label: mode === 'edit' ? 'Save Changes' : 'Save Entry', className: 'primary-button', action: submitEndorsementForm }
+    ]);
+    renderEndorsementItemSections();
+    byId('addEndorsementItemButton').addEventListener('click', function () {
+      const openStates = getEndorsementItemOpenStates();
+      AppState.endorsementFormItems = collectEndorsementItemsFromDom(true);
+      AppState.endorsementFormItems.push(createBlankEndorsementItem());
+      openStates.push(true);
+      renderEndorsementItemSections(openStates);
+    });
+    applyNADefaults(byId('modalBody'));
+  }
+
+  function buildEndorsementFormHtml(record) {
+    return [
+      '<form id="endorsementForm">',
+      '<div class="form-section"><h3>Endorsement Information</h3><div class="form-grid">',
+      optionalFieldHtml('endCnfNo', 'CNF No.', record['CNF No.']),
+      optionalFieldHtml('endProduct', 'Product/Project', record.Product),
+      optionalFieldHtml('endProductCode', 'Product Code', record['Product Code']),
+      fieldHtml('endEndorsementNo', 'Endorsement No.', record['Endorsement No.'] || '', 'text', true),
+      selectHtml('endEndorsementStatus', 'Endorsement Status', STATUS_OPTIONS, record['Endorsement Status'] || 'NA'),
+      '</div></div>',
+      '<div class="form-section product-toolbar"><button type="button" id="addEndorsementItemButton" class="secondary-button">+ Add Endorsement Item</button></div>',
+      '<div id="endorsementItemSections" class="product-section-list"></div>',
+      '</form>'
+    ].join('');
+  }
+
+  function buildEndorsementItemState(record, isEdit) {
+    if (!isEdit) return [createBlankEndorsementItem(record)];
+    const endorsementNo = getValue(record, 'Endorsement No.');
+    const rows = AppState.endorsementRows.filter(function (item) {
+      return getValue(item, 'Endorsement No.') === endorsementNo;
+    });
+    return (rows.length ? rows : [record]).map(createBlankEndorsementItem);
+  }
+
+  function createBlankEndorsementItem(record) {
+    const source = record || {};
+    return {
+      recordId: getValue(source, 'Endorsement ID'),
+      endorsementItem: getValue(source, 'Endorsement Item'),
+      targetImplementationDate: getValue(source, 'Target Implementation Date'),
+      implementedBy: getValue(source, 'Implemented By'),
+      implementationStatus: getValue(source, 'Implementation Status') === 'NA' ? 'Planned' : getValue(source, 'Implementation Status'),
+      targetVerificationDate: getValue(source, 'Target Verification Date'),
+      verifiedByValidation: getValue(source, 'Verified By Validation'),
+      validationVerificationDate: getValue(source, 'Validation Verification Date'),
+      verifiedByGmp: getValue(source, 'Verified By GMP'),
+      gmpVerificationDate: getValue(source, 'GMP Verification Date')
+    };
+  }
+
+  function getEndorsementItemOpenStates() {
+    const container = byId('endorsementItemSections');
+    if (!container) return [];
+    return Array.prototype.map.call(container.querySelectorAll('.endorsement-item-section'), function (section) {
+      return section.open;
+    });
+  }
+
+  function renderEndorsementItemSections(openStates) {
+    const container = byId('endorsementItemSections');
+    const itemOpenStates = openStates || getEndorsementItemOpenStates();
+    container.innerHTML = AppState.endorsementFormItems.map(function (item, index) {
+      return endorsementItemSectionHtml(item, index, itemOpenStates[index] !== false);
+    }).join('');
+
+    container.querySelectorAll('[data-remove-endorsement-item]').forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (AppState.endorsementFormItems.length === 1) {
+          showToast('At least one endorsement item is required.', 'warning');
+          return;
+        }
+        const removeIndex = Number(button.dataset.removeEndorsementItem);
+        confirmCriticalRemove(function () {
+          const openStates = getEndorsementItemOpenStates();
+          AppState.endorsementFormItems = collectEndorsementItemsFromDom(true);
+          AppState.endorsementFormItems.splice(removeIndex, 1);
+          openStates.splice(removeIndex, 1);
+          renderEndorsementItemSections(openStates);
+        });
+      });
+    });
+
+    applyNADefaults(container);
+  }
+
+  function endorsementItemSectionHtml(item, index, isOpen) {
+    const label = 'Endorsement Item ' + (index + 1);
+    const removeButton = '<button type="button" class="row-action danger" data-remove-endorsement-item="' + index + '">Remove</button>';
+    return [
+      '<details class="collapsible-section endorsement-item-section"' + (isOpen ? ' open' : '') + '>',
+      '<summary><span>' + escapeHtml(label) + '</span>' + removeButton + '</summary>',
+      '<div class="form-section"><div class="form-grid">',
+      '<input type="hidden" id="endorsement_' + index + '_recordId" value="' + escapeHtml(item.recordId || 'NA') + '">',
+      dateFieldHtml('endorsement_' + index + '_targetImplementationDate', 'Target Implementation Date', item.targetImplementationDate),
+      optionalFieldHtml('endorsement_' + index + '_implementedBy', 'Implemented By', item.implementedBy),
+      selectHtml('endorsement_' + index + '_implementationStatus', 'Implementation Status', IMPLEMENTATION_STATUS_OPTIONS, item.implementationStatus || 'Planned'),
+      dateFieldHtml('endorsement_' + index + '_targetVerificationDate', 'Target Verification Date', item.targetVerificationDate),
+      optionalFieldHtml('endorsement_' + index + '_verifiedByValidation', 'Verified By Validation', item.verifiedByValidation),
+      dateFieldHtml('endorsement_' + index + '_validationVerificationDate', 'Validation Verification Date', item.validationVerificationDate),
+      optionalFieldHtml('endorsement_' + index + '_verifiedByGmp', 'Verified By GMP', item.verifiedByGmp),
+      dateFieldHtml('endorsement_' + index + '_gmpVerificationDate', 'GMP Verification Date', item.gmpVerificationDate),
+      '</div></div>',
+      '</details>'
+    ].join('');
+  }
+
+  function submitEndorsementForm(button) {
+    const payload = {
+      cnfNo: valueOrNA(byId('endCnfNo').value),
+      product: valueOrNA(byId('endProduct').value),
+      productCode: valueOrNA(byId('endProductCode').value),
+      endorsementNo: valueOrNA(byId('endEndorsementNo').value),
+      endorsementStatus: valueOrNA(byId('endEndorsementStatus').value),
+      items: collectEndorsementItemsFromDom(true)
+    };
+    const missing = validateClientRequired(payload, ['endorsementNo']);
+    if (missing.length) {
+      showToast('Required field(s) missing: ' + missing.join(', ') + '.', 'warning');
+      return;
+    }
+    setButtonBusy(button, true);
+    const done = function (result) {
+      setButtonBusy(button, false);
+      showToast(result.message || 'Endorsement item saved.', 'success');
+      closeModal();
+      loadEndorsements();
+      loadCnfData();
+      if (AppState.currentPage === 'dashboardPage') loadDashboard();
+    };
+    const failed = function () { setButtonBusy(button, false); };
+    if (AppState.editingEndorsementId) {
+      runServer('updateEndorsementItem', [AppState.editingEndorsementId, payload], done, failed);
+    } else {
+      runServer('saveEndorsementItem', [payload], done, failed);
+    }
+  }
+
+  function collectEndorsementItemsFromDom(includeRecordIds) {
+    const items = [];
+    const container = byId('endorsementItemSections');
+    if (!container) return AppState.endorsementFormItems.length ? AppState.endorsementFormItems : [createBlankEndorsementItem()];
+    container.querySelectorAll('.endorsement-item-section').forEach(function (_, index) {
+      items.push({
+        recordId: includeRecordIds ? valueOrNA(getInputValue('endorsement_' + index + '_recordId', 'NA')) : 'NA',
+        endorsementItem: 'Endorsement Item ' + (index + 1),
+        targetImplementationDate: getDateInputValue('endorsement_' + index + '_targetImplementationDate'),
+        implementedBy: valueOrNA(getInputValue('endorsement_' + index + '_implementedBy')),
+        implementationStatus: valueOrNA(getInputValue('endorsement_' + index + '_implementationStatus', 'Planned')),
+        targetVerificationDate: getDateInputValue('endorsement_' + index + '_targetVerificationDate'),
+        verifiedByValidation: valueOrNA(getInputValue('endorsement_' + index + '_verifiedByValidation')),
+        validationVerificationDate: getDateInputValue('endorsement_' + index + '_validationVerificationDate'),
+        verifiedByGmp: valueOrNA(getInputValue('endorsement_' + index + '_verifiedByGmp')),
+        gmpVerificationDate: getDateInputValue('endorsement_' + index + '_gmpVerificationDate')
+      });
+    });
+    return items;
+  }
+
+  function addRegistryValueInline(button) {
+    const registryType = valueOrNA(byId('registryTypeFilter').value);
+    const registryValue = valueOrNA(byId('registryValueInput').value);
+    if (registryType === 'NA' || registryValue === 'NA') {
+      showToast('Choose a registry type and enter a value first.', 'warning');
+      return;
+    }
+    button.disabled = true;
+    runServer('saveRegistryValue', [{
+      action: 'add',
+      registryType: registryType,
+      registryValue: registryValue,
+      description: 'NA'
+    }], function (result) {
+      button.disabled = false;
+      byId('registryValueInput').value = '';
+      showToast(result.message || 'Registry value added.', 'success');
+      loadRegistryPage();
+    }, function () {
+      button.disabled = false;
+    });
+  }
+
+  function openRegistryModal(mode, row) {
+    AppState.editingRegistry = row || null;
+    const record = row || {};
+    openModal(mode === 'edit' ? 'Edit Registry Value' : 'Add Registry Value', [
+      '<form id="registryForm"><div class="form-grid">',
+      selectHtml('registryType', 'Registry Type', REGISTRY_TYPES, record['Registry Type'] || 'Department', true),
+      fieldHtml('registryValue', 'Registry Value', record['Registry Value'] || '', 'text', true),
+      fieldHtml('registryDescription', 'Description', record.Description || '', 'text', false, '', 'span-2'),
+      selectHtml('registryStatus', 'Status', ['Active', 'Inactive'], record.Status || 'Active'),
+      '</div></form>'
+    ].join(''), [
+      { label: 'Cancel', className: 'secondary-button', action: closeModal },
+      { label: mode === 'edit' ? 'Save Changes' : 'Add Value', className: 'primary-button', action: submitRegistryForm }
+    ]);
+  }
+
+  function submitRegistryForm(button) {
+    const original = AppState.editingRegistry;
+    const payload = {
+      action: original ? 'update' : 'add',
+      originalType: original ? original['Registry Type'] : byId('registryType').value,
+      originalValue: original ? original['Registry Value'] : byId('registryValue').value,
+      registryType: valueOrNA(byId('registryType').value),
+      registryValue: valueOrNA(byId('registryValue').value),
+      description: valueOrNA(byId('registryDescription').value),
+      status: valueOrNA(byId('registryStatus').value)
+    };
+    const missing = validateClientRequired(payload, ['registryType', 'registryValue']);
+    if (missing.length) {
+      showToast('Required field(s) missing: ' + missing.join(', ') + '.', 'warning');
+      return;
+    }
+    setButtonBusy(button, true);
+    runServer('saveRegistryValue', [payload], function (result) {
+      setButtonBusy(button, false);
+      showToast(result.message || 'Registry value saved.', 'success');
+      closeModal();
+      loadRegistryPage();
+    }, function () {
+      setButtonBusy(button, false);
+    });
+  }
+
+  function openRecordViewModal(title, row) {
+    const items = Object.keys(row).map(function (key) {
+      return '<div class="readonly-item"><span>' + escapeHtml(key) + '</span><strong>' + renderCell(row[key], key) + '</strong></div>';
+    }).join('');
+    openModal(title, '<div class="readonly-grid">' + items + '</div>', [
+      { label: 'Close', className: 'secondary-button', action: closeModal }
+    ]);
+  }
+
+  function openConfirmModal(title, message, onConfirm) {
+    openModal(title, '<div class="confirm-message">' + escapeHtml(message) + '</div>', [
+      { label: 'Cancel', className: 'secondary-button', action: closeModal },
+      { label: 'Confirm', className: 'danger-button', action: function () { onConfirm(); } }
+    ]);
+  }
+
+  function confirmCriticalRemove(onConfirm) {
+    const message = 'Are you sure you want to remove this item? This action may affect the current entry. Click Yes to continue or Cancel to keep the item.';
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML = [
+      '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="removeConfirmTitle">',
+      '<div class="modal-header"><h2 id="removeConfirmTitle">Confirm Remove</h2></div>',
+      '<div class="modal-body"><div class="confirm-message">' + escapeHtml(message) + '</div></div>',
+      '<div class="modal-footer">',
+      '<button type="button" class="secondary-button" data-confirm-cancel>Cancel</button>',
+      '<button type="button" class="danger-button" data-confirm-yes>Yes</button>',
+      '</div>',
+      '</div>'
+    ].join('');
+
+    function closeConfirm() {
+      if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+    }
+
+    backdrop.querySelector('[data-confirm-cancel]').addEventListener('click', closeConfirm);
+    backdrop.querySelector('[data-confirm-yes]').addEventListener('click', function () {
+      closeConfirm();
+      onConfirm();
+    });
+    backdrop.addEventListener('click', function (event) {
+      if (event.target === backdrop) closeConfirm();
+    });
+    document.body.appendChild(backdrop);
+  }
+
+  function openModal(title, bodyHtml, buttons) {
+    setText('modalTitle', title);
+    byId('modalBody').innerHTML = bodyHtml;
+    byId('modalFooter').innerHTML = buttons.map(function (button, index) {
+      return '<button id="modalButton_' + index + '" class="' + escapeHtml(button.className) + '">' + escapeHtml(button.label) + '</button>';
+    }).join('');
+    buttons.forEach(function (button, index) {
+      byId('modalButton_' + index).addEventListener('click', function () { button.action(byId('modalButton_' + index)); });
+    });
+    byId('modalBackdrop').classList.remove('hidden');
+  }
+
+  function closeModal() {
+    byId('modalBackdrop').classList.add('hidden');
+    byId('modalBody').innerHTML = '';
+    byId('modalFooter').innerHTML = '';
+    AppState.editingEndorsementId = null;
+    AppState.editingRegistry = null;
+    AppState.endorsementFormItems = [];
+    AppState.pendingImport = null;
+  }
+
+  function fieldHtml(id, label, value, type, required, extraAttrs, extraClass) {
+    const requiredAttr = '';
+    const attrs = extraAttrs ? ' ' + extraAttrs : '';
+    const className = extraClass ? ' ' + extraClass : '';
+    const val = valueOrNA(value);
+    const displayVal = val === 'NA' && type === 'date' ? '' : val;
+    const naAttr = val === 'NA' && type !== 'date' ? ' data-optional-na="true"' : '';
+    return '<div class="field' + className + '"><label for="' + escapeHtml(id) + '">' + escapeHtml(label) + '</label>' +
+      '<input id="' + escapeHtml(id) + '" type="' + escapeHtml(type || 'text') + '" value="' + escapeHtml(displayVal) + '"' + requiredAttr + naAttr + attrs + '></div>';
+  }
+
+  function optionalFieldHtml(id, label, value, extraAttrs, extraClass) {
+    const attrs = extraAttrs ? ' ' + extraAttrs : '';
+    const className = extraClass ? ' ' + extraClass : '';
+    const text = valueOrNA(value);
+    return '<div class="field' + className + '"><label for="' + escapeHtml(id) + '">' + escapeHtml(label) + '</label>' +
+      '<input id="' + escapeHtml(id) + '" type="text" value="' + escapeHtml(text) + '" data-optional-na="true"' + attrs + '></div>';
+  }
+
+  function dateFieldHtml(id, label, value, extraAttrs, extraClass) {
+    const attrs = extraAttrs ? ' ' + extraAttrs : '';
+    const className = extraClass ? ' ' + extraClass : '';
+    return '<div class="field' + className + '"><label for="' + escapeHtml(id) + '">' + escapeHtml(label) + '</label>' +
+      '<input id="' + escapeHtml(id) + '" type="date" value="' + escapeHtml(toDateInputValue(value)) + '" data-date-field="true"' + attrs + '></div>';
+  }
+
+  function toDateInputValue(value) {
+    const date = parseDate(value);
+    if (!date) return '';
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0')
+    ].join('-');
+  }
+
+  function getDateInputValue(id) {
+    return fromDateInputValue(getInputValue(id, ''));
+  }
+
+  function fromDateInputValue(value) {
+    const text = valueOrNA(value);
+    if (text === 'NA') return 'NA';
+    const date = parseDate(text);
+    return date ? formatDateForStorage(date) : 'NA';
+  }
+
+  function formatDateForStorage(date) {
+    return String(date.getDate()).padStart(2, '0') + '-' + DATE_MONTHS[date.getMonth()] + '-' + date.getFullYear();
+  }
+
+  function textAreaHtml(id, label, value, required) {
+    return '<div class="field span-3"><label for="' + escapeHtml(id) + '">' + escapeHtml(label) + '</label>' +
+      '<textarea id="' + escapeHtml(id) + '">' + escapeHtml(valueOrNA(value) === 'NA' ? '' : valueOrNA(value)) + '</textarea></div>';
+  }
+
+  function selectHtml(id, label, options, value, required, extraAttrs) {
+    const selected = valueOrNA(value);
+    const finalOptions = (options || []).slice();
+    if (selected !== 'NA' && finalOptions.indexOf(selected) === -1) {
+      finalOptions.unshift(selected);
+    }
+    return '<div class="field"><label for="' + escapeHtml(id) + '">' + escapeHtml(label) + '</label>' +
+      '<select id="' + escapeHtml(id) + '" data-na-select="true" class="' + (selected === 'NA' ? 'na-guide' : '') + '"' + (extraAttrs ? ' ' + extraAttrs : '') + '>' +
+      finalOptions.map(function (option) {
+        const optionValue = valueOrNA(option);
+        return '<option value="' + escapeHtml(optionValue) + '"' + (optionValue === selected ? ' selected' : '') + '>' + escapeHtml(optionValue) + '</option>';
+      }).join('') +
+      '</select></div>';
+  }
+
+  function applyNADefaults(root) {
+    const scope = root || document;
+    scope.querySelectorAll('[data-optional-na="true"]').forEach(function (field) {
+      if (valueOrNA(field.value) === 'NA') field.value = 'NA';
+      syncNAFieldClass(field);
+      field.addEventListener('focus', function () {
+        if (valueOrNA(field.value) === 'NA') field.value = '';
+        syncNAFieldClass(field);
+      });
+      field.addEventListener('blur', function () {
+        if (valueOrNA(field.value) === 'NA') field.value = 'NA';
+        syncNAFieldClass(field);
+      });
+      field.addEventListener('input', function () {
+        syncNAFieldClass(field);
+      });
+    });
+    scope.querySelectorAll('[data-na-select="true"]').forEach(function (select) {
+      syncNAFieldClass(select);
+      select.addEventListener('change', function () {
+        syncNAFieldClass(select);
+      });
+    });
+  }
+
+  function syncNAFieldClass(field) {
+    field.classList.toggle('na-guide', valueOrNA(field.value) === 'NA');
+  }
+
+  function getFilteredDatabaseRows() {
+    const search = lower(byId('databaseSearch').value);
+    const initiator = byId('databaseInitiatorFilter').value;
+    const billingMonth = byId('databaseBillingMonth').value;
+    const billingYear = byId('databaseBillingYear').value;
+    const implementationMonth = byId('databaseImplementationMonth').value;
+    const implementationYear = byId('databaseImplementationYear').value;
+    const missingFilter = byId('databaseMissingFilter').value;
+    return AppState.cnfRows.filter(function (row) {
+      return (!search || rowMatchesFieldSearch(row, search, DATABASE_SEARCH_FIELDS)) &&
+        (!initiator || getInitiatorValue(row) === initiator) &&
+        monthYearMatches(row['Target Billing / Delivery Date'], billingMonth, billingYear) &&
+        monthYearMatches(row['Target Implementation Date'], implementationMonth, implementationYear) &&
+        missingDataMatches(row, missingFilter);
+    });
+  }
+
+  function monthYearMatches(value, month, year) {
+    if (!month || !year) return true;
+    const date = parseDate(value);
+    if (!date) return false;
+    return String(date.getMonth() + 1) === String(Number(month)) && String(date.getFullYear()) === String(year);
+  }
+
+  function dateEquals(value, selectedValue) {
+    const date = parseDate(value);
+    const selected = parseDate(selectedValue);
+    return Boolean(date && selected && date.getTime() === selected.getTime());
+  }
+
+  function missingDataMatches(row, mode) {
+    if (!mode) return true;
+    const missingBatch = isMissingTrackingValue(row['Batch No.']);
+    const missingImplementation = isMissingTrackingValue(row['Target Implementation Date']);
+    const missingBilling = isMissingTrackingValue(row['Target Billing / Delivery Date']);
+    const missingInitiator = isMissingTrackingValue(getInitiatorValue(row));
+    if (mode === 'batch') return missingBatch;
+    if (mode === 'implementation') return missingImplementation;
+    if (mode === 'billing') return missingBilling;
+    if (mode === 'batchImplementationBilling') return missingBatch || missingImplementation || missingBilling;
+    if (mode === 'initiator') return missingInitiator;
+    if (mode === 'critical') return missingBatch || missingImplementation || missingBilling || missingInitiator;
+    return true;
+  }
+
+  function isMissingTrackingValue(value) {
+    const text = String(value === undefined || value === null ? '' : value).trim().toLowerCase();
+    return text === '' || text === 'na' || text === 'n/a' || text === 'null' || text === 'undefined' || text === 'not defined' || text === 'not yet defined';
+  }
+
+  function getInitiatorValue(row) {
+    return getValue(row, 'CNF Initiator') !== 'NA' ? getValue(row, 'CNF Initiator') : getValue(row, 'Initiator');
+  }
+
+  function getFilteredArchivedRows() {
+    const search = lower(byId('archivedSearch').value);
+    const year = byId('archivedYearFilter').value;
+    return AppState.archivedRows.filter(function (row) {
+      return (!search || rowMatchesSearch(row, search)) &&
+        (!year || getYearFromText(row[PRIMARY_KEY]) === year);
+    });
+  }
+
+  function cnfDateWithinRange(row, start, end) {
+    if (!start && !end) return true;
+    return dateWithinRange(row['Target Implementation Date'], start, end) ||
+      dateWithinRange(row['Target Billing / Delivery Date'], start, end);
+  }
+
+  function dateWithinRange(value, start, end) {
+    if (!start && !end) return true;
+    const date = parseDate(value);
+    if (!date) return false;
+    const startDate = start ? parseDate(start) : null;
+    const endDate = end ? parseDate(end) : null;
+    if (startDate && date < startDate) return false;
+    if (endDate && date > endDate) return false;
+    return true;
+  }
+
+  function parseDate(value) {
+    const text = valueOrNA(value);
+    if (text === 'NA') return null;
+    let match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    match = text.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})/);
+    if (match) return new Date(Number(match[3]), monthIndex(match[2]), Number(match[1]));
+    const parsed = new Date(text);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function monthIndex(month) {
+    const map = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+    return map[String(month || '').slice(0, 3).toLowerCase()] || 0;
+  }
+
+  function sortRows(rows, sortConfig) {
+    const config = sortConfig || {};
+    if (!config.key) return rows.slice();
+    const dir = config.direction === 'desc' ? -1 : 1;
+    return rows.slice().sort(function (a, b) {
+      const av = getValue(a, config.key);
+      const bv = getValue(b, config.key);
+      const ad = parseDate(av);
+      const bd = parseDate(bv);
+      if (ad && bd) return (ad - bd) * dir;
+      if (!isNaN(Number(av)) && !isNaN(Number(bv))) return (Number(av) - Number(bv)) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  }
+
+  function populateStaticFilters() {
+    setSelectOptions('formsStatusFilter', ['Open', 'Closed'], 'All Statuses');
+    setSelectOptions('formsPriorityFilter', PRIORITY_LEVEL_OPTIONS, 'All Priorities');
+    setMonthOptions('databaseBillingMonth');
+    setMonthOptions('databaseImplementationMonth');
+    setMonthOptions('endorsementImplementationMonth');
+    setMissingFilterOptions();
+    setSelectOptions('endorsementImplementationStatusFilter', IMPLEMENTATION_STATUS_OPTIONS, 'All');
+    setRegistryTypeOptions(REGISTRY_TYPES);
+  }
+
+  function populateCnfFilters() {
+    setSelectOptions('formsStatusFilter', uniqueValues(AppState.cnfRows, 'CNF Status'), 'All Statuses');
+    setSelectOptions('formsPriorityFilter', uniqueValues(AppState.cnfRows, 'Priority Level'), 'All Priorities');
+    setSelectOptions('databaseInitiatorFilter', uniqueInitiators(), 'All');
+    setSelectOptions('databaseBillingYear', uniqueYearsFromRows(AppState.cnfRows, 'Target Billing / Delivery Date'), 'All years');
+    setSelectOptions('databaseImplementationYear', uniqueYearsFromRows(AppState.cnfRows, 'Target Implementation Date'), 'All years');
+  }
+
+  function populateEndorsementFilters() {
+    setSelectOptions('endorsementImplementedByFilter', uniqueValues(AppState.endorsementRows, 'Implemented By'), 'All');
+    setSelectOptions('endorsementImplementationYear', uniqueYearsFromRows(AppState.endorsementRows, 'Target Implementation Date'), 'All years');
+    setSelectOptions('endorsementImplementationStatusFilter', IMPLEMENTATION_STATUS_OPTIONS, 'All');
+  }
+
+  function populateAuditFilters() {
+    setSelectOptions('auditModuleFilter', uniqueValues(AppState.auditRows, 'Module'), 'All Modules');
+    setSelectOptions('auditActionFilter', uniqueValues(AppState.auditRows, 'Action'), 'All Actions');
+  }
+
+  function populateRegistryFilters() {
+    const values = uniqueValues(AppState.registryRows, 'Registry Type');
+    setRegistryTypeOptions(values.length ? values : REGISTRY_TYPES);
+  }
+
+  function populateArchivedFilters() {
+    const years = AppState.archivedRows.map(function (row) { return getYearFromText(row[PRIMARY_KEY]); }).filter(Boolean);
+    setSelectOptions('archivedYearFilter', Array.from(new Set(years)).sort().reverse(), 'All Years');
+  }
+
+  function setSelectOptions(id, values, placeholder) {
+    const select = byId(id);
+    if (!select) return;
+    const current = select.value;
+    const unique = Array.from(new Set((values || []).filter(function (value) { return valueOrNA(value) !== 'NA' || id.indexOf('Status') !== -1; }))).sort();
+    if (current && unique.indexOf(current) === -1) unique.unshift(current);
+    select.innerHTML = '<option value="">' + escapeHtml(placeholder) + '</option>' +
+      unique.map(function (value) {
+        return '<option value="' + escapeHtml(value) + '">' + escapeHtml(value) + '</option>';
+      }).join('');
+    if (unique.indexOf(current) !== -1) select.value = current;
+  }
+
+  function setMonthOptions(id) {
+    const select = byId(id);
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">All months</option>' + DATE_MONTHS.map(function (month, index) {
+      return '<option value="' + (index + 1) + '">' + escapeHtml(month) + '</option>';
+    }).join('');
+    if (current) select.value = current;
+  }
+
+  function setMissingFilterOptions() {
+    const select = byId('databaseMissingFilter');
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = MISSING_FILTER_OPTIONS.map(function (option) {
+      return '<option value="' + escapeHtml(option.value) + '">' + escapeHtml(option.label) + '</option>';
+    }).join('');
+    select.value = MISSING_FILTER_OPTIONS.some(function (option) { return option.value === current; }) ? current : '';
+  }
+
+  function setRegistryTypeOptions(values) {
+    const select = byId('registryTypeFilter');
+    if (!select) return;
+    const current = select.value || REGISTRY_TYPES[0];
+    const unique = Array.from(new Set((values || REGISTRY_TYPES).filter(function (value) {
+      return valueOrNA(value) !== 'NA';
+    }))).sort();
+    select.innerHTML = unique.map(function (value) {
+      return '<option value="' + escapeHtml(value) + '">' + escapeHtml(value) + '</option>';
+    }).join('');
+    select.value = unique.indexOf(current) !== -1 ? current : (unique[0] || '');
+  }
+
+  function uniqueValues(rows, key) {
+    return Array.from(new Set(rows.map(function (row) { return getValue(row, key); }).filter(Boolean)));
+  }
+
+  function uniqueInitiators() {
+    return Array.from(new Set(AppState.cnfRows.map(getInitiatorValue).filter(function (value) {
+      return !isMissingTrackingValue(value);
+    }))).sort();
+  }
+
+  function uniqueYearsFromRows(rows, key) {
+    const years = rows.map(function (row) {
+      const date = parseDate(row[key]);
+      return date ? String(date.getFullYear()) : '';
+    }).filter(Boolean);
+    return Array.from(new Set(years)).sort();
+  }
+
+  function registryValues(type, fallback) {
+    const rows = AppState.registry[type] || [];
+    const values = rows.map(function (row) { return row['Registry Value']; }).filter(Boolean);
+    return values.length ? values : fallback;
+  }
+
+  function updateNotificationFromCnfRows() {
+    const count = AppState.cnfRows.filter(function (row) {
+      return row['CNF Status'] !== 'Closed' && ['Overdue', 'Due today', 'Due within 15 days', 'Due within 30 days', 'Due within 1 month', 'Due within 3 months', 'Critical', 'High'].indexOf(row['Priority Level']) !== -1;
+    }).length;
+    byId('notificationCount').textContent = count;
+  }
+
+  function openExportModal(moduleName) {
+    const rows = moduleName === 'Archived' ? getFilteredArchivedRows() : getFilteredDatabaseRows();
+    openModal(moduleName + ' Export', [
+      '<div class="form-section"><div class="form-grid">',
+      selectHtml('exportFormat', 'File Type', ['Excel', 'CSV', 'TSV'], 'Excel', true),
+      '<div class="readonly-item"><span>Record Count</span><strong>' + rows.length + '</strong></div>',
+      '</div></div>'
+    ].join(''), [
+      { label: 'Cancel', className: 'secondary-button', action: closeModal },
+      { label: 'Export', className: 'primary-button', action: function (button) { submitExport(moduleName, button); } }
+    ]);
+    applyNADefaults(byId('modalBody'));
+  }
+
+  function submitExport(moduleName, button) {
+    const format = byId('exportFormat').value;
+    const rows = moduleName === 'Archived' ? getFilteredArchivedRows() : getFilteredDatabaseRows();
+    const headers = moduleName === 'Archived' ? ARCHIVED_EXPORT_HEADERS : CNF_EXPORT_HEADERS;
+    const fileName = buildExportFileName(moduleName, format);
+    setButtonBusy(button, true);
+    runServer('logDataActivity', [{
+      moduleName: moduleName,
+      operation: 'export',
+      action: moduleName + ' export completed',
+      fileType: format,
+      fileName: fileName,
+      recordCount: rows.length,
+      resultSummary: 'Exported ' + rows.length + ' filtered record(s) to ' + format + '.'
+    }], function () {
+      setButtonBusy(button, false);
+      downloadExportFile(rows, headers, format, fileName);
+      showToast(format + ' export generated.', 'success');
+      closeModal();
+      if (AppState.currentPage === 'auditPage') loadAuditTrail();
+    }, function () {
+      setButtonBusy(button, false);
+    });
+  }
+
+  function downloadExportFile(rows, headers, format, fileName) {
+    let content = '';
+    let mime = 'text/plain;charset=utf-8;';
+    if (format === 'CSV') {
+      content = buildDelimitedExport(rows, headers, ',');
+      mime = 'text/csv;charset=utf-8;';
+    } else if (format === 'TSV') {
+      content = buildDelimitedExport(rows, headers, '\t');
+      mime = 'text/tab-separated-values;charset=utf-8;';
+    } else {
+      content = buildExcelHtmlExport(rows, headers);
+      mime = 'application/vnd.ms-excel;charset=utf-8;';
+    }
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function buildDelimitedExport(rows, headers, delimiter) {
+    const table = [headers].concat(rows.map(function (row) {
+      return headers.map(function (header) { return getValue(row, header); });
+    }));
+    return table.map(function (line) {
+      return line.map(function (value) {
+        return delimiter === ',' ? csvEscape(value) : tsvEscape(value);
+      }).join(delimiter);
+    }).join('\n');
+  }
+
+  function buildExcelHtmlExport(rows, headers) {
+    const headerHtml = headers.map(function (header) {
+      return '<th>' + escapeHtml(header) + '</th>';
+    }).join('');
+    const bodyHtml = rows.map(function (row) {
+      return '<tr>' + headers.map(function (header) {
+        return '<td>' + escapeHtml(getValue(row, header)) + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+    return '<html><head><meta charset="UTF-8"></head><body><table><thead><tr>' + headerHtml +
+      '</tr></thead><tbody>' + bodyHtml + '</tbody></table></body></html>';
+  }
+
+  function buildExportFileName(moduleName, format) {
+    const date = new Date().toISOString().slice(0, 10);
+    const extension = format === 'CSV' ? 'csv' : (format === 'TSV' ? 'tsv' : 'xls');
+    return moduleName.replace(/\s+/g, '_') + '_Export_' + date + '.' + extension;
+  }
+
+  function openImportModal(moduleName) {
+    AppState.pendingImport = null;
+    openModal(moduleName + ' Import Data', [
+      '<div class="form-section"><div class="form-grid">',
+      '<div class="field span-2"><label for="importFile">Import File</label><input id="importFile" type="file" accept=".xlsx,.xls,.csv,.tsv"></div>',
+      '<div id="importSummary" class="readonly-item span-3"><span>Status</span><strong>Select an Excel, CSV, or TSV file to validate.</strong></div>',
+      '</div></div>'
+    ].join(''), [
+      { label: 'Cancel', className: 'secondary-button', action: closeModal },
+      { label: 'Validate File', className: 'primary-button', action: function (button) { previewImport(moduleName, button); } }
+    ]);
+  }
+
+  function previewImport(moduleName, button) {
+    const fileInput = byId('importFile');
+    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+    if (!file) {
+      showToast('Choose an import file first.', 'warning');
+      return;
+    }
+    setButtonBusy(button, true);
+    const reader = new FileReader();
+    reader.onload = function () {
+      runServer('previewImportRecords', [moduleName, {
+        name: file.name,
+        mimeType: file.type,
+        data: reader.result
+      }], function (result) {
+        setButtonBusy(button, false);
+        AppState.pendingImport = result;
+        renderImportPreview(moduleName, result);
+      }, function () {
+        setButtonBusy(button, false);
+      });
+    };
+    reader.onerror = function () {
+      setButtonBusy(button, false);
+      showToast('The selected file could not be read.', 'error');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderImportPreview(moduleName, result) {
+    const summary = result.summary || {};
+    const duplicateOptions = summary.duplicates ? [
+      '<div class="field"><label for="duplicateMode">Duplicate Primary Keys</label>',
+      '<select id="duplicateMode">',
+      '<option value="skip">Skip duplicate records</option>',
+      '<option value="overwrite">Overwrite duplicate records</option>',
+      '<option value="cancel">Cancel import if duplicates exist</option>',
+      '</select></div>'
+    ].join('') : '';
+    const errorRows = (result.records || []).filter(function (row) { return row.errors && row.errors.length; }).slice(0, 5);
+    const errorHtml = errorRows.length ? '<div class="import-errors">' + errorRows.map(function (row) {
+      return '<div>Row ' + row.rowNumber + ': ' + escapeHtml(row.errors.join('; ')) + '</div>';
+    }).join('') + '</div>' : '';
+    byId('modalBody').innerHTML = [
+      '<div class="form-section"><div class="form-grid">',
+      '<div class="readonly-item"><span>File</span><strong>' + escapeHtml(result.fileName) + '</strong></div>',
+      '<div class="readonly-item"><span>File Type</span><strong>' + escapeHtml(result.fileType) + '</strong></div>',
+      '<div class="readonly-item"><span>Processed</span><strong>' + (summary.processed || 0) + '</strong></div>',
+      '<div class="readonly-item"><span>Ready</span><strong>' + (summary.ready || 0) + '</strong></div>',
+      '<div class="readonly-item"><span>Duplicates</span><strong>' + (summary.duplicates || 0) + '</strong></div>',
+      '<div class="readonly-item"><span>Error Rows</span><strong>' + (summary.errors || 0) + '</strong></div>',
+      duplicateOptions,
+      '</div></div>',
+      errorHtml
+    ].join('');
+    byId('modalFooter').innerHTML = [
+      '<button id="modalButton_0" class="secondary-button">Cancel</button>',
+      '<button id="modalButton_1" class="primary-button">Import Data</button>'
+    ].join('');
+    byId('modalButton_0').addEventListener('click', closeModal);
+    byId('modalButton_1').addEventListener('click', function () { commitImport(moduleName, byId('modalButton_1')); });
+  }
+
+  function commitImport(moduleName, button) {
+    if (!AppState.pendingImport) {
+      showToast('Validate an import file first.', 'warning');
+      return;
+    }
+    const duplicateModeInput = byId('duplicateMode');
+    const duplicateMode = duplicateModeInput ? duplicateModeInput.value : 'skip';
+    setButtonBusy(button, true);
+    runServer('commitImportRecords', [
+      moduleName,
+      AppState.pendingImport.records || [],
+      duplicateMode,
+      {
+        fileName: AppState.pendingImport.fileName,
+        fileType: AppState.pendingImport.fileType
+      }
+    ], function (result) {
+      setButtonBusy(button, false);
+      showToast(result.message || 'Import completed.', result.cancelled ? 'warning' : 'success');
+      closeModal();
+      if (moduleName === 'Archived') loadArchived();
+      if (moduleName === 'Database') {
+        loadCnfData();
+        if (AppState.currentPage === 'dashboardPage') loadDashboard();
+      }
+      if (AppState.currentPage === 'auditPage') loadAuditTrail();
+    }, function () {
+      setButtonBusy(button, false);
+    });
+  }
+
+  function runServer(functionName, args, onSuccess, onFailure) {
+    setLoading(true);
+    const runner = google.script.run
+      .withSuccessHandler(function (result) {
+        setLoading(false, true);
+        if (onSuccess) onSuccess(result);
+      })
+      .withFailureHandler(function (error) {
+        setLoading(false);
+        showToast(getErrorMessage(error, functionName), 'error');
+        if (onFailure) onFailure(error);
+      });
+    runner[functionName].apply(runner, args || []);
+  }
+
+  function setLoading(isLoading, completed) {
+    const bar = byId('loadingBar');
+    if (!bar) return;
+    if (isLoading) {
+      AppState.loadingCount += 1;
+      bar.classList.remove('done');
+      bar.classList.add('active');
+      return;
+    }
+    AppState.loadingCount = Math.max(0, AppState.loadingCount - 1);
+    if (AppState.loadingCount === 0) {
+      bar.classList.remove('active');
+      if (completed) {
+        bar.classList.add('done');
+        setTimeout(function () { bar.classList.remove('done'); }, 280);
+      }
+    }
+  }
+
+  function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + (type || 'success');
+    toast.textContent = message;
+    byId('toastHost').appendChild(toast);
+    setTimeout(function () {
+      toast.remove();
+    }, type === 'error' ? 7000 : 4200);
+  }
+
+  function setButtonBusy(button, busy) {
+    if (!button) return;
+    button.disabled = busy;
+    button.dataset.originalText = button.dataset.originalText || button.textContent;
+    button.textContent = busy ? 'Processing...' : button.dataset.originalText;
+  }
+
+  function renderCell(value, key) {
+    const text = valueOrNA(value);
+    if (text === 'NA') return badge(text, 'na');
+    if (key && key.toLowerCase().indexOf('status') !== -1) return badge(text, 'status');
+    if (key === 'Priority Level' || key === 'priorityLevel') return badge(text, 'priority');
+    if (key === 'Is Archived' || key === 'Is Active') return badge(text, 'flag');
+    return escapeHtml(text);
+  }
+
+  function badge(value, type) {
+    const text = valueOrNA(value);
+    const className = badgeClass(text, type);
+    return '<span class="badge ' + className + '">' + escapeHtml(text) + '</span>';
+  }
+
+  function badgeClass(value, type) {
+    const normalized = lower(value).replace(/\s+/g, '-');
+    if (value === 'NA') return 'badge-gray';
+    if (type === 'priority') {
+      if (value === 'Critical') return 'badge-critical';
+      if (value === 'High') return 'badge-high';
+      if (value === 'Medium') return 'badge-medium';
+      if (value === 'Overdue') return 'badge-critical';
+      if (value === 'Due today') return 'badge-red';
+      if (value === 'Due within 15 days') return 'badge-high';
+      if (value === 'Due within 30 days') return 'badge-medium';
+      if (value === 'Due within 1 month') return 'badge-yellow';
+      if (value === 'Due within 3 months') return 'badge-blue';
+      return 'badge-low';
+    }
+    if (value === 'In-process') return 'badge-blue';
+    if (value === 'Routing') return 'badge-yellow';
+    if (value === 'Client Approval') return 'badge-purple';
+    if (value === 'Signed' || value === 'Closed' || value === 'Done' || value === 'Yes' || value === 'Active') return 'badge-green';
+    if (value === 'Cancelled' || value === 'Inactive' || value === 'No') return 'badge-red';
+    if (value === 'Open' || value === 'Ongoing' || value === 'Planned') return 'badge-blue';
+    return 'badge-gray';
+  }
+
+  function rowMatchesSearch(row, search) {
+    return Object.keys(row).some(function (key) {
+      return lower(row[key]).indexOf(search) !== -1;
+    });
+  }
+
+  function rowMatchesFieldSearch(row, search, fields) {
+    return (fields || []).some(function (key) {
+      return lower(getValue(row, key)).indexOf(search) !== -1;
+    });
+  }
+
+  function enrichEndorsementRow(row) {
+    const output = Object.assign({}, row);
+    const trace = findCnfTraceForEndorsement(row);
+    output['CNF Categorization'] = getValue(row, 'CNF Categorization') !== 'NA' ? getValue(row, 'CNF Categorization') : trace.category;
+    const priority = calculateClientPriority(row['Target Implementation Date'], 'Endorsement item');
+    output['Days Remaining'] = priority.daysRemaining === null ? 'NA' : String(priority.daysRemaining);
+    output['Priority Level'] = priority.level;
+    output['Critical Reason'] = priority.reason;
+    return output;
+  }
+
+  function findCnfTraceForEndorsement(row) {
+    const match = AppState.cnfRows.find(function (cnf) {
+      const endorsementMatch = getValue(row, 'Endorsement No.') !== 'NA' && getValue(cnf, 'Endorsement No.') === getValue(row, 'Endorsement No.');
+      const cnfMatch = getValue(row, 'CNF No.') !== 'NA' && getValue(cnf, 'CNF No.') === getValue(row, 'CNF No.');
+      const codeMatch = getValue(row, 'Product Code') === 'NA' || getValue(cnf, 'Product Code') === getValue(row, 'Product Code');
+      return (endorsementMatch || cnfMatch) && codeMatch;
+    });
+    return { category: match ? getValue(match, 'CNF Categorization') : 'NA' };
+  }
+
+  function calculateClientPriority(value, subject) {
+    const date = parseDate(value);
+    if (!date) return { level: 'NA', daysRemaining: null, rank: 999, reason: 'No target date is available.' };
+    const today = new Date();
+    const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const days = Math.ceil((date.getTime() - base.getTime()) / (24 * 60 * 60 * 1000));
+    if (days < 0) return { level: 'Overdue', daysRemaining: days, rank: 1, reason: subject + ' is overdue.' };
+    if (days === 0) return { level: 'Due today', daysRemaining: days, rank: 2, reason: subject + ' is due today.' };
+    if (days === 1) return { level: 'Due within 15 days', daysRemaining: days, rank: 3, reason: subject + ' is due tomorrow.' };
+    if (days <= 3) return { level: 'Due within 15 days', daysRemaining: days, rank: 3, reason: subject + ' is due within 3 days.' };
+    if (days <= 15) return { level: 'Due within 15 days', daysRemaining: days, rank: 3, reason: subject + ' is due within 15 days.' };
+    if (days <= 30) return { level: 'Due within 30 days', daysRemaining: days, rank: 4, reason: subject + ' is due within 30 days.' };
+    if (days <= 31) return { level: 'Due within 1 month', daysRemaining: days, rank: 5, reason: subject + ' is due within 1 month.' };
+    if (days <= 90) return { level: 'Due within 3 months', daysRemaining: days, rank: 6, reason: subject + ' is due within 3 months.' };
+    return { level: 'NA', daysRemaining: days, rank: 999, reason: 'No priority window applies.' };
+  }
+
+  function endorsementMatchesFocus(row, focus) {
+    if (!focus) return true;
+    if (focus.endorsementId && focus.endorsementId !== 'NA') return getValue(row, 'Endorsement ID') === focus.endorsementId;
+    return (!focus.cnfNo || getValue(row, 'CNF No.') === focus.cnfNo) &&
+      (!focus.endorsementNo || focus.endorsementNo === 'NA' || getValue(row, 'Endorsement No.') === focus.endorsementNo) &&
+      (!focus.productCode || focus.productCode === 'NA' || getValue(row, 'Product Code') === focus.productCode);
+  }
+
+  function sortPriorityRows(rows) {
+    return rows.slice().sort(function (a, b) {
+      const rankDiff = Number(a.priorityRank || 999) - Number(b.priorityRank || 999);
+      if (rankDiff !== 0) return rankDiff;
+      return Number(a.daysRemaining || 9999) - Number(b.daysRemaining || 9999);
+    });
+  }
+
+  function validateClientRequired(payload, fields) {
+    return fields.filter(function (field) {
+      return valueOrNA(payload[field]) === 'NA';
+    });
+  }
+
+  function getValue(row, key) {
+    if (!row) return 'NA';
+    const value = row[key];
+    return value === undefined || value === null || String(value).trim() === '' ? 'NA' : String(value).trim();
+  }
+
+  function getInputValue(id, fallback) {
+    const input = byId(id);
+    if (!input) return fallback === undefined ? '' : fallback;
+    return input.value;
+  }
+
+  function valueOrNA(value) {
+    if (value === undefined || value === null) return 'NA';
+    const text = String(value).trim();
+    return text === '' ? 'NA' : text;
+  }
+
+  function lower(value) {
+    return valueOrNA(value).toLowerCase();
+  }
+
+  function escapeHtml(value) {
+    return String(value === undefined || value === null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function csvEscape(value) {
+    const text = valueOrNA(value);
+    return '"' + text.replace(/"/g, '""') + '"';
+  }
+
+  function tsvEscape(value) {
+    return valueOrNA(value).replace(/\t/g, ' ').replace(/\r?\n/g, ' ');
+  }
+
+  function getYearFromText(value) {
+    const text = valueOrNA(value);
+    let match = text.match(/\b(\d{4})\b/);
+    return match ? match[1] : '';
+  }
+
+  function getErrorMessage(error) {
+    const name = String(arguments[1] || '').toLowerCase();
+    if (name.indexOf('save') !== -1) return 'Unable to save the record. Please try again.';
+    if (name.indexOf('update') !== -1) return 'Unable to update the record. Please try again.';
+    if (name.indexOf('delete') !== -1) return 'Unable to delete the record. Please try again.';
+    if (name.indexOf('archive') !== -1) return 'Unable to complete the operation. Please try again.';
+    if (name.indexOf('restore') !== -1) return 'Unable to complete the operation. Please try again.';
+    if (name.indexOf('import') !== -1) return 'Unable to complete the operation. Please try again.';
+    if (name.indexOf('getpagedsheetdata') !== -1 || name.indexOf('getsheetdata') !== -1) return 'Unable to load table data. Please refresh this menu.';
+    if (name.indexOf('getdashboard') !== -1) return 'Unable to load dashboard data. Please refresh this menu.';
+    if (name.indexOf('getregistry') !== -1) return 'Unable to load dropdown values. Please refresh this menu.';
+    return 'Operation failed. Please try again.';
+  }
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function setText(id, value) {
+    byId(id).textContent = value;
+  }
+</script>

@@ -165,6 +165,14 @@ export const QA_CNF_FIELDS: ProjectFieldDef[] = [
     tooltip:
       "Defaults to the last day of the PO FG Month when FG Month is set. Not required when Status is Approved or Not Applicable.",
   },
+  {
+    key: "risk_control",
+    label: "Risk Control",
+    type: "textarea",
+    role: "QA",
+    span: 3,
+    tooltip: "QA can paste risk control stated in the QRMR No.",
+  },
 ];
 
 /** Copied from PO 1 → PO 2+ within the same MO when using "Copy from 1st PO" on AM/BM/PL. */

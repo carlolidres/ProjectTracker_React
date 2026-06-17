@@ -76,7 +76,6 @@ export function ProjectFieldControl({
           value={isNa ? NA_VALUE : value}
           classNames={{ input: cn(isNa && naGuideClass) }}
           readOnly
-          disabled
         />
       );
     }
