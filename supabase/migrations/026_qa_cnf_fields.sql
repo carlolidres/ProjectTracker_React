@@ -1,7 +1,6 @@
--- QA role, QRMR status/target date columns, and RLS updates.
+-- Step 2 of 2: QRMR columns, role helpers, and RLS updates for QA.
+-- Prerequisite: 025_qa_role_enum.sql must have been applied and committed first.
 -- QRMR per-entry data is stored in cnf_entries_json; flat columns mirror the first CNF entry.
-
-ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'qa';
 
 ALTER TABLE public.cnf_projects
   ADD COLUMN IF NOT EXISTS qrmr_status text DEFAULT 'N/A',

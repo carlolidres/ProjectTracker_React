@@ -25,7 +25,7 @@ Project Status: **v56 committed — QA user role and tab; QRMR moved off AM/BM/P
 
 | Area | Change |
 |------|--------|
-| `supabase/migrations/025_qa_cnf_fields.sql` | `user_role` adds `qa`; `qrmr_status` / `qrmr_target_date` on `cnf_projects`; role helper + RLS for QA |
+| `supabase/migrations/025_qa_role_enum.sql`, `026_qa_cnf_fields.sql` | Two-step apply: enum adds `qa`; then `qrmr_status` / `qrmr_target_date`, role helpers, RLS for QA |
 | `src/types/user.ts`, `roleMapping.ts`, `roleAccess.ts`, `constants.ts` | QA role in types, nav, and access matrix |
 | `ProjectRoleTabs.tsx`, `ProjectHierarchyForm.tsx`, `ProjectEntryPage.tsx` | QA tab placement; per-CNF QRMR UI; AM/BM/PL QRMR removed |
 | `projectFormFields.ts`, `projectHierarchy.ts`, `mappers.ts`, `types/project.ts` | Field definitions and persistence for QRMR |
@@ -40,16 +40,17 @@ Project Status: **v56 committed — QA user role and tab; QRMR moved off AM/BM/P
 ## Verification
 
 - `npm run build` — pass (2026-06-17, pre-commit)
-- Manual Supabase migration **not run in CI** — operator must apply `025_qa_cnf_fields.sql` in Supabase SQL editor or CLI
+- Manual Supabase migration **not run in CI** — operator must apply `025_qa_role_enum.sql` then `026_qa_cnf_fields.sql` separately in Supabase SQL editor or CLI
 
 ---
 
 ## Migration Steps (Supabase)
 
 1. Open Supabase Dashboard → SQL → New query
-2. Run contents of `supabase/migrations/025_qa_cnf_fields.sql`
-3. Confirm `user_role` includes `qa` and `cnf_projects` has `qrmr_status`, `qrmr_target_date`
-4. Optionally run `npm run seed:auth-users` locally with `DUMMY_USER_PASSWORD` to add a QA test profile (after migration)
+2. Run contents of `supabase/migrations/025_qa_role_enum.sql` **alone** (commit required before step 3)
+3. Open a **new** query and run `supabase/migrations/026_qa_cnf_fields.sql`
+4. Confirm `user_role` includes `qa` and `cnf_projects` has `qrmr_status`, `qrmr_target_date`
+5. Optionally run `npm run seed:auth-users` locally with `DUMMY_USER_PASSWORD` to add a QA test profile (after migration)
 
 ---
 
@@ -62,7 +63,7 @@ Project Status: **v56 committed — QA user role and tab; QRMR moved off AM/BM/P
 
 ## Risks
 
-- Enum `ADD VALUE` for `qa` cannot run inside a transaction on some Postgres versions; migration uses idempotent patterns but still requires one-time apply on each environment
+- Enum `ADD VALUE` for `qa` cannot run in the same transaction as code that references `'qa'`; split into 025 (enum only) then 026 (columns/functions/RLS); `IF NOT EXISTS` on 025 allows re-run after partial failure
 - Until migration runs, QA role saves may fail against older schema
 - RLS changes must match seeded profile roles in each environment
 
@@ -77,7 +78,7 @@ Project Status: **v56 committed — QA user role and tab; QRMR moved off AM/BM/P
 
 ## Next Steps
 
-1. Apply migration `025_qa_cnf_fields.sql` on production Supabase
+1. Apply migrations `025_qa_role_enum.sql` then `026_qa_cnf_fields.sql` on production Supabase (two separate SQL editor runs)
 2. Smoke test: login as QA, edit QRMR per CNF, confirm Not Applicable disables target date on QA and VAL
 3. Confirm AM/BM/PL tab no longer shows QRMR fields
 4. Optional: dashboard KPI spot-check after QA data entry
