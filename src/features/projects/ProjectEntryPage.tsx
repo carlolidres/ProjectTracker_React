@@ -271,7 +271,7 @@ export function ProjectEntryPage() {
   const { modal } = App.useApp();
   const { user, profile } = useAuth();
   useDiagLifecycle("ProjectEntryPage");
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const projectIdParam = searchParams.get("projectId");
   const { registry } = useRegistry();
   const { promptBatchDateAdjustment } = useDateAdjustment();
@@ -353,6 +353,9 @@ export function ProjectEntryPage() {
           setSavedFgMonths(collectSavedFgMonths(withLink));
           setOpenKeys([]);
         }
+      } else if (draft?.projectIdParam) {
+        restoreProjectDraft(draft);
+        setSearchParams({ projectId: draft.projectIdParam }, { replace: true });
       } else if (draft) {
         restoreProjectDraft(draft);
       } else {
@@ -363,7 +366,7 @@ export function ProjectEntryPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectIdParam, user?.id, profile]);
+  }, [projectIdParam, setSearchParams, user?.id, profile]);
 
   const persistProjectDraft = useCallback(() => {
     if (!user?.id || loading) return;
