@@ -316,7 +316,10 @@ export function ProjectEntryPage() {
     if (user?.id) clearProjectEntryDraft(user.id);
   }
 
-  function restoreProjectDraft(draft: ReturnType<typeof loadProjectEntryDraft>) {
+  function restoreProjectDraft(
+    draft: ReturnType<typeof loadProjectEntryDraft>,
+    baseline?: ProjectHierarchy,
+  ) {
     if (!draft) return;
     diagLog("form", "restored project entry draft from localStorage", {
       openKeys: draft.openKeys.length,
@@ -325,9 +328,9 @@ export function ProjectEntryPage() {
     });
     syncProjectCnfEntryCounts(draft.project);
     const restored = withDefaultProjectOwner(draft.project, profile);
-    baselineProjectRef.current = structuredClone(restored);
+    baselineProjectRef.current = structuredClone(baseline ?? restored);
     setProject(restored);
-    setSavedFgMonths(draft.savedFgMonths);
+    setSavedFgMonths(baseline ? collectSavedFgMonths(baseline) : draft.savedFgMonths);
     setOpenKeys(draft.openKeys);
     setActiveTab(draft.activeTab);
   }
@@ -339,15 +342,20 @@ export function ProjectEntryPage() {
       const draft = user?.id ? loadProjectEntryDraft(user.id) : null;
 
       if (projectIdParam) {
+        const existing = await getProjectById(projectIdParam);
+        const withLink = existing ? await attachCnfLinkToProject(existing) : null;
         if (draft?.projectIdParam === projectIdParam) {
-          restoreProjectDraft(draft);
+          if (!withLink) {
+            setError(`Project ${projectIdParam} not found.`);
+            return;
+          }
+          syncProjectCnfEntryCounts(withLink);
+          restoreProjectDraft(draft, withLink);
           return;
         }
 
-        const existing = await getProjectById(projectIdParam);
-        if (existing) {
-          syncProjectCnfEntryCounts(existing);
-          const withLink = await attachCnfLinkToProject(existing);
+        if (withLink) {
+          syncProjectCnfEntryCounts(withLink);
           baselineProjectRef.current = structuredClone(withLink);
           setProject(withLink);
           setSavedFgMonths(collectSavedFgMonths(withLink));
