@@ -92,7 +92,7 @@ Script: `scripts/rollback-seed-import.ts` (run before git reset; not retained in
 ## Git Traceability
 
 - Commit message: `v64: rollback to pre-seed stable state (v61)`
-- Commit hash: `2422e5d` (`2422e5ded52e74d1d6f713a372238fe1f8ffc2a3`)
+- Commit hash: `119f436` (`119f4366c7649977baddf1177626a3112828cefe`)
 
 ---
 
