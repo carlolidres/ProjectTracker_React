@@ -1,10 +1,10 @@
 # Current Handoff
 
 Last Updated: `2026-06-22 Asia/Taipei`
-Version: `v64 historical checkpoint; project navigation bug fix in progress`
+Version: `v65 deployed`
 Branch: `main`
-Commit: `0ba4ced`
-Deployment: `GitHub Pages workflow is the deployment path; not redeployed for this fix yet`
+Commit: `a4d4663`
+Deployment: `GitHub Pages deploy succeeded (run 27951964986) at https://carlolidres.github.io/ProjectTracker_React/`
 
 ## Current Status
 
@@ -22,16 +22,16 @@ Workflow-app maintenance record **Fix Project Reference Numbering and Project-Lo
 ## Active Work
 
 - Objective: `Resolve workflow-app bug report for project navigation and reference loading.`
-- Progress: `Code fix complete; typecheck and build passed.`
-- Remaining: `Browser smoke on Projects Database, CNF Tracker PO links, refresh, and invalid projectId. Optionally commit if owner requests.`
+- Progress: `Committed, pushed, and deployed to GitHub Pages as v65 (a4d4663).`
+- Remaining: `Browser smoke on live site for Projects Database and CNF Tracker project links.`
 
 ## Reliability Snapshot
 
-- Acceptance criteria: `PARTIAL` - `Build/typecheck passed; browser smoke not run in this pass.`
+- Acceptance criteria: `PARTIAL` - `Build/typecheck passed; GitHub Pages deploy succeeded; browser smoke not run.`
 - Instruction conflicts: `NONE`
-- Repository status: `DIRTY` - `Navigation fix plus prior workflow docs/app files remain uncommitted.`
-- Build/database/runtime status: `BUILD_VERIFIED` - `npm run typecheck` and `npm run build` passed after navigation fix.`
-- Last known working state: `v64 stable rollback state recorded in agent-history/version-64-handoff.md; navigation fix not browser-smoked yet.`
+- Repository status: `CLEAN` - `v65 committed and pushed to origin/main.`
+- Build/database/runtime status: `DEPLOYED` - `GitHub Actions Deploy to GitHub Pages run 27951964986 succeeded.`
+- Last known working state: `v65 on GitHub Pages; navigation fix live pending browser confirmation.`
 
 ## Minimal Read Set for the Next Agent
 
@@ -89,8 +89,8 @@ List no more than five task-specific files; omit standard startup files.
 | Type-check | PASSED | `npm run typecheck` |
 | Tests/self-check | NOT_RUN | No automated navigation tests exist. |
 | Build | PASSED | `npm run build` |
-| Smoke/manual | NOT_RUN | Browser verification pending. |
-| Deployment | NOT_RUN | No deployment requested. |
+| Smoke/manual | NOT_RUN | Browser verification on live site pending. |
+| Deployment | PASSED | `Deploy to GitHub Pages` run 27951964986 succeeded for commit `a4d4663`. |
 
 ## Supabase Sync
 
@@ -101,6 +101,6 @@ List no more than five task-specific files; omit standard startup files.
 
 ## Next Action
 
-`Browser-smoke Projects Database and CNF Tracker project links, then commit if the owner wants a checkpoint.`
+`Browser-smoke project navigation on https://carlolidres.github.io/ProjectTracker_React/ (Projects Database and CNF Tracker PO links).`
 
 Historical evidence: `agent-history/version-64-handoff.md`
