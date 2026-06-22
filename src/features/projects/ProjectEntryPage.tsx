@@ -271,7 +271,7 @@ export function ProjectEntryPage() {
   const { modal } = App.useApp();
   const { user, profile } = useAuth();
   useDiagLifecycle("ProjectEntryPage");
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const projectIdParam = searchParams.get("projectId");
   const { registry } = useRegistry();
   const { promptBatchDateAdjustment } = useDateAdjustment();
@@ -288,6 +288,7 @@ export function ProjectEntryPage() {
   const [copyCnfActionLoading, setCopyCnfActionLoading] = useState(false);
   const [eligibleMotherProjects, setEligibleMotherProjects] = useState<ProjectSummaryForCnfCopy[]>([]);
   const stickyHeaderRef = useRef<HTMLDivElement>(null);
+  const skipNextLoadRef = useRef(false);
 
   const meetingViewReadOnly = useMeetingViewReadOnly();
   const canArchive = canArchiveRecords(profile?.role);
@@ -314,6 +315,10 @@ export function ProjectEntryPage() {
     setSavedFgMonths({});
     setOpenKeys([]);
     if (user?.id) clearProjectEntryDraft(user.id);
+    if (projectIdParam) {
+      skipNextLoadRef.current = true;
+      setSearchParams({}, { replace: true });
+    }
   }
 
   function restoreProjectDraft(draft: ReturnType<typeof loadProjectEntryDraft>) {
@@ -333,18 +338,19 @@ export function ProjectEntryPage() {
   }
 
   const load = useCallback(async () => {
+    if (skipNextLoadRef.current) {
+      skipNextLoadRef.current = false;
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const draft = user?.id ? loadProjectEntryDraft(user.id) : null;
 
       if (projectIdParam) {
-        if (draft?.projectIdParam === projectIdParam) {
-          restoreProjectDraft(draft);
-          return;
-        }
-
-        const existing = await getProjectById(projectIdParam);
+        const requestedId = projectIdParam.trim();
+        const existing = await getProjectById(requestedId);
         if (existing) {
           syncProjectCnfEntryCounts(existing);
           const withLink = await attachCnfLinkToProject(existing);
@@ -352,6 +358,15 @@ export function ProjectEntryPage() {
           setProject(withLink);
           setSavedFgMonths(collectSavedFgMonths(withLink));
           setOpenKeys([]);
+          if (user?.id) clearProjectEntryDraft(user.id);
+        } else {
+          setError(`Project "${requestedId}" was not found in the Project Database.`);
+          const empty = emptyProject();
+          baselineProjectRef.current = structuredClone(empty);
+          setProject(empty);
+          setSavedFgMonths({});
+          setOpenKeys([]);
+          if (user?.id) clearProjectEntryDraft(user.id);
         }
       } else if (draft) {
         restoreProjectDraft(draft);
@@ -363,7 +378,7 @@ export function ProjectEntryPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectIdParam, user?.id, profile]);
+  }, [projectIdParam, setSearchParams, user?.id, profile]);
 
   const persistProjectDraft = useCallback(() => {
     if (!user?.id || loading) return;

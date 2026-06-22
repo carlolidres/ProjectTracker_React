@@ -1,0 +1,139 @@
+# Code Map
+
+Last Updated: `2026-06-22`
+
+## Purpose
+
+Use this map to locate implementation areas without scanning the repository. List only high-value paths that agents regularly need.
+
+Database schema and migration details belong in `DATA_MAP.md` and `supabase/migrations/`.
+
+## Application Entry Points
+
+| Path | Responsibility |
+|---|---|
+| `src/main.tsx` | React DOM bootstrap and global style import entry. |
+| `src/app/App.tsx` | App providers, Ant Design app wrapper, HashRouter, registry/date/meeting providers. |
+| `src/app/router.tsx` | Route definitions and protected route wiring. |
+| `vite.config.ts` | Vite config, `@` alias, GitHub Pages base path. |
+
+## Pages and Major Modules
+
+| Module | Path | Responsibility |
+|---|---|---|
+| Auth | `src/features/auth/LoginPage.tsx` | Login flow and public entry route. |
+| Dashboard | `src/features/dashboard/DashboardPage.tsx` | KPI, worklist, meeting view, and dashboard rendering. |
+| Dashboard components | `src/features/dashboard/components/` | Charts and meeting overlay pieces. |
+| Project Entry | `src/features/projects/ProjectEntryPage.tsx` | Main project form page. |
+| Project form components | `src/features/projects/components/` | Hierarchy form, role tabs, field controls, CNF copy modal. |
+| Projects Database | `src/features/projects/ProjectsDatabasePage.tsx` | Search/filter/table/export project database view. |
+| CNF Tracker | `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF tracker workflow and CNF reference selection. |
+| Support Activities | `src/features/support-activities/SupportActivitiesPage.tsx` | Support activity form and database view. |
+| Audit Trail | `src/features/audit-trail/AuditTrailPage.tsx` | Audit log browsing and filters. |
+| Lessons Learned | `src/features/lessons-learned/LessonsLearnedPage.tsx` | Lessons learned workflow. |
+| Archived | `src/features/archived/ArchivedPage.tsx` | Admin archive view. |
+| Registry | `src/features/registry/RegistryPage.tsx` | Admin registry management. |
+| Admin Users | `src/features/admin/AdminUsersPage.tsx` | Admin user/profile management. |
+| Data Map | `src/features/admin/DataMapPage.tsx` | App data-map/integrity visualization. |
+
+## Shared Components
+
+| Path | Responsibility |
+|---|---|
+| `src/components/layout/app-shell.tsx` | Main authenticated shell layout. |
+| `src/components/layout/sidebar.tsx` | Navigation and role-aware menu structure. |
+| `src/components/layout/topbar.tsx` | Header controls and user-facing topbar. |
+| `src/components/layout/notification-center.tsx` | Notification UI. |
+| `src/components/layout/profile-settings-modal.tsx` | Profile settings UI. |
+| `src/components/layout/feedback-chat.tsx` | Feedback capture UI. |
+| `src/components/common/protected-route.tsx` | Route guard and allowed-role enforcement. |
+| `src/components/common/app-date-picker.tsx` | Shared date picker wrapper. |
+| `src/components/common/na-clearing-input.tsx` | Shared input behavior for `N/A` handling. |
+| `src/components/common/project-id-link.tsx` | Project record linking. |
+
+## Services and Data Access
+
+| Path | Responsibility |
+|---|---|
+| `src/lib/supabaseClient.ts` | Supabase browser client. |
+| `src/app/auth-provider.tsx` | Auth provider and user/profile state. |
+| `src/services/profileService.ts` | Profile and user-management data access. |
+| `src/services/projectService.ts` | Project CRUD, hierarchy persistence, audit integration. |
+| `src/services/cnfTrackerService.ts` | CNF tracker records and workflow data access. |
+| `src/services/cnfLinkService.ts` | Project/CNF relationship operations. |
+| `src/services/supportActivityService.ts` | Support activity data access. |
+| `src/services/dashboardService.ts` | Dashboard metrics and worklist data. |
+| `src/services/auditService.ts` | Audit log inserts and reads. |
+| `src/services/notificationService.ts` | Notification operations. |
+| `src/services/registryService.ts` | Registry lookup and admin CRUD. |
+| `src/services/exportService.ts` | Excel/export utilities. |
+
+## State, Utilities, and Types
+
+| Path | Responsibility |
+|---|---|
+| `src/types/` | Shared TypeScript types and Supabase database type definitions. |
+| `src/lib/constants.ts` | Shared constants and option sets. |
+| `src/lib/roleAccess.ts` | Role/module visibility and access helpers. |
+| `src/lib/roleMapping.ts` | Role label/key conversion helpers. |
+| `src/lib/mappers.ts` | DB-to-UI data mapping utilities. |
+| `src/lib/auditFormat.ts` | Readable audit formatting helpers. |
+| `src/lib/projectHierarchy.ts` | Project hierarchy helpers. |
+| `src/lib/formDraftStorage.ts` | Draft persistence utilities. |
+| `src/lib/fgMonthLock.ts` | FG month lock behavior. |
+| `src/lib/bmrLock.ts` | BMR-related lock behavior. |
+| `src/lib/sessionDiagnostics.ts` | Diagnostic logging for session/navigation visibility. |
+| `src/app/registry-provider.tsx` | Registry context/provider. |
+| `src/app/date-adjustment-provider.tsx` | Date adjustment provider. |
+| `src/app/meeting-view-provider.tsx` | Meeting view state provider. |
+| `src/hooks/use-sidebar-state.ts` | Sidebar state hook. |
+
+## Styling
+
+| Path | Responsibility |
+|---|---|
+| `src/styles/globals.css` | Global app styles. |
+| `src/styles/project-form.css` | Project form layout/styling. |
+| `src/styles/dashboard.css` | Dashboard styling. |
+| `src/styles/cnf-tracker.css` | CNF tracker styling. |
+| `src/styles/data-map.css` | Data map/integrity page styling. |
+
+## Configuration and Scripts
+
+| Path | Responsibility |
+|---|---|
+| `package.json` | Scripts and dependencies. |
+| `.env.example` | Frontend-safe env placeholders. |
+| `.github/workflows/deploy.yml` | GitHub Pages build/deploy workflow. |
+| `scripts/verify-supabase.ts` | Supabase connectivity/permission verification. |
+| `scripts/smoke-test-supabase.ts` | Supabase smoke test. |
+| `scripts/migrate-sheets-to-supabase.ts` | Google Sheets to Supabase migration script. |
+| `scripts/migration-map.md` | Migration mapping notes. |
+| `scripts/seed-auth-users.ts` | Auth user seeding helper. |
+| `workflow-app/server.py` | Local workflow app server and API. |
+| `workflow-app/database/schema.sql` | Workflow app SQLite schema, separate from Supabase product schema. |
+| `workflow-app/scripts/validate_schema.py` | Workflow app schema validation. |
+| `workflow-app/scripts/smoke_test.py` | Workflow app behavior smoke test. |
+| `workflow-app/static/` | Workflow app browser UI assets. |
+
+## Editing Guidance
+
+- Add route-level pages under `src/features/<domain>/`.
+- Add reusable UI under `src/components/common/` or `src/components/layout/`.
+- Add feature-specific UI beside the feature page under `src/features/<domain>/components/`.
+- Add data operations in `src/services/`, not directly inside large UI components.
+- Add shared pure helpers under `src/lib/`.
+- Add shared record types under `src/types/`.
+- Add Supabase schema changes under `supabase/migrations/`.
+- Keep GitHub Pages routing through HashRouter unless the deployment strategy changes by approval.
+- Keep workflow app runtime data under ignored `workflow-app/data/`.
+
+## Important Boundaries
+
+- Presentation components must not bypass service-layer data access for complex Supabase operations.
+- Protected routes and sidebar visibility must align with role helpers and RLS expectations.
+- Frontend role checks are user experience only; Supabase policies remain the data boundary.
+- Service role keys must never appear in browser code, Markdown, or committed env files.
+- Audit writes are mandatory for critical mutations.
+- Workflow app SQLite state is local workflow metadata; do not treat it as Project Tracker product data.
+- Update this map only when important paths are added, moved, renamed, or become regular agent entry points.

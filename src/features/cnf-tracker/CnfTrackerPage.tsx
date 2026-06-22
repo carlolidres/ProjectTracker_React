@@ -19,8 +19,8 @@ import {
 } from "@/lib/formDraftStorage";
 import { AppShell } from "@/components/layout/app-shell";
 import { FieldHelpIcon } from "@/components/common/field-help-icon";
+import { ProjectIdLink } from "@/components/common/project-id-link";
 import { CnfReferencePickerModal } from "@/features/cnf-tracker/CnfReferencePickerModal";
-import { motherProjectUrl } from "@/lib/cnfMotherLink";
 import {
   aggregateCnfTrackerView,
   collectRegisteredCnfReferences,
@@ -296,9 +296,7 @@ export function CnfTrackerPage() {
       fixed: "left",
       width: 150,
       render: (value: string, row) => (
-        <a href={motherProjectUrl(row.projectId)} target="_blank" rel="noopener noreferrer">
-          {valueOrNA(value)}
-        </a>
+        <ProjectIdLink projectId={row.projectId} label={valueOrNA(value)} />
       ),
     },
     {

@@ -34,6 +34,10 @@ coverage
 *.lcov
 .nyc_output
 
+# Python local caches
+__pycache__/
+*.py[cod]
+
 # Editor
 .vscode/*
 !.vscode/extensions.json
@@ -57,3 +61,11 @@ exports/*
 # Graphify generated knowledge graph (local tooling)
 graphify-out/
 _graphify_code_only/
+
+# Local workflow app state
+workflow-app/config.json
+workflow-app/data/*
+!workflow-app/data/.gitkeep
+project-files/*
+!project-files/.gitkeep
+agent-history/baseline-backups/

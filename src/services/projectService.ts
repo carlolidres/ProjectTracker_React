@@ -298,10 +298,15 @@ export async function listArchivedProjects(): Promise<ProjectRow[]> {
 }
 
 export async function getProjectById(projectId: string): Promise<ProjectHierarchy | null> {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId || valueOrNA(normalizedProjectId) === NA_VALUE) {
+    return null;
+  }
+
   const { data, error } = await supabase
     .from("cnf_projects")
     .select("*")
-    .eq("project_id", projectId)
+    .eq("project_id", normalizedProjectId)
     .eq("is_active", true);
   if (error) throw error;
   return buildProjectHierarchy((data ?? []).map(mapDbRow));

@@ -3,11 +3,12 @@ import { isMissingValue } from "@/lib/utils";
 
 interface ProjectIdLinkProps {
   projectId: string;
+  label?: string;
 }
 
-export function ProjectIdLink({ projectId }: ProjectIdLinkProps) {
+export function ProjectIdLink({ projectId, label }: ProjectIdLinkProps) {
   if (isMissingValue(projectId)) {
-    return <span className="project-id-na">N/A</span>;
+    return <span className="project-id-na">{label ?? "N/A"}</span>;
   }
 
   return (
@@ -15,7 +16,7 @@ export function ProjectIdLink({ projectId }: ProjectIdLinkProps) {
       to={`/projects?projectId=${encodeURIComponent(projectId)}`}
       className="project-id-link"
     >
-      {projectId}
+      {label ?? projectId}
     </Link>
   );
 }
