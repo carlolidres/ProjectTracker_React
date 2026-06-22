@@ -160,26 +160,24 @@ export function CnfTrackerPage() {
         setProjects(rows);
         setTrackerRecords(records);
 
-        const draft = user?.id ? loadCnfTrackerDraft(user.id) : null;
-
         if (trackerIdParam) {
-          if (draft?.trackerIdParam === trackerIdParam) {
+          const record = await loadRecord(trackerIdParam);
+          if (!cancelled && user?.id) clearCnfTrackerDraft(user.id);
+          if (!record && !cancelled) {
+            setError(`CNF Tracker record ${trackerIdParam} not found.`);
+            setForm(emptyForm());
+            setInitiatorTouched(false);
+          }
+          resumeDraftFlush();
+        } else {
+          const draft = user?.id ? loadCnfTrackerDraft(user.id) : null;
+          if (draft) {
             setForm(draft.form);
             setInitiatorTouched(draft.initiatorTouched);
             resumeDraftFlush();
           } else {
-            const record = await loadRecord(trackerIdParam);
-            if (!record && !cancelled) {
-              setError(`CNF Tracker record ${trackerIdParam} not found.`);
-            }
-            resumeDraftFlush();
+            await prepareNew();
           }
-        } else if (draft) {
-          setForm(draft.form);
-          setInitiatorTouched(draft.initiatorTouched);
-          resumeDraftFlush();
-        } else {
-          await prepareNew();
         }
       } catch (err) {
         if (!cancelled) {

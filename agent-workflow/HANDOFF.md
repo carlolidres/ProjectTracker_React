@@ -1,14 +1,14 @@
 # Current Handoff
 
-Last Updated: `2026-06-22 Asia/Taipei`
-Version: `v65 deployed`
-Branch: `main`
-Commit: `a4d4663`
+Last Updated: `2026-06-22 UTC`
+Version: `critical bug fix pending PR`
+Branch: `cursor/critical-bug-investigation-1b68`
+Commit: `7da7f9c`
 Deployment: `GitHub Pages deploy succeeded (run 27951964986) at https://carlolidres.github.io/ProjectTracker_React/`
 
 ## Current Status
 
-Workflow-app maintenance record **Fix Project Reference Numbering and Project-Loading Navigation Issues** was triaged and implemented in source. Project loading now always fetches from Supabase when `?projectId=` is present, shows a not-found message for invalid IDs, and CNF Tracker PO links use in-app navigation by stable `project_id`. Year-based `PROJ-YYYY-###` generation was already present in `getNextProjectId()`.
+Critical bug automation found and fixed a CNF Tracker data-loss regression from draft persistence: explicit `#/cnf-tracker?id=...` loads now fetch Supabase first instead of restoring a matching local draft that could overwrite newer tracker state on save.
 
 ## Recently Completed
 
@@ -18,20 +18,21 @@ Workflow-app maintenance record **Fix Project Reference Numbering and Project-Lo
 - Added the reference `workflow-app/` as a local workflow approval/comment/planning/review/deployment/maintenance/audit tool, excluding runtime SQLite state.
 - Added `project-templates/version-0-baseline-builder.md`, `project-files/.gitkeep`, workflow-app commands, maps, and baseline-safety guardrails.
 - Fixed project navigation/load bugs from workflow-app maintenance record `f1d2d12b-0d4f-46cd-8bdd-f6877a2eab81`.
+- Fixed CNF Tracker explicit ID loading so stale local drafts cannot replace the active database record, and invalid tracker IDs reset the form instead of leaving stale state visible.
 
 ## Active Work
 
-- Objective: `Resolve workflow-app bug report for project navigation and reference loading.`
-- Progress: `Committed, pushed, and deployed to GitHub Pages as v65 (a4d4663).`
-- Remaining: `Browser smoke on live site for Projects Database and CNF Tracker project links.`
+- Objective: `Investigate recent commits for critical correctness bugs and fix only high-confidence issues.`
+- Progress: `CNF Tracker stale-draft overwrite bug fixed, committed, pushed, typechecked, and build-verified.`
+- Remaining: `Open PR for the critical bug fix.`
 
 ## Reliability Snapshot
 
-- Acceptance criteria: `PARTIAL` - `Build/typecheck passed; GitHub Pages deploy succeeded; browser smoke not run.`
+- Acceptance criteria: `PASSED` - `Critical bug fixed; typecheck and build passed.`
 - Instruction conflicts: `NONE`
-- Repository status: `CLEAN` - `v65 committed and pushed to origin/main.`
-- Build/database/runtime status: `DEPLOYED` - `GitHub Actions Deploy to GitHub Pages run 27951964986 succeeded.`
-- Last known working state: `v65 on GitHub Pages; navigation fix live pending browser confirmation.`
+- Repository status: `CLEAN before handoff update` - `fix commit pushed to origin/cursor/critical-bug-investigation-1b68.`
+- Build/database/runtime status: `VERIFIED_LOCAL` - `npm run typecheck` and `npm run build` passed after `npm ci`.
+- Last known working state: `7da7f9c on feature branch; production deployment not run.`
 
 ## Minimal Read Set for the Next Agent
 
@@ -56,6 +57,7 @@ List no more than five task-specific files; omit standard startup files.
 ## Decisions and Simplifications
 
 - Decision: `When ?projectId= is present, always load from Supabase; do not restore local draft over explicit navigation.`
+- Decision: `When CNF Tracker ?id= is present, always load from Supabase and clear any local CNF draft; draft restore is only for the blank CNF Tracker route.`
 - Decision: `Keep year-based PROJ-YYYY-### generation in existing getNextProjectId(); no schema change in this pass.`
 - Decision: `Use agent-workflow/HANDOFF.md for routine current status and preserve agent-history for durable checkpoints only.`
 - Decision: Workflow-app baseline approval/restore must not be used unless the owner explicitly intends to revise `agent-history/version-0-baseline.md`.
@@ -66,6 +68,7 @@ List no more than five task-specific files; omit standard startup files.
 | Checkpoint | Files changed | Verification status | Open assumptions | Remaining work |
 |---|---|---|---|---|
 | `Project navigation bug fix` | `ProjectEntryPage.tsx`, `CnfTrackerPage.tsx`, `project-id-link.tsx`, `projectService.ts`, `PLAN.md`, `HANDOFF.md` | `typecheck/build passed; browser smoke NOT_RUN` | `Owner bug report matches draft-over-DB and external-link navigation failures` | `Browser smoke; optional commit` |
+| `Critical CNF Tracker draft overwrite fix` | `src/features/cnf-tracker/CnfTrackerPage.tsx`, `agent-workflow/HANDOFF.md` | `typecheck/build passed after npm ci` | `No automated browser test harness exists` | `Open PR` |
 
 ## Dumb-Zone Recovery
 
@@ -90,7 +93,7 @@ List no more than five task-specific files; omit standard startup files.
 | Tests/self-check | NOT_RUN | No automated navigation tests exist. |
 | Build | PASSED | `npm run build` |
 | Smoke/manual | NOT_RUN | Browser verification on live site pending. |
-| Deployment | PASSED | `Deploy to GitHub Pages` run 27951964986 succeeded for commit `a4d4663`. |
+| Deployment | NOT_RUN | Feature branch PR pending; production deployment not run. |
 
 ## Supabase Sync
 
