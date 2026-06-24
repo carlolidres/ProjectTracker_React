@@ -350,6 +350,19 @@ export interface ProjectSaveOptions {
   dateAdjustmentsConfirmed?: boolean;
 }
 
+async function assertProjectIdAvailable(projectId: string) {
+  const { data, error } = await supabase
+    .from("cnf_projects")
+    .select("record_id")
+    .eq("project_id", projectId)
+    .eq("is_active", true)
+    .limit(1);
+  if (error) throw error;
+  if ((data ?? []).length) {
+    throw new Error(`Project ${projectId} already exists. Open it from Projects Database to update.`);
+  }
+}
+
 function assertDateAdjustmentsConfirmed(
   baseline: ProjectHierarchy | null,
   payload: ProjectHierarchy,
@@ -367,6 +380,7 @@ export async function saveProject(payload: ProjectHierarchy, userEmail: string) 
     valueOrNA(payload.project_id) === NA_VALUE
       ? await getNextProjectId()
       : payload.project_id.trim();
+  await assertProjectIdAvailable(projectId);
   const link = await getProjectCnfLink(projectId);
   let payloadToSave = { ...payload, project_id: projectId };
   await validateChildProjectCnfSave(projectId, payloadToSave, link, userEmail);

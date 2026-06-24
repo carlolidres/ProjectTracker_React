@@ -368,6 +368,9 @@ export function ProjectEntryPage() {
           setOpenKeys([]);
           if (user?.id) clearProjectEntryDraft(user.id);
         }
+      } else if (draft?.projectIdParam) {
+        restoreProjectDraft(draft);
+        setSearchParams({ projectId: draft.projectIdParam }, { replace: true });
       } else if (draft) {
         restoreProjectDraft(draft);
       } else {
