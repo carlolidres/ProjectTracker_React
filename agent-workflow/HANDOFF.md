@@ -1,106 +1,77 @@
 # Current Handoff
 
-Last Updated: `2026-06-22 Asia/Taipei`
-Version: `v65 deployed`
+Last Updated: `2026-06-24 Asia/Taipei`
+Version: `v65 deployed + session/save fixes pending commit`
 Branch: `main`
 Commit: `a4d4663`
 Deployment: `GitHub Pages deploy succeeded (run 27951964986) at https://carlolidres.github.io/ProjectTracker_React/`
 
 ## Current Status
 
-Workflow-app maintenance record **Fix Project Reference Numbering and Project-Loading Navigation Issues** was triaged and implemented in source. Project loading now always fetches from Supabase when `?projectId=` is present, shows a not-found message for invalid IDs, and CNF Tracker PO links use in-app navigation by stable `project_id`. Year-based `PROJ-YYYY-###` generation was already present in `getNextProjectId()`.
+Session-security fixes from workflow feedback are implemented locally. Project creation save failure traced to `mapProjectToDb` sending a non-existent `risk_control` column; fixed and verified with `scripts/verify-project-save-map.ts`.
 
 ## Recently Completed
 
-- Initialized the root `agent-workflow/` continuity files from the reference workflow, adapted for React, Vite, Supabase, Ant Design, HashRouter, and GitHub Pages.
-- Reworked root `AGENTS.md` into a project-specific instruction router that preserves historical handoffs and uses this current handoff for routine continuity.
-- Applied the reference workflow's reliability guardrails to `AGENTS.md`, adapted away from the reference SQLite/workflow-app assumptions and toward this project's Supabase and GitHub Pages constraints.
-- Added the reference `workflow-app/` as a local workflow approval/comment/planning/review/deployment/maintenance/audit tool, excluding runtime SQLite state.
-- Added `project-templates/version-0-baseline-builder.md`, `project-files/.gitkeep`, workflow-app commands, maps, and baseline-safety guardrails.
-- Fixed project navigation/load bugs from workflow-app maintenance record `f1d2d12b-0d4f-46cd-8bdd-f6877a2eab81`.
+- Session security: sessionStorage auth, 15-minute inactivity logout, full cleanup on logout/expiry, login field reset after logout.
+- Fixed project save: removed phantom `risk_control` flat column from `mapProjectToDb` (QA field lives in `cnf_entries_json` only).
+- Clear save errors: `formatServiceError()` for Supabase failures; session-missing guard no longer fails silently; toast + Alert on save failure.
+- Notification refresh remains best-effort after confirmed save (prior fix retained).
+- Ran `npm run typecheck`, `npm run build`, `npm run smoke:supabase`, and `npx tsx scripts/verify-project-save-map.ts` successfully.
 
 ## Active Work
 
-- Objective: `Resolve workflow-app bug report for project navigation and reference loading.`
-- Progress: `Committed, pushed, and deployed to GitHub Pages as v65 (a4d4663).`
-- Remaining: `Browser smoke on live site for Projects Database and CNF Tracker project links.`
-
-## Reliability Snapshot
-
-- Acceptance criteria: `PARTIAL` - `Build/typecheck passed; GitHub Pages deploy succeeded; browser smoke not run.`
-- Instruction conflicts: `NONE`
-- Repository status: `CLEAN` - `v65 committed and pushed to origin/main.`
-- Build/database/runtime status: `DEPLOYED` - `GitHub Actions Deploy to GitHub Pages run 27951964986 succeeded.`
-- Last known working state: `v65 on GitHub Pages; navigation fix live pending browser confirmation.`
-
-## Minimal Read Set for the Next Agent
-
-List no more than five task-specific files; omit standard startup files.
-
-| Path | Reason |
-|---|---|
-| `src/features/projects/ProjectEntryPage.tsx` | Project load/navigation fix. |
-| `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF Tracker PO-to-project links. |
-| `src/components/common/project-id-link.tsx` | Shared project navigation link. |
-| `agent-workflow/PLAN.md` | Active bug-fix acceptance criteria. |
-| `workflow-app/data/workflow.sqlite3` | Local bug report / maintenance record source (ignored by git). |
+- Objective: `Address owner feedback on session security and project save.`
+- Progress: `Implemented and verified locally.`
+- Remaining: `Browser smoke for login/logout/inactivity; commit/deploy if accepted; apply migration 029 remotely.`
 
 ## Known Issues
 
 | Severity | Issue | Impact | Next action |
 |---|---|---|---|
-| Medium | Browser smoke for navigation fix not performed. | Runtime behavior unverified in browser. | Run checks in `agent-workflow/BROWSER_TESTING.md` for Projects Database and CNF Tracker links. |
-| Medium | v64 notes possible orphaned seed-related `audit_logs` rows because deletion was denied. | Historical audit noise may remain after rollback. | Decide whether cleanup matters, then apply a targeted grant/cleanup plan if approved. |
-| Low | There is no lint script in `package.json`. | Agents cannot run a dedicated lint check. | Use `npm run typecheck` and `npm run build`; add lint only if accepted as a future task. |
-
-## Decisions and Simplifications
-
-- Decision: `When ?projectId= is present, always load from Supabase; do not restore local draft over explicit navigation.`
-- Decision: `Keep year-based PROJ-YYYY-### generation in existing getNextProjectId(); no schema change in this pass.`
-- Decision: `Use agent-workflow/HANDOFF.md for routine current status and preserve agent-history for durable checkpoints only.`
-- Decision: Workflow-app baseline approval/restore must not be used unless the owner explicitly intends to revise `agent-history/version-0-baseline.md`.
-- `ponytail:` `Extended ProjectIdLink with optional label instead of adding a separate PO-link component.`
-
-## Context Refresh
-
-| Checkpoint | Files changed | Verification status | Open assumptions | Remaining work |
-|---|---|---|---|---|
-| `Project navigation bug fix` | `ProjectEntryPage.tsx`, `CnfTrackerPage.tsx`, `project-id-link.tsx`, `projectService.ts`, `PLAN.md`, `HANDOFF.md` | `typecheck/build passed; browser smoke NOT_RUN` | `Owner bug report matches draft-over-DB and external-link navigation failures` | `Browser smoke; optional commit` |
-
-## Dumb-Zone Recovery
-
-- Status: `NOT_TRIGGERED`
-- Trigger: `NONE`
-- Repair attempts: `0`
-- Original objective: `Fix workflow-app bug report for project loading/navigation`
-- Changes already made: `DB-first project load, not-found message, CNF Tracker in-app links`
-- Errors encountered: `NONE`
-- Confirmed findings: `ProjectEntryPage restored local draft when projectIdParam matched; CNF Tracker used external hash URL links`
-- Unverified assumptions: `Browser behavior matches build-time fix`
-- Files affected: `src/features/projects/ProjectEntryPage.tsx`, `src/features/cnf-tracker/CnfTrackerPage.tsx`, `src/components/common/project-id-link.tsx`, `src/services/projectService.ts`
-- Recommended next action: `Browser smoke, then commit if accepted`
-- Approval needed: `NO`
+| Medium | Migration `029_feedback_purge_rpc_repair.sql` not applied remotely | Admin feedback inbox purge RPC may still 400 until applied | Apply via Supabase CLI or dashboard |
+| Medium | Spreadsheet views for Projects and Support Activities are pending. | Owner-requested bulk import/edit/save workflow not implemented. | Create a scoped implementation plan |
+| Low | Browser smoke for session lifecycle and project save not performed in browser | Runtime UX unverified in browser | Run checks in `BROWSER_TESTING.md` |
+| Low | Vite build warns that the main JS chunk is larger than 500 kB. | Performance warning only; build passes. | Consider code-splitting as a future task |
 
 ## Verification
 
 | Check | Status | Result |
 |---|---|---|
-| Lint | N/A | No lint script is currently defined. |
 | Type-check | PASSED | `npm run typecheck` |
-| Tests/self-check | NOT_RUN | No automated navigation tests exist. |
 | Build | PASSED | `npm run build` |
-| Smoke/manual | NOT_RUN | Browser verification on live site pending. |
-| Deployment | PASSED | `Deploy to GitHub Pages` run 27951964986 succeeded for commit `a4d4663`. |
+| Supabase smoke | PASSED | `npm run smoke:supabase` |
+| Project save map | PASSED | `npx tsx scripts/verify-project-save-map.ts` |
+| Browser smoke | NOT_RUN | Login/logout/save not browser-tested in this pass |
+| Supabase migration | NOT_RUN | No new migration in this pass |
+
+## Next Action
+
+`Browser smoke login/logout/save, apply migration 029 to Supabase, then commit/deploy if accepted.`
+
+## Minimal Read Set for the Next Agent
+
+| Path | Reason |
+|---|---|
+| `src/lib/mappers.ts` | Project row mapping; no flat `risk_control` column |
+| `src/lib/supabaseClient.ts` | Session-only Supabase auth storage |
+| `src/app/auth-provider.tsx` | 15-minute inactivity logout |
+| `src/features/projects/ProjectEntryPage.tsx` | Save error handling |
+| `agent-workflow/PLAN.md` | Accepted scope and pending spreadsheet work |
+
+## Decisions and Simplifications
+
+- Decision: `Use Supabase sessionStorage auth persistence to meet browser-closure session termination without replacing Supabase Auth.`
+- Decision: `Keep QA risk_control in cnf_entries_json only; do not map a flat DB column that does not exist.`
+- Decision: `Treat notification rebuild as best-effort after successful project save.`
+- `ponytail:` `Fixed save at the mapper boundary instead of adding a migration for a field already stored in JSON.`
+
+## Dumb-Zone Recovery
+
+- Status: `NOT_TRIGGERED`
 
 ## Supabase Sync
 
 - Migration changed: `NONE`
 - Applied to Supabase: `NONE`
-- Verification command/result: `N/A`
-- Rollback: `Revert navigation fix commits if needed`
-
-## Next Action
-
-`Browser-smoke project navigation on https://carlolidres.github.io/ProjectTracker_React/ (Projects Database and CNF Tracker PO links).`
-
-Historical evidence: `agent-history/version-64-handoff.md`
+- Verification command/result: `verify-project-save-map.ts PASS`
+- Rollback: `Revert mapper/session/error-handling changes if needed`

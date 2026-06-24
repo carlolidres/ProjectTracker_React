@@ -49,9 +49,15 @@ export const MO_FIELDS: ProjectFieldDef[] = [
 export const PROJECT_LEVEL_PO_FIELDS = new Set<string>();
 
 export const PROJECT_LEVEL_VAL_FIELDS = new Set([
+  "protocol_no",
+  "protocol_Status",
+  "protocol_target_date",
   "validation_report_no",
   "validation_report_status",
   "validation_report_target_date",
+  "endorsement_report_no",
+  "endorsement_report_status",
+  "endorsement_acceptance_target_date",
 ]);
 
 export const PO_FIELDS: ProjectFieldDef[] = [
@@ -98,9 +104,9 @@ export const PO_FIELDS: ProjectFieldDef[] = [
   { key: "mo_bmr_po_target_date", label: "MO/BMR/PO Target Date", type: "date", role: "TSD", tooltip: "Target date for MO/BMR/PO submission." },
   { key: "mo_bmr_po_activation_status", label: "MO/BMR/PO Activation", type: "select", role: "TSD", registry: "yn_status", tooltip: "Activation status (Y/N)." },
   { key: "mo_bmr_po_activation_date", label: "MO/BMR/PO Activation Date", type: "date", role: "TSD", tooltip: "Activation date for MO/BMR/PO." },
-  { key: "protocol_no", label: "Protocol No.", type: "alphanumeric", role: "VAL", copyFromFirst: true, tooltip: "Validation protocol number. Copied from first PO when applicable." },
-  { key: "protocol_Status", label: "Protocol Status", type: "select", role: "VAL", registry: "doc_status", copyFromFirst: true, tooltip: "Protocol document status." },
-  { key: "protocol_target_date", label: "Protocol Target Date", type: "date", role: "VAL", copyFromFirst: true, tooltip: "Protocol target completion date." },
+  { key: "protocol_no", label: "Protocol No.", type: "alphanumeric", role: "VAL", projectLevelVal: true, tooltip: "Validation protocol number. One value per project." },
+  { key: "protocol_Status", label: "Protocol Status", type: "select", role: "VAL", registry: "doc_status", projectLevelVal: true, tooltip: "Protocol document status." },
+  { key: "protocol_target_date", label: "Protocol Target Date", type: "date", role: "VAL", projectLevelVal: true, tooltip: "Protocol target completion date." },
   { key: "Val_Activity", label: "Val Activity", type: "select", role: "VAL", registry: "Val_Activity", tooltip: "VAL, VER, CHAR, or COMML." },
   { key: "Val_Stability", label: "Val Stability", type: "select", role: "VAL", registry: "Val_Stability", tooltip: "Is this batch for stability? Yes/No." },
   { key: "Val_Batch_Seq_No", label: "Val Batch Seq No.", type: "select", role: "VAL", registry: "Val_Batch_Seq_No", tooltip: "Batch sequence number (1, 2, 3, ...)." },
@@ -109,17 +115,37 @@ export const PO_FIELDS: ProjectFieldDef[] = [
   { key: "val_interim_report_no", label: "Interim Report No.", type: "alphanumeric", role: "VAL", tooltip: "Interim report reference number for this batch." },
   { key: "val_interim_report_status", label: "Interim Report Status", type: "select", role: "VAL", registry: "val_interim_report_status", tooltip: "Interim report workflow status." },
   { key: "val_interim_report_target_date", label: "Interim Report Target Date", type: "date", role: "VAL", tooltip: "Target date for the interim report. Not required when Interim Report Status is Approved or Not Applicable." },
-  { key: "validation_report_no", label: "Report No.", type: "alphanumeric", role: "VAL", projectLevelVal: true, tooltip: "Full validation report number. One value per project (Batch 1 only)." },
-  { key: "validation_report_status", label: "Report Status", type: "select", role: "VAL", registry: "validation_report_status", projectLevelVal: true, tooltip: "Full validation report workflow status (Batch 1 only)." },
-  { key: "validation_report_target_date", label: "Report Target Date", type: "date", role: "VAL", projectLevelVal: true, tooltip: "Target date for the full validation report (Batch 1 only)." },
-  { key: "endorsement_report_no", label: "Endorsement Report No.", type: "alphanumeric", role: "VAL", tooltip: "Endorsement report reference number." },
-  { key: "endorsement_report_status", label: "Endorsement Report Status", type: "select", role: "VAL", registry: "endorsement_report_status", tooltip: "Endorsement report workflow status. BMR unlock requires Approved or Not Applicable." },
-  { key: "endorsement_acceptance_target_date", label: "Endorsement Target Date", type: "date", role: "VAL", tooltip: "Target endorsement acceptance date. Defaults to one month after Report Target Date. Not required when Endorsement Report Status is Approved or Not Applicable." },
+  { key: "validation_report_no", label: "Report No.", type: "alphanumeric", role: "VAL", projectLevelVal: true, tooltip: "Full validation report number. One value per project." },
+  { key: "validation_report_status", label: "Report Status", type: "select", role: "VAL", registry: "validation_report_status", projectLevelVal: true, tooltip: "Full validation report workflow status." },
+  { key: "validation_report_target_date", label: "Report Target Date", type: "date", role: "VAL", projectLevelVal: true, tooltip: "Target date for the full validation report." },
+  { key: "endorsement_report_no", label: "Endorsement Report No.", type: "alphanumeric", role: "VAL", projectLevelVal: true, tooltip: "Endorsement report reference number. One value per project." },
+  { key: "endorsement_report_status", label: "Endorsement Report Status", type: "select", role: "VAL", registry: "endorsement_report_status", projectLevelVal: true, tooltip: "Endorsement report workflow status. BMR unlock requires Approved or Not Applicable." },
+  { key: "endorsement_acceptance_target_date", label: "Endorsement Target Date", type: "date", role: "VAL", projectLevelVal: true, tooltip: "Target endorsement acceptance date. Defaults to one month after Report Target Date. Not required when Endorsement Report Status is Approved or Not Applicable." },
   { key: "ar_availability_date", label: "AR Availability Date", type: "date", role: "QC", tooltip: "Analytical report availability date." },
   { key: "packaging_schedule", label: "Packaging Schedule", type: "date", role: "PP", tooltip: "Planned packaging schedule." },
   { key: "final_status", label: "Final Status", type: "select", role: "PP", registry: "final_status", tooltip: "OPEN, CLOSED, CANCELLED, or Others." },
   { key: "final_status_other", label: "Final Status (Others)", type: "text", role: "PP", tooltip: "Required when Final Status is Others or CANCELLED." },
 ];
+
+export const VAL_TAB_HEADER_FIELD_KEYS = [
+  "protocol_no",
+  "protocol_Status",
+  "protocol_target_date",
+  "validation_report_no",
+  "validation_report_status",
+  "validation_report_target_date",
+  "endorsement_report_no",
+  "endorsement_report_status",
+  "endorsement_acceptance_target_date",
+] as const;
+
+export const VAL_TAB_HEADER_FIELDS: ProjectFieldDef[] = VAL_TAB_HEADER_FIELD_KEYS.map(
+  (key) => PO_FIELDS.find((field) => field.key === key),
+).filter((field): field is ProjectFieldDef => Boolean(field));
+
+export const VAL_TAB_HEADER_PROTOCOL_FIELDS: ProjectFieldDef[] = VAL_TAB_HEADER_FIELDS.slice(0, 3);
+
+export const VAL_TAB_HEADER_REPORT_FIELDS: ProjectFieldDef[] = VAL_TAB_HEADER_FIELDS.slice(3);
 
 export const CNF_FIELDS: ProjectFieldDef[] = PO_FIELDS.filter((field) =>
   (AM_CNF_ENTRY_KEYS as readonly string[]).includes(field.key),

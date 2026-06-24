@@ -27,7 +27,6 @@ export function mapProjectToDb(row: Record<string, unknown>) {
     qrmr_ref_no: row.qrmr_ref_no,
     qrmr_status: row.qrmr_status,
     qrmr_target_date: row.qrmr_target_date,
-    risk_control: row.risk_control,
     change_description: row.change_description,
     cnf_status: row.cnf_status,
     client_approval_target_date: row.client_approval_target_date,

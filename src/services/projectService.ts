@@ -6,6 +6,7 @@ import { compareProjectPriority, hasMissingFieldsForGroup, type FocusGroup } fro
 import { mapDbToProject, mapProjectToDb } from "@/lib/mappers";
 import { findDuplicateSoNumbers } from "@/lib/soNoValidation";
 import { getNextProjectId } from "@/lib/idGeneration";
+import { formatServiceError } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
 import {
   generateHierarchyId,
@@ -385,7 +386,9 @@ export async function saveProject(payload: ProjectHierarchy, userEmail: string) 
   const dbRows = lines.map((line) => toDbRow(line, { userEmail, now, isNew: true }));
 
   const { error } = await supabase.from("cnf_projects").insert(dbRows.map((row) => mapProjectToDb(row)));
-  if (error) throw error;
+  if (error) {
+    throw new Error(formatServiceError(error, "Failed to save project to the database."));
+  }
 
   for (const row of dbRows) {
     await logAuditEntries("Projects", "CREATE", row.record_id as string, projectId, {}, row, "Project created", userEmail);

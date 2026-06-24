@@ -1,6 +1,6 @@
 import { Alert, Button, Card, Form, Input, Modal, Select, Space, Typography } from "antd";
-import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { signIn, signUp } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
@@ -9,15 +9,25 @@ import { requestPasswordReset } from "@/services/passwordResetService";
 import type { UserRole } from "@/types";
 
 export function LoginPage() {
-  const { user, profile, initializing, refreshProfile } = useAuth();
-  const navigate = useNavigate();
+  const { user, profile, initializing } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
+  const [form] = Form.useForm();
   const [forgotForm] = Form.useForm<{ email: string }>();
+
+  useEffect(() => {
+    form.resetFields();
+  }, [form, isSigningUp, user]);
+
+  useEffect(() => {
+    if (submitting && !initializing) {
+      setSubmitting(false);
+    }
+  }, [submitting, initializing]);
 
   if (!initializing && user && profile?.status === "active") {
     return <Navigate to="/dashboard" replace />;
@@ -33,10 +43,6 @@ export function LoginPage() {
       setError(signInError.message);
       return;
     }
-
-      await refreshProfile();
-    setSubmitting(false);
-    navigate("/dashboard", { replace: true });
   }
 
   async function onForgotPassword(values: { email: string }) {
@@ -88,7 +94,13 @@ export function LoginPage() {
         ) : null}
         {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
         {success ? <Alert type="success" showIcon message={success} style={{ marginBottom: 16 }} /> : null}
-        <Form layout="vertical" onFinish={isSigningUp ? onSignUp : onFinish} requiredMark={false}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={isSigningUp ? onSignUp : onFinish}
+          requiredMark={false}
+          autoComplete="off"
+        >
           {isSigningUp ? (
             <>
               <Form.Item label="Full name" name="fullName" rules={[{ required: true }]}>
@@ -104,14 +116,14 @@ export function LoginPage() {
             </>
           ) : null}
           <Form.Item label="Email" name="email" rules={[{ required: true, type: "email" }]}>
-            <Input autoComplete="email" />
+            <Input autoComplete="off" />
           </Form.Item>
           <Form.Item
             label="Password"
             name="password"
             rules={passwordRules()}
           >
-            <Input.Password autoComplete={isSigningUp ? "new-password" : "current-password"} />
+            <Input.Password autoComplete="new-password" />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={submitting} block>
             {isSigningUp ? "Request account" : "Sign in"}
@@ -148,7 +160,7 @@ export function LoginPage() {
         open={forgotOpen}
         onCancel={() => setForgotOpen(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Typography.Paragraph type="secondary">
           Enter your account email. An administrator will review the request and reset your password.

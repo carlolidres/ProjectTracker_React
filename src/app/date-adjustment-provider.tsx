@@ -100,7 +100,7 @@ export function DateAdjustmentProvider({ children }: { children: ReactNode }) {
         okText="Save reasons and continue"
         cancelText="Cancel save"
         confirmLoading={submitting}
-        destroyOnClose
+        destroyOnHidden
         width={720}
       >
         <Typography.Paragraph type="secondary">

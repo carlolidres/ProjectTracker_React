@@ -348,6 +348,31 @@
   --layer-summary: #f3eef9;
 }
 
+.project-val-tab-header {
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid var(--layer-border);
+  border-radius: 10px;
+  background: var(--layer-summary);
+}
+
+.project-val-tab-header-title {
+  margin: 0 0 12px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: var(--text);
+}
+
+.project-val-tab-header-grid {
+  margin-bottom: 0;
+}
+
+.project-val-tab-header-divider {
+  height: 1px;
+  margin: 12px 0;
+  background: var(--layer-border);
+}
+
 .project-tab-layer-qc {
   --layer-accent: #39805b;
   --layer-border: #bddbc9;

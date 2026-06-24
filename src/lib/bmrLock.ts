@@ -16,6 +16,12 @@ export function projectHasValidationStudy(project: ProjectHierarchy): boolean {
 }
 
 export function batchEndorsementUnlocksBmr(project: ProjectHierarchy, batchIndex: number): boolean {
+  const canonicalPo = project.batches[0]?.mo_controls[0]?.po_controls[0];
+  if (canonicalPo) {
+    const canonicalStatus = String(canonicalPo.endorsement_report_status ?? "").trim();
+    if (BMR_UNLOCK_STATUSES.has(canonicalStatus)) return true;
+  }
+
   const batch = project.batches[batchIndex];
   if (!batch) return false;
   for (const mo of batch.mo_controls) {

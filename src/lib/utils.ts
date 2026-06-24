@@ -75,6 +75,26 @@ export function isMissingValue(value: unknown): boolean {
 }
 
 /** Capitalize the first letter of each word (e.g. "kenvue" → "Kenvue"). */
+/** Readable message for Supabase/PostgREST and standard Error failures. */
+export function formatServiceError(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    const message = typeof record.message === "string" ? record.message.trim() : "";
+    const code = typeof record.code === "string" ? record.code : "";
+    const details = typeof record.details === "string" ? record.details.trim() : "";
+    const hint = typeof record.hint === "string" ? record.hint.trim() : "";
+    const parts = [message || fallback];
+    if (code) parts.push(`Code: ${code}`);
+    if (details) parts.push(details);
+    if (hint) parts.push(hint);
+    return parts.join(" — ");
+  }
+  return fallback;
+}
+
 export function toTitleCase(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";

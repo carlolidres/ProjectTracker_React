@@ -72,7 +72,7 @@ export function CopyCnfFromProjectModal({
         if (!selectedProjectId) return;
         onConfirm(selectedProjectId);
       }}
-      destroyOnClose
+      destroyOnHidden
     >
       <Typography.Paragraph type="secondary">
         Select one active project to use as the Mother Project. All CNF entries will be copied into this child project

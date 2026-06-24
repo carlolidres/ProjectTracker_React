@@ -40,11 +40,13 @@ export function formatFeedbackForCopy(item: AppFeedback): string {
     .join("\n");
 }
 
-export async function listAppFeedback(): Promise<AppFeedback[]> {
-  try {
-    await purgeExpiredAddressedFeedback();
-  } catch {
-    // Migration 024 may not be applied yet; listing still works without purge.
+export async function listAppFeedback(options?: { purgeExpired?: boolean }): Promise<AppFeedback[]> {
+  if (options?.purgeExpired) {
+    try {
+      await purgeExpiredAddressedFeedback();
+    } catch {
+      // Migration 024/028 may not be applied yet; listing still works without purge.
+    }
   }
 
   const { data, error } = await supabase

@@ -40,9 +40,9 @@ export function ProfileSettingsModal({ open, onClose }: ProfileSettingsModalProp
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
-  const firstName = Form.useWatch("firstName", form);
-  const middleInitial = Form.useWatch("middleInitial", form);
-  const lastName = Form.useWatch("lastName", form);
+  const firstName = Form.useWatch("firstName", open ? form : undefined);
+  const middleInitial = Form.useWatch("middleInitial", open ? form : undefined);
+  const lastName = Form.useWatch("lastName", open ? form : undefined);
 
   useEffect(() => {
     if (!open) {
@@ -127,7 +127,7 @@ export function ProfileSettingsModal({ open, onClose }: ProfileSettingsModalProp
       open={open}
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       width={480}
       className="profile-settings-modal"
       styles={{ body: { maxHeight: "72vh", overflowY: "auto", paddingTop: 16 } }}

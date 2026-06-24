@@ -3,40 +3,44 @@ import { diagLog } from "@/lib/sessionDiagnostics";
 
 const APP_SESSION_PREFIX = "project-tracker:";
 
+function isSupabaseAuthKey(key: string): boolean {
+  return key.startsWith("sb-");
+}
+
+function collectKeys(storage: Storage, predicate: (key: string) => boolean): string[] {
+  const keys: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key && predicate(key)) keys.push(key);
+  }
+  return keys;
+}
+
 /**
  * Clears browser-persisted app state so the next authenticated user starts fresh.
+ * Preserves Supabase auth tokens in sessionStorage unless explicitly cleared via sign-out.
  */
 export function clearAppSessionState(): void {
   if (typeof window === "undefined") return;
 
   diagLog("session", "clearAppSessionState()");
-  sessionStorage.clear();
+  collectKeys(sessionStorage, (key) => !isSupabaseAuthKey(key)).forEach((key) => {
+    sessionStorage.removeItem(key);
+  });
   clearAllFormDrafts();
 
-  const localKeys: string[] = [];
-  for (let index = 0; index < localStorage.length; index += 1) {
-    const key = localStorage.key(index);
-    if (key?.startsWith(APP_SESSION_PREFIX)) {
-      localKeys.push(key);
-    }
-  }
-
-  localKeys.forEach((key) => localStorage.removeItem(key));
+  collectKeys(localStorage, (key) => key.startsWith(APP_SESSION_PREFIX)).forEach((key) => {
+    localStorage.removeItem(key);
+  });
 }
 
-/** Removes Supabase auth tokens persisted in localStorage. */
+/** Removes Supabase auth tokens from sessionStorage and legacy localStorage keys. */
 export function clearSupabaseAuthStorage(): void {
   if (typeof window === "undefined") return;
 
-  const keys: string[] = [];
-  for (let index = 0; index < localStorage.length; index += 1) {
-    const key = localStorage.key(index);
-    if (key?.startsWith("sb-")) {
-      keys.push(key);
-    }
+  for (const storage of [sessionStorage, localStorage]) {
+    collectKeys(storage, isSupabaseAuthKey).forEach((key) => storage.removeItem(key));
   }
-
-  keys.forEach((key) => localStorage.removeItem(key));
 }
 
 /** Hard navigation so the SPA remounts with a clean in-memory session. */

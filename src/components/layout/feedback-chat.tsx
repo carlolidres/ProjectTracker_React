@@ -87,7 +87,7 @@ function FeedbackSubmitModal({
       open={open}
       onCancel={handleClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       width={480}
       className="feedback-chat-modal"
     >
@@ -211,7 +211,7 @@ function FeedbackInboxModal({
     setLoading(true);
     setError(null);
     try {
-      const nextItems = await listAppFeedback();
+      const nextItems = await listAppFeedback({ purgeExpired: true });
       setItems(nextItems);
       markFeedbackSeen(nextItems);
     } catch (err) {
@@ -269,7 +269,7 @@ function FeedbackInboxModal({
       open={open}
       onCancel={onClose}
       footer={<Button onClick={onClose}>Close</Button>}
-      destroyOnClose
+      destroyOnHidden
       width={560}
       className="feedback-chat-modal"
     >

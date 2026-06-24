@@ -86,7 +86,7 @@ export function CnfReferencePickerModal({
       width={920}
       centered
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       className="cnf-reference-picker-modal"
       onCancel={() => {
         setSearch("");

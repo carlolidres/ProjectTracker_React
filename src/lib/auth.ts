@@ -18,16 +18,7 @@ export async function endUserSession(): Promise<void> {
 export async function signIn(email: string, password: string) {
   await endUserSession();
 
-  const result = await supabase.auth.signInWithPassword({ email, password });
-  if (result.error) return result;
-
-  if (result.data.session) {
-    await supabase.auth.setSession(result.data.session);
-    await supabase.auth.refreshSession();
-  }
-
-  clearAppSessionState();
-  return result;
+  return supabase.auth.signInWithPassword({ email, password });
 }
 
 export async function signUp(input: {

@@ -9,6 +9,8 @@ import {
   PO_ORDER_QUANTITY_UOM_KEYS,
   PROJECT_LEVEL_VAL_FIELDS,
   QA_CNF_FIELDS,
+  VAL_TAB_HEADER_PROTOCOL_FIELDS,
+  VAL_TAB_HEADER_REPORT_FIELDS,
   type ProjectFieldDef,
   type ProjectTab,
   projectTabKey,
@@ -116,8 +118,7 @@ function setPoFieldValue(po: PoControl, key: string, value: string) {
   (po as unknown as Record<string, string>)[key] = value;
 }
 
-function visiblePoFields(fields: ProjectFieldDef[], batchIndex: number): ProjectFieldDef[] {
-  if (batchIndex === 0) return fields;
+function visiblePoFields(fields: ProjectFieldDef[]): ProjectFieldDef[] {
   return fields.filter((field) => !field.projectLevelVal);
 }
 
@@ -165,6 +166,7 @@ export function ProjectHierarchyForm({
   const showCnfSection = isAmTab || isQaTab;
   const cnfFieldsForTab = isQaTab ? QA_CNF_FIELDS : CNF_FIELDS;
   const isTsdTab = activeTab === "TSD";
+  const isValTab = activeTab === "VAL";
   const poFields = PO_FIELDS_BY_TAB(activeTab);
   const showTsdBmrLockBanner = isTsdTab && isProjectBmrLocked(project);
   const cnfLinked = isCnfMotherLinked(cnfMotherLink);
@@ -240,6 +242,47 @@ export function ProjectHierarchyForm({
     });
   }
 
+  function updateCanonicalPoField(field: ProjectFieldDef, value: string) {
+    const next = structuredClone(project);
+    const target = next.batches[0]?.mo_controls[0]?.po_controls[0];
+    if (!target) return;
+
+    if (field.key === "final_status" && value.toUpperCase() === "CLOSED") {
+      const closeResult = validateProjectClose(target);
+      if (!closeResult.canClose) {
+        Modal.warning({
+          title: "Cannot set Final Status to CLOSED",
+          width: 520,
+          content: (
+            <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", margin: 0 }}>
+              {formatProjectCloseBlockerMessage(closeResult)}
+            </pre>
+          ),
+        });
+        return;
+      }
+    }
+
+    setPoFieldValue(target, field.key, value);
+    if (field.key.startsWith("validation_report_")) {
+      (next as unknown as Record<string, string>)[field.key] = value;
+    }
+    if (field.key === "validation_report_target_date") {
+      const endorsementDate = endorsementDateFromValidationTarget(value);
+      if (endorsementDate) {
+        target.endorsement_acceptance_target_date = endorsementDate;
+      }
+    }
+    if (
+      (field.key === "validation_report_status" || field.key === "val_interim_report_status") &&
+      isApprovedStatus(value) &&
+      target.final_status.toUpperCase() !== "CLOSED"
+    ) {
+      message.info("Validation report is Approved. You may set Final Status to CLOSED when ready.");
+    }
+    onChange(next);
+  }
+
   const batchItems = project.batches.map((batch, batchIndex) => {
     const batchKeyValue = batchKey(batch, batchIndex);
     const batchLabel = displayLabel(batch.unique_batch, `Batch ${batchIndex + 1}`);
@@ -292,7 +335,7 @@ export function ProjectHierarchyForm({
           ) : null,
           children: (
             <div className="project-form-grid project-po-form-grid">
-              {groupPoFieldsForRender(visiblePoFields(poFields, batchIndex)).map(
+              {groupPoFieldsForRender(visiblePoFields(poFields)).map(
                 (group) => {
                   const renderField = (field: ProjectFieldDef) => {
                     const fgMonthLocked =
@@ -783,6 +826,33 @@ export function ProjectHierarchyForm({
     };
   });
 
+  const canonicalPo = project.batches[0]?.mo_controls[0]?.po_controls[0];
+
+  function renderValTabHeaderFields(fields: ProjectFieldDef[]) {
+    if (!canonicalPo) return null;
+    return fields.map((field) => {
+      const valNaDisabled = isPoFieldDisabledByValNotApplicable(canonicalPo, field.key);
+      return (
+        <ProjectFieldControl
+          key={field.key}
+          field={field}
+          domId={buildFieldDomId({
+            level: "po",
+            batchIndex: 0,
+            moIndex: 0,
+            poIndex: 0,
+            fieldKey: field.key,
+          })}
+          value={poFieldDisplayValue(field.key, canonicalPo, 0, 0, 0)}
+          readOnly={fieldLockProps.readOnly || valNaDisabled}
+          disabled={fieldLockProps.disabled || valNaDisabled}
+          registry={registry}
+          onChange={(value) => updateCanonicalPoField(field, value)}
+        />
+      );
+    });
+  }
+
   return (
     <div className={`project-tab-layer project-tab-layer-${projectTabKey(activeTab)}`}>
       {showTsdBmrLockBanner ? (
@@ -790,6 +860,20 @@ export function ProjectHierarchyForm({
           <LockOutlined aria-hidden />
           <Typography.Text>{bmrLockReason(project)}</Typography.Text>
         </div>
+      ) : null}
+      {isValTab && canonicalPo ? (
+        <section className="project-val-tab-header" aria-label="Validation protocol, report, and endorsement">
+          <Typography.Title level={5} className="project-val-tab-header-title">
+            Validation Protocol, Report &amp; Endorsement
+          </Typography.Title>
+          <div className="project-form-grid project-val-tab-header-grid">
+            {renderValTabHeaderFields(VAL_TAB_HEADER_PROTOCOL_FIELDS)}
+          </div>
+          <div className="project-val-tab-header-divider" aria-hidden />
+          <div className="project-form-grid project-val-tab-header-grid">
+            {renderValTabHeaderFields(VAL_TAB_HEADER_REPORT_FIELDS)}
+          </div>
+        </section>
       ) : null}
       <Collapse
         items={batchItems}

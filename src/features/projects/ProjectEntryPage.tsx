@@ -62,7 +62,7 @@ import {
   getCanonicalCnfEntryCount,
   syncProjectCnfEntryCounts,
 } from "@/lib/projectHierarchy";
-import { isMissingValue, toTitleCase } from "@/lib/utils";
+import { formatServiceError, isMissingValue, toTitleCase } from "@/lib/utils";
 import { emitLogicViolation, isLogicViolationError } from "@/lib/logicViolationEvents";
 import { refreshAllNotifications } from "@/services/notificationService";
 import {
@@ -563,7 +563,14 @@ export function ProjectEntryPage() {
   }
 
   async function handleSave(skipDuplicateReview = false) {
-    if (!user?.email) return;
+    if (!user?.email) {
+      const sessionMessage = user
+        ? "Your account email is missing. Contact an administrator before saving."
+        : "Your session has expired. Sign in again to save this project.";
+      setError(sessionMessage);
+      message.error(sessionMessage);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -604,16 +611,24 @@ export function ProjectEntryPage() {
         });
         message.success("Project updated");
       }
-      await refreshAllNotifications();
+      try {
+        await refreshAllNotifications();
+      } catch (notificationError) {
+        const notificationMessage = notificationError instanceof Error
+          ? notificationError.message
+          : "Notification refresh failed.";
+        message.warning(`Project saved, but notifications were not refreshed: ${notificationMessage}`);
+      }
       if (user?.id) clearProjectEntryDraft(user.id);
       await prepareNewProject();
       message.info("Form cleared for next entry");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to save project";
+      const errorMessage = formatServiceError(err, "Failed to save project.");
       if (isLogicViolationError(errorMessage)) {
         emitLogicViolation({ message: errorMessage, projectId: project.project_id });
       }
       setError(errorMessage);
+      message.error(errorMessage);
     } finally {
       setSaving(false);
     }
