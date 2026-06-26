@@ -185,4 +185,5 @@ export interface ProjectFilters {
   fg_year?: string;
   due_window?: string;
   pending_role?: string;
+  drill?: string;
 }

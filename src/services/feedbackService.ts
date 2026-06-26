@@ -91,12 +91,7 @@ export async function submitAppFeedback(params: {
   userId: string;
   userEmail: string;
   pagePath?: string;
-  isAdmin?: boolean;
 }) {
-  if (params.isAdmin) {
-    throw new Error("Administrators cannot submit feedback to themselves. Use this inbox to review user messages.");
-  }
-
   const trimmed = params.message.trim();
   if (!trimmed) {
     throw new Error("Please enter your feedback before submitting.");

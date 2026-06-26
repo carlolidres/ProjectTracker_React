@@ -19,6 +19,7 @@ import {
 } from "@/lib/formDraftStorage";
 import { DUE_WINDOW_FILTER_OPTIONS } from "@/lib/fgUrgency";
 import { formatAppDate } from "@/lib/date";
+import { supportFiltersFromSearchParams } from "@/lib/urlDerivedFilters";
 import { canArchiveRecords } from "@/lib/roleAccess";
 import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
 import { exportSupportToExcel } from "@/services/exportService";
@@ -105,10 +106,7 @@ export function SupportActivitiesPage() {
   useFlushOnPageHide(persistSupportDraft);
 
   useEffect(() => {
-    const dueWindow = searchParams.get("due_window") ?? undefined;
-    if (dueWindow) {
-      setFilters((current) => ({ ...current, due_window: dueWindow }));
-    }
+    setFilters((current) => supportFiltersFromSearchParams(searchParams, current));
   }, [searchParams]);
 
   const filtered = useMemo(() => filterSupportRows(rows, filters), [rows, filters]);

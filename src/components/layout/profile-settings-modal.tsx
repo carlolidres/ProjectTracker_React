@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/app/auth-provider";
 import { changeOwnPassword } from "@/lib/auth";
 import { newPasswordRules } from "@/lib/passwordValidation";
+import { clearMustChangePassword } from "@/services/passwordResetService";
 import {
   buildFullName,
   getProfileDisplayName,
@@ -104,6 +105,8 @@ export function ProfileSettingsModal({ open, onClose }: ProfileSettingsModalProp
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
       });
+      await clearMustChangePassword();
+      await refreshProfile();
       passwordForm.resetFields();
       message.success("Password changed successfully");
     } catch (err) {

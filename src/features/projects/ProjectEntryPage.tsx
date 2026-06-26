@@ -780,19 +780,17 @@ export function ProjectEntryPage() {
             <div className="project-form-grid">
               {HEADER_FIELDS.map((field) => {
                 const isProjectOwnerField = field.key === "project_owner";
+                const headerReadOnly =
+                  (viewOnly && field.type !== "readonly") ||
+                  (isProjectOwnerField && !canEditProjectOwner) ||
+                  (!isProjectOwnerField && !canEditHeaderFields && !viewOnly);
                 return (
                   <ProjectFieldControl
                     key={field.key}
                     field={field}
                     value={String(project[field.key as keyof ProjectHierarchy] ?? "")}
-                    readOnly={
-                      (viewOnly && field.type !== "readonly") ||
-                      (isProjectOwnerField && !canEditProjectOwner)
-                    }
-                    disabled={
-                      field.type === "readonly" ||
-                      (isProjectOwnerField ? false : !canEditHeaderFields && !viewOnly)
-                    }
+                    readOnly={headerReadOnly}
+                    disabled={field.type === "readonly"}
                     registry={registry}
                     onChange={(value) => updateProjectHead(field.key as keyof ProjectHierarchy, value)}
                   />

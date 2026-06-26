@@ -18,7 +18,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000;
 
 async function loadSessionProfile(user: User | null): Promise<Profile | null> {
   if (!user) return null;
@@ -39,7 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const lastUserIdRef = useRef<string | null>(null);
   const bootstrappedRef = useRef(false);
   const profileRef = useRef<Profile | null>(null);
-  const inactivityTimerRef = useRef<number | null>(null);
   const expiringSessionRef = useRef(false);
   const profileLoadRef = useRef<Promise<void> | null>(null);
   const profileLoadUserIdRef = useRef<string | null>(null);
@@ -228,60 +226,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.subscription.unsubscribe();
     };
   }, []);
-
-  useEffect(() => {
-    if (!user) {
-      if (inactivityTimerRef.current !== null) {
-        window.clearTimeout(inactivityTimerRef.current);
-        inactivityTimerRef.current = null;
-      }
-      expiringSessionRef.current = false;
-      return;
-    }
-
-    expiringSessionRef.current = false;
-
-    const expireSession = () => {
-      if (expiringSessionRef.current) return;
-      expiringSessionRef.current = true;
-      diagLog("session", "inactivity timeout → sign out");
-      clearAppSessionState();
-      void supabase.auth.signOut({ scope: "global" })
-        .catch(() => undefined)
-        .finally(() => {
-          clearSupabaseAuthStorage();
-          redirectToLoginForFreshSession();
-        });
-    };
-
-    const resetInactivityTimer = () => {
-      if (inactivityTimerRef.current !== null) {
-        window.clearTimeout(inactivityTimerRef.current);
-      }
-      inactivityTimerRef.current = window.setTimeout(expireSession, INACTIVITY_TIMEOUT_MS);
-    };
-
-    const activityEvents: Array<keyof WindowEventMap> = [
-      "click",
-      "keydown",
-      "mousemove",
-      "scroll",
-      "touchstart",
-    ];
-
-    resetInactivityTimer();
-    activityEvents.forEach((eventName) => window.addEventListener(eventName, resetInactivityTimer, { passive: true }));
-    document.addEventListener("visibilitychange", resetInactivityTimer);
-
-    return () => {
-      if (inactivityTimerRef.current !== null) {
-        window.clearTimeout(inactivityTimerRef.current);
-        inactivityTimerRef.current = null;
-      }
-      activityEvents.forEach((eventName) => window.removeEventListener(eventName, resetInactivityTimer));
-      document.removeEventListener("visibilitychange", resetInactivityTimer);
-    };
-  }, [user]);
 
   const value = useMemo(
     () => ({ user, profile, initializing, refreshProfile }),

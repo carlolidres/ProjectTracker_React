@@ -1,4 +1,4 @@
-import { Form, Input, Modal, Select, Table, Typography } from "antd";
+import { Form, Input, Modal, Select, Table, Typography, App as AntApp } from "antd";
 import {
   createContext,
   useCallback,
@@ -30,12 +30,14 @@ function formatDateDisplay(value: string, fieldName: string): string {
 }
 
 export function DateAdjustmentProvider({ children }: { children: ReactNode }) {
+  const { message } = AntApp.useApp();
   const { user, profile } = useAuth();
   const { registry } = useRegistry();
   const [open, setOpen] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<DateFieldChange[]>([]);
   const [pendingRole, setPendingRole] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [form] = Form.useForm<{ reason_category: string; description: string }>();
   const resolverRef = useRef<((approved: boolean) => void) | null>(null);
 
@@ -50,6 +52,7 @@ export function DateAdjustmentProvider({ children }: { children: ReactNode }) {
       resolverRef.current = resolve;
       setPendingChanges(changes);
       setPendingRole(userRole);
+      setSaveError(null);
       form.resetFields();
       setOpen(true);
     });
@@ -69,6 +72,7 @@ export function DateAdjustmentProvider({ children }: { children: ReactNode }) {
     try {
       const values = await form.validateFields();
       setSubmitting(true);
+      setSaveError(null);
       await saveDateAdjustmentLessons(
         pendingChanges,
         values.reason_category,
@@ -78,12 +82,17 @@ export function DateAdjustmentProvider({ children }: { children: ReactNode }) {
         user.email,
       );
       finish(true);
-    } catch {
-      // keep modal open for validation/save errors
+    } catch (err) {
+      if (err && typeof err === "object" && "errorFields" in err) {
+        return;
+      }
+      const errorMessage = err instanceof Error ? err.message : "Failed to save date adjustment reasons.";
+      setSaveError(errorMessage);
+      message.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
-  }, [finish, form, pendingChanges, pendingRole, user?.email, user?.id]);
+  }, [finish, form, message, pendingChanges, pendingRole, user?.email, user?.id]);
 
   const value = useMemo(() => ({ promptBatchDateAdjustment }), [promptBatchDateAdjustment]);
 
@@ -107,6 +116,11 @@ export function DateAdjustmentProvider({ children }: { children: ReactNode }) {
           The following target dates were changed. Provide one reason category and description
           for this save. Each change will be logged in Lessons Learned.
         </Typography.Paragraph>
+        {saveError ? (
+          <Typography.Paragraph type="danger" style={{ marginBottom: 12 }}>
+            {saveError}
+          </Typography.Paragraph>
+        ) : null}
         <p><strong>User group:</strong> {roleLabel}</p>
         <Table
           size="small"

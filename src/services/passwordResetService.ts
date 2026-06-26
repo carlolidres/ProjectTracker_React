@@ -29,9 +29,18 @@ export async function listPendingPasswordResetRequests(): Promise<PasswordResetR
   return (data ?? []) as PasswordResetRequest[];
 }
 
-export async function adminCompletePasswordReset(userId: string): Promise<void> {
-  const { error } = await supabase.rpc("admin_complete_password_reset", {
+export async function adminCompletePasswordReset(userId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("admin_complete_password_reset", {
     target_user_id: userId,
   });
+  if (error) throw error;
+  if (typeof data !== "string" || !data.trim()) {
+    throw new Error("Password reset did not return a temporary credential.");
+  }
+  return data;
+}
+
+export async function clearMustChangePassword(): Promise<void> {
+  const { error } = await supabase.rpc("clear_must_change_password");
   if (error) throw error;
 }

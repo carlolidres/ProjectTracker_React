@@ -1,10 +1,11 @@
-import { Alert, Button, Card, Form, Input, Modal, Select, Space, Typography } from "antd";
+import { Alert, Button, Card, Form, Input, Modal, Result, Select, Space, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
-import { signIn, signUp } from "@/lib/auth";
+import { ForcePasswordChangeScreen } from "@/components/common/force-password-change";
+import { signIn, signOut, signUp } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
-import { passwordRules } from "@/lib/passwordValidation";
+import { loginPasswordRules, newPasswordRules } from "@/lib/passwordValidation";
 import { requestPasswordReset } from "@/services/passwordResetService";
 import type { UserRole } from "@/types";
 
@@ -29,8 +30,36 @@ export function LoginPage() {
     }
   }, [submitting, initializing]);
 
-  if (!initializing && user && profile?.status === "active") {
+  if (!initializing && user && profile?.status === "active" && profile.must_change_password) {
+    return <ForcePasswordChangeScreen />;
+  }
+
+  if (!initializing && user && profile?.status === "active" && !profile.must_change_password) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  if (!initializing && user && profile && profile.status !== "active") {
+    const isPending = profile.status === "pending";
+    return (
+      <div className="login-page">
+        <Card className="login-card">
+          <Result
+            status={isPending ? "info" : "warning"}
+            title={isPending ? "Account awaiting approval" : "Account inactive"}
+            subTitle={
+              isPending
+                ? "An administrator must approve your requested role before you can access Project Tracker."
+                : "Your account has been deactivated. Contact an administrator for assistance."
+            }
+            extra={
+              <Button type="primary" onClick={() => void signOut()}>
+                Back to sign in
+              </Button>
+            }
+          />
+        </Card>
+      </div>
+    );
   }
 
   async function onFinish(values: { email: string; password: string }) {
@@ -121,7 +150,7 @@ export function LoginPage() {
           <Form.Item
             label="Password"
             name="password"
-            rules={passwordRules()}
+            rules={isSigningUp ? newPasswordRules() : loginPasswordRules()}
           >
             <Input.Password autoComplete="new-password" />
           </Form.Item>

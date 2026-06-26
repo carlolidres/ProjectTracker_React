@@ -13,6 +13,7 @@ import {
   generateRecordId,
   idsEqual,
   isActiveValue,
+  isApprovedOrNotApplicableStatus,
   isOpenFinalStatus,
   valueOrNA,
 } from "@/lib/utils";
@@ -339,6 +340,18 @@ export function filterProjectRows(rows: ProjectRow[], filters: ProjectFilters): 
     if (filters.pending_role) {
       const isOpen = isOpenFinalStatus(row.final_status);
       if (!isOpen || !hasMissingFieldsForGroup(row, filters.pending_role as FocusGroup)) return false;
+    }
+    if (filters.drill === "pending_cnf") {
+      if (!isOpenFinalStatus(row.final_status)) return false;
+      if (valueOrNA(row.cnf_status) === "Approved") return false;
+    }
+    if (filters.drill === "pending_protocol") {
+      if (!isOpenFinalStatus(row.final_status)) return false;
+      if (isApprovedOrNotApplicableStatus(row.protocol_Status)) return false;
+    }
+    if (filters.drill === "pending_report") {
+      if (!isOpenFinalStatus(row.final_status)) return false;
+      if (isApprovedOrNotApplicableStatus(row.validation_report_status)) return false;
     }
     return true;
   });

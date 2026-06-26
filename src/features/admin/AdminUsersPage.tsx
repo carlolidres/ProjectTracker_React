@@ -1,5 +1,5 @@
 import { KeyOutlined, ReloadOutlined, SaveOutlined, SearchOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Input, Popconfirm, Select, Space, Table, Tag, Typography, message } from "antd";
+import { Alert, Button, Card, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/app/auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
@@ -116,8 +116,24 @@ export function AdminUsersPage() {
     setResettingUserId(profile.id);
     setError(null);
     try {
-      await adminCompletePasswordReset(profile.id);
-      message.success(`Password reset for ${getProfileShortName(profile) || profile.email}`);
+      const temporaryPassword = await adminCompletePasswordReset(profile.id);
+      Modal.info({
+        title: "Temporary password issued",
+        width: 520,
+        content: (
+          <div>
+            <Typography.Paragraph>
+              Share this one-time password with {getProfileShortName(profile) || profile.email} securely.
+              They must change it before using Project Tracker.
+            </Typography.Paragraph>
+            <Input.TextArea
+              readOnly
+              autoSize={{ minRows: 2, maxRows: 3 }}
+              value={temporaryPassword}
+            />
+          </div>
+        ),
+      });
       await loadProfiles();
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : "Failed to reset password.");

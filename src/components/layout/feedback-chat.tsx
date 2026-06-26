@@ -70,9 +70,8 @@ function FeedbackSubmitModal({
         userId: user.id,
         userEmail: user.email,
         pagePath: location.pathname,
-        isAdmin: false,
       });
-      message.success("Thank you — your feedback has been sent to the administrator.");
+      message.success("Thank you — your feedback has been sent.");
       handleClose();
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Failed to submit feedback.");
@@ -94,8 +93,8 @@ function FeedbackSubmitModal({
       <div className="feedback-chat-window">
         <div className="feedback-chat-bubble feedback-chat-bubble-system">
           <Typography.Text>
-            Help us improve Project Tracker. Share an idea for a better experience or report a bug you encountered.
-            Your message will be sent to the administrator.
+            Help us improve Project Tracker. Share an improvement idea or bug report. Administrators can
+            also use this form to create test messages for inbox review and documentation.
           </Typography.Text>
         </div>
 
@@ -197,9 +196,11 @@ function hasUnreadFeedback(items: AppFeedback[]): boolean {
 function FeedbackInboxModal({
   open,
   onClose,
+  onSendTestFeedback,
 }: {
   open: boolean;
   onClose: () => void;
+  onSendTestFeedback: () => void;
 }) {
   const { message } = AntApp.useApp();
   const [loading, setLoading] = useState(false);
@@ -276,13 +277,17 @@ function FeedbackInboxModal({
       <div className="feedback-chat-window">
         <div className="feedback-chat-bubble feedback-chat-bubble-system">
           <Typography.Text>
-            Messages submitted by non-admin users. Addressed and Not Accepted items are automatically removed after 3 days.
+            User feedback inbox, including administrator test messages. Addressed and Not Accepted items are
+            automatically removed after 3 days.
           </Typography.Text>
         </div>
 
         <div className="feedback-inbox-toolbar">
           <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
             Refresh
+          </Button>
+          <Button type="primary" onClick={onSendTestFeedback}>
+            Send test feedback
           </Button>
         </div>
 
@@ -361,6 +366,7 @@ export function FeedbackChat() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const [open, setOpen] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(false);
   const [hasNewFeedback, setHasNewFeedback] = useState(false);
 
   const checkForNewFeedback = useCallback(async () => {
@@ -413,7 +419,23 @@ export function FeedbackChat() {
       </Tooltip>
 
       {isAdmin ? (
-        <FeedbackInboxModal open={open} onClose={handleClose} />
+        <>
+          <FeedbackInboxModal
+            open={open}
+            onClose={handleClose}
+            onSendTestFeedback={() => {
+              setOpen(false);
+              setSubmitOpen(true);
+            }}
+          />
+          <FeedbackSubmitModal
+            open={submitOpen}
+            onClose={() => {
+              setSubmitOpen(false);
+              void checkForNewFeedback();
+            }}
+          />
+        </>
       ) : (
         <FeedbackSubmitModal open={open} onClose={handleClose} />
       )}

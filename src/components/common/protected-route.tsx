@@ -1,6 +1,7 @@
 import { Button, Result, Spin } from "antd";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
+import { ForcePasswordChangeScreen } from "@/components/common/force-password-change";
 import { signOut } from "@/lib/auth";
 import { diagLog, useDiagLifecycle } from "@/lib/sessionDiagnostics";
 import type { UserRole } from "@/types";
@@ -43,6 +44,10 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
         <Spin size="large" aria-label="Loading session" />
       </div>
     );
+  }
+
+  if (profile?.must_change_password) {
+    return <ForcePasswordChangeScreen />;
   }
 
   if (profile?.status !== "active") {

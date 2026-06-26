@@ -1,6 +1,7 @@
 import { detectDuplicateValues } from "@/lib/duplicateReview";
+import { buildStableNotificationId } from "@/lib/notificationRetention";
 import { buildProjectHierarchy } from "@/services/projectService";
-import { generateId, isMissingValue, valueOrNA } from "@/lib/utils";
+import { isMissingValue, valueOrNA } from "@/lib/utils";
 import type { Notification, ProjectRow } from "@/types";
 
 export const LOGIC_VIOLATION_CRITICAL_KIND = "logic_violation_critical" as const;
@@ -33,7 +34,7 @@ function buildLogicNotification(params: {
   critical: boolean;
 }): Omit<Notification, "created_at"> {
   return {
-    notification_id: generateId("NTF"),
+    notification_id: buildStableNotificationId(params.projectId, params.recordId, params.title),
     project_id: params.projectId,
     record_id: params.recordId,
     fg_month: params.fgMonth,

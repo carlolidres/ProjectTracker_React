@@ -10,7 +10,7 @@ import {
   sanitizeNumericDigits,
   sanitizeOrderQuantityInput,
 } from "@/lib/orderQuantity";
-import { cn, isMissingValue, toTitleCase } from "@/lib/utils";
+import { cn, isMissingValue, sanitizeAlphanumericInput, toTitleCase } from "@/lib/utils";
 
 interface ProjectFieldControlProps {
   field: ProjectFieldDef;
@@ -162,6 +162,19 @@ export function ProjectFieldControl({
           readOnly={isViewOnly}
           inputMode="numeric"
           sanitize={sanitizeNumericDigits}
+          onChange={onChange}
+        />
+      );
+    }
+
+    if (field.type === "alphanumeric") {
+      return (
+        <NaClearingInput
+          id={fieldId}
+          value={value}
+          disabled={disabled && !isViewOnly}
+          readOnly={isViewOnly}
+          sanitize={sanitizeAlphanumericInput}
           onChange={onChange}
         />
       );

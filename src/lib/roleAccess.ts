@@ -12,7 +12,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/support-activities", roles: "all" },
   { path: "/cnf-tracker", roles: "all" },
   { path: "/lessons-learned", roles: "all" },
-  { path: "/audit-trail", roles: "all" },
+  { path: "/audit-trail", roles: ["admin", "view"] },
   { path: "/archived", roles: ["admin"] },
   { path: "/registry", roles: ["admin"] },
   { path: "/admin/users", roles: ["admin"] },

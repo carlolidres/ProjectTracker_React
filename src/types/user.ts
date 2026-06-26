@@ -22,6 +22,7 @@ export interface Profile {
   role: UserRole;
   requested_role: UserRole | null;
   status: "pending" | "active" | "inactive";
+  must_change_password?: boolean;
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;

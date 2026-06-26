@@ -1,37 +1,38 @@
 # Current Handoff
 
-Last Updated: `2026-06-24 Asia/Taipei`
-Version: `v65 deployed + session/save fixes pending commit`
+Last Updated: `2026-06-26 Asia/Taipei`
+Version: `v67 bug-audit remediation`
 Branch: `main`
-Commit: `a4d4663`
-Deployment: `GitHub Pages deploy succeeded (run 27951964986) at https://carlolidres.github.io/ProjectTracker_React/`
 
 ## Current Status
 
-Session-security fixes from workflow feedback are implemented locally. Project creation save failure traced to `mapProjectToDb` sending a non-existent `risk_control` column; fixed and verified with `scripts/verify-project-save-map.ts`.
+Executed `CODEX_BUG_AUDIT_HANDOFF.md` remediation for Phases 1–5 except deferred transactional RLS scope (BUG-003) and full department-scoped RLS (BUG-002 remainder). Debug instrumentation remains in `ProjectsDatabasePage.tsx` and `feedback-chat.tsx` for runtime verification.
 
 ## Recently Completed
 
-- Session security: sessionStorage auth, 15-minute inactivity logout, full cleanup on logout/expiry, login field reset after logout.
-- Fixed project save: removed phantom `risk_control` flat column from `mapProjectToDb` (QA field lives in `cnf_entries_json` only).
-- Clear save errors: `formatServiceError()` for Supabase failures; session-missing guard no longer fails silently; toast + Alert on save failure.
-- Notification refresh remains best-effort after confirmed save (prior fix retained).
-- Ran `npm run typecheck`, `npm run build`, `npm run smoke:supabase`, and `npx tsx scripts/verify-project-save-map.ts` successfully.
+- BUG-001: Random one-time admin password reset RPC + `must_change_password` enforcement (`ForcePasswordChangeScreen`, login/protected routes).
+- BUG-002 (partial): Audit trail route/RLS limited to admin/view; view role blocked from project/support writes.
+- BUG-004: `app_feedback` insert policy allows admin self-test feedback (migration 030).
+- BUG-005: URL-derived database filters reconcile when query params are removed.
+- BUG-006: Pending/inactive accounts see status on login page after sign-in.
+- BUG-007: Date adjustment modal shows persistence errors.
+- BUG-008: Removed duplicate `cnfTracker` export.
+- RISK-003: Login no longer enforces 8-character minimum before Supabase auth.
 
 ## Active Work
 
-- Objective: `Address owner feedback on session security and project save.`
-- Progress: `Implemented and verified locally.`
-- Remaining: `Browser smoke for login/logout/inactivity; commit/deploy if accepted; apply migration 029 remotely.`
+- Objective: `Complete CODEX bug audit remediation and runtime verification.`
+- Progress: `Committed and pushed v67; GitHub Pages deploy triggered; migration 030 apply in progress.`
+- Remaining: `Browser smoke after migration 030 apply.`
 
 ## Known Issues
 
 | Severity | Issue | Impact | Next action |
 |---|---|---|---|
-| Medium | Migration `029_feedback_purge_rpc_repair.sql` not applied remotely | Admin feedback inbox purge RPC may still 400 until applied | Apply via Supabase CLI or dashboard |
-| Medium | Spreadsheet views for Projects and Support Activities are pending. | Owner-requested bulk import/edit/save workflow not implemented. | Create a scoped implementation plan |
-| Low | Browser smoke for session lifecycle and project save not performed in browser | Runtime UX unverified in browser | Run checks in `BROWSER_TESTING.md` |
-| Low | Vite build warns that the main JS chunk is larger than 500 kB. | Performance warning only; build passes. | Consider code-splitting as a future task |
+| High | BUG-003 transactional audit writes not implemented | Data/audit atomicity gap remains | Design audited mutation RPCs |
+| Medium | BUG-002 department-scoped RLS not restored | Non-view roles still have broad write access at DB layer | Owner decision + follow-up migration |
+| Medium | Migration `030` not applied remotely | Password/feedback/RLS fixes inactive in Supabase | Apply via approved workflow |
+| Low | BUG-003 transactional audit writes | Data/audit atomicity gap | Deferred RPC design |
 
 ## Verification
 
@@ -39,31 +40,19 @@ Session-security fixes from workflow feedback are implemented locally. Project c
 |---|---|---|
 | Type-check | PASSED | `npm run typecheck` |
 | Build | PASSED | `npm run build` |
-| Supabase smoke | PASSED | `npm run smoke:supabase` |
-| Project save map | PASSED | `npx tsx scripts/verify-project-save-map.ts` |
-| Browser smoke | NOT_RUN | Login/logout/save not browser-tested in this pass |
-| Supabase migration | NOT_RUN | No new migration in this pass |
+| Supabase migration 030 | NOT_RUN | Local SQL only |
+| URL filter verification | PASSED | `npx tsx scripts/verify-url-derived-filters.ts` |
+| Debug instrumentation | REMOVED | After verification script pass |
 
 ## Next Action
 
-`Browser smoke login/logout/save, apply migration 029 to Supabase, then commit/deploy if accepted.`
-
-## Minimal Read Set for the Next Agent
-
-| Path | Reason |
-|---|---|
-| `src/lib/mappers.ts` | Project row mapping; no flat `risk_control` column |
-| `src/lib/supabaseClient.ts` | Session-only Supabase auth storage |
-| `src/app/auth-provider.tsx` | 15-minute inactivity logout |
-| `src/features/projects/ProjectEntryPage.tsx` | Save error handling |
-| `agent-workflow/PLAN.md` | Accepted scope and pending spreadsheet work |
+`Confirm GitHub Pages deploy and migration 030; run browser smoke for drill-down filter clear, admin feedback, and forced password change.`
 
 ## Decisions and Simplifications
 
-- Decision: `Use Supabase sessionStorage auth persistence to meet browser-closure session termination without replacing Supabase Auth.`
-- Decision: `Keep QA risk_control in cnf_entries_json only; do not map a flat DB column that does not exist.`
-- Decision: `Treat notification rebuild as best-effort after successful project save.`
-- `ponytail:` `Fixed save at the mapper boundary instead of adding a migration for a field already stored in JSON.`
+- Decision: `Defer BUG-003 RPC transaction work until after role-aligned RLS design is settled.`
+- Decision: `Implement partial BUG-002 (audit + view read-only) without rewriting all department write policies.`
+- `ponytail:` `URL filter reconciliation strips only URL-owned keys so manual in-page filters keep working.`
 
 ## Dumb-Zone Recovery
 
@@ -71,7 +60,7 @@ Session-security fixes from workflow feedback are implemented locally. Project c
 
 ## Supabase Sync
 
-- Migration changed: `NONE`
-- Applied to Supabase: `NONE`
-- Verification command/result: `verify-project-save-map.ts PASS`
-- Rollback: `Revert mapper/session/error-handling changes if needed`
+- Migration changed: `030_audit_password_feedback_rls.sql`
+- Applied to Supabase: `NO`
+- Verification command/result: `NOT_RUN`
+- Rollback: `Revert migration 030 if policy/password changes cause regressions`

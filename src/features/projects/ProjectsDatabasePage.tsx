@@ -7,6 +7,8 @@ import { ProjectIdLink } from "@/components/common/project-id-link";
 import { AppShell } from "@/components/layout/app-shell";
 import { DUE_WINDOW_FILTER_OPTIONS, PENDING_ROLE_FILTER_OPTIONS } from "@/lib/fgUrgency";
 import { formatAppDate, formatAppMonth } from "@/lib/date";
+import { projectFiltersFromSearchParams } from "@/lib/urlDerivedFilters";
+import { valueOrNA } from "@/lib/utils";
 import { exportProjectsToExcel } from "@/services/exportService";
 import { filterProjectRows, listActiveProjects } from "@/services/projectService";
 import type { ProjectFilters, ProjectRow } from "@/types";
@@ -36,22 +38,18 @@ export function ProjectsDatabasePage() {
   }, [load]);
 
   useEffect(() => {
-    const cnfStatus = searchParams.get("cnf_status") ?? undefined;
-    const finalStatus = searchParams.get("final_status") ?? undefined;
-    const dueWindow = searchParams.get("due_window") ?? undefined;
-    const pendingRole = searchParams.get("pending_role") ?? undefined;
-    if (cnfStatus || finalStatus || dueWindow || pendingRole) {
-      setFilters((current) => ({
-        ...current,
-        ...(cnfStatus ? { cnf_status: cnfStatus } : {}),
-        ...(finalStatus ? { final_status: finalStatus } : {}),
-        ...(dueWindow ? { due_window: dueWindow } : {}),
-        ...(pendingRole ? { pending_role: pendingRole } : {}),
-      }));
-    }
+    setFilters((current) => projectFiltersFromSearchParams(searchParams, current));
   }, [searchParams]);
 
   const filtered = useMemo(() => filterProjectRows(rows, filters), [rows, filters]);
+  const ownerOptions = useMemo(() => {
+    const owners = new Set<string>();
+    for (const row of rows) {
+      const owner = valueOrNA(row.project_owner);
+      if (owner !== "N/A") owners.add(owner);
+    }
+    return [...owners].sort((a, b) => a.localeCompare(b)).map((value) => ({ label: value, value }));
+  }, [rows]);
 
   return (
     <AppShell>
@@ -93,6 +91,7 @@ export function ProjectsDatabasePage() {
               placeholder="Owner"
               style={{ width: "100%" }}
               value={filters.owner}
+              options={ownerOptions}
               onChange={(owner) => setFilters((f) => ({ ...f, owner }))}
             />
           </Col>

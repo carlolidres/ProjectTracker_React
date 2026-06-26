@@ -23,6 +23,10 @@ export function newPasswordRules(): Rule[] {
   ];
 }
 
+export function loginPasswordRules(): Rule[] {
+  return [{ required: true, message: "Password is required" }];
+}
+
 export function passwordRules(): Rule[] {
   return [
     { required: true, message: "Password is required" },

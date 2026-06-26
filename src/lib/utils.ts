@@ -44,6 +44,10 @@ export function idsEqual(a: unknown, b: unknown): boolean {
   return String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
 }
 
+export function sanitizeAlphanumericInput(value: string): string {
+  return value.replace(/[^A-Za-z0-9\-_/ ]/g, "");
+}
+
 export function sanitizeAuditValue(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "object") return JSON.stringify(value);

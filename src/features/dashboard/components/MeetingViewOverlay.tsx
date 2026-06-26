@@ -18,30 +18,19 @@ import {
   FgDeliveryMetricsPanel,
   MonthlyTrendChart,
 } from "@/features/dashboard/components/dashboard-charts";
+import {
+  pendingCnfDatabaseRoute,
+  pendingProtocolDatabaseRoute,
+  pendingReportDatabaseRoute,
+  projectsDatabaseRoute,
+  supportActivitiesRoute,
+} from "@/lib/dashboardDrilldown";
 import { formatAppDateTime } from "@/lib/date";
 import { getDashboardData } from "@/services/dashboardService";
 import type { DashboardData } from "@/types";
 
-function supportRoute(params?: Record<string, string | undefined>) {
-  const search = new URLSearchParams();
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      if (value) search.set(key, value);
-    }
-  }
-  const query = search.toString();
-  return query ? `/support-activities?${query}` : "/support-activities";
-}
-
 function dbRoute(params?: Record<string, string | undefined>) {
-  const search = new URLSearchParams();
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      if (value) search.set(key, value);
-    }
-  }
-  const query = search.toString();
-  return query ? `/projects/database?${query}` : "/projects/database";
+  return projectsDatabaseRoute(params);
 }
 
 interface MeetingViewOverlayProps {
@@ -79,9 +68,9 @@ export function MeetingViewOverlay({ onExit }: MeetingViewOverlayProps) {
       { label: "Open", value: cards.totalOpen, icon: <ClockCircleOutlined />, color: "#2563eb", route: dbRoute({ final_status: "OPEN" }) },
       { label: "Closed", value: cards.totalClosed, icon: <CheckCircleOutlined />, color: "#16a34a", route: dbRoute({ final_status: "CLOSED" }) },
       { label: "Overdue", value: cards.overdue, icon: <ExclamationCircleOutlined />, color: "#dc2626", route: dbRoute({ final_status: "OPEN", due_window: "overdue" }) },
-      { label: "Pending CNF", value: cards.pendingCnf, icon: <FileTextOutlined />, color: "#d97706", route: dbRoute({ final_status: "OPEN" }) },
-      { label: "Pending Protocol", value: cards.pendingProtocol, icon: <AlertOutlined />, color: "#7c3aed", route: dbRoute({ final_status: "OPEN" }) },
-      { label: "Pending Report", value: cards.pendingReport, icon: <BarChartOutlined />, color: "#0d9488", route: dbRoute({ final_status: "OPEN" }) },
+      { label: "Pending CNF", value: cards.pendingCnf, icon: <FileTextOutlined />, color: "#d97706", route: pendingCnfDatabaseRoute() },
+      { label: "Pending Protocol", value: cards.pendingProtocol, icon: <AlertOutlined />, color: "#7c3aed", route: pendingProtocolDatabaseRoute() },
+      { label: "Pending Report", value: cards.pendingReport, icon: <BarChartOutlined />, color: "#0d9488", route: pendingReportDatabaseRoute() },
     ];
   }, [data]);
 
@@ -190,14 +179,14 @@ export function MeetingViewOverlay({ onExit }: MeetingViewOverlayProps) {
                 <div className="dashboard-panel dashboard-panel-compact">
                   <div className="dashboard-panel-header">Support Activities</div>
                   <div className="dashboard-panel-body dashboard-support-summary">
-                    <button type="button" className="due-date-action" onClick={() => navigate(supportRoute())}>
+                    <button type="button" className="due-date-action" onClick={() => navigate(supportActivitiesRoute())}>
                       <span>Total Activities</span>
                       <strong>{data.supportSummary.total}</strong>
                     </button>
                     <button
                       type="button"
                       className="due-date-action due-date-action--overdue"
-                      onClick={() => navigate(supportRoute({ due_window: "overdue" }))}
+                      onClick={() => navigate(supportActivitiesRoute({ due_window: "overdue" }))}
                     >
                       <span>Overdue</span>
                       <strong className="danger-text">{data.supportSummary.overdue}</strong>
@@ -205,7 +194,7 @@ export function MeetingViewOverlay({ onExit }: MeetingViewOverlayProps) {
                     <button
                       type="button"
                       className="due-date-action due-date-action--soon"
-                      onClick={() => navigate(supportRoute({ due_window: "within7" }))}
+                      onClick={() => navigate(supportActivitiesRoute({ due_window: "within7" }))}
                     >
                       <span>Within 7 Days</span>
                       <strong>{data.supportSummary.dueSoon}</strong>
@@ -214,7 +203,7 @@ export function MeetingViewOverlay({ onExit }: MeetingViewOverlayProps) {
                       block
                       type="link"
                       className="dashboard-support-link"
-                      onClick={() => navigate(supportRoute())}
+                      onClick={() => navigate(supportActivitiesRoute())}
                     >
                       View Support Activities
                     </Button>
