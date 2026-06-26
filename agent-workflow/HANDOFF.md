@@ -40,7 +40,7 @@ Executed `CODEX_BUG_AUDIT_HANDOFF.md` remediation for Phases 1–5 except deferr
 |---|---|---|
 | Type-check | PASSED | `npm run typecheck` |
 | Build | PASSED | `npm run build` |
-| Supabase migration 030 | NOT_RUN | Local SQL only |
+| Supabase migration 030 | PASSED | Applied `audit_password_feedback_rls` |
 | URL filter verification | PASSED | `npx tsx scripts/verify-url-derived-filters.ts` |
 | Debug instrumentation | REMOVED | After verification script pass |
 
@@ -61,6 +61,6 @@ Executed `CODEX_BUG_AUDIT_HANDOFF.md` remediation for Phases 1–5 except deferr
 ## Supabase Sync
 
 - Migration changed: `030_audit_password_feedback_rls.sql`
-- Applied to Supabase: `NO`
+- Applied to Supabase: `YES (audit_password_feedback_rls)`
 - Verification command/result: `NOT_RUN`
 - Rollback: `Revert migration 030 if policy/password changes cause regressions`
