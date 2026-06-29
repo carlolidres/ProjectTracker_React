@@ -2,6 +2,163 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.cnf-tracker-list-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cnf-tracker-list-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cnf-tracker-list-search {
+  flex: 0 1 320px;
+  width: min(100%, 320px);
+  min-width: 0;
+}
+
+.cnf-tracker-list-toolbar-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .cnf-tracker-list-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .cnf-tracker-list-search {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
+  }
+
+  .cnf-tracker-list-toolbar-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 520px) {
+  .cnf-tracker-list-toolbar-actions .ant-btn .ant-btn-icon + span {
+    display: none;
+  }
+
+  .cnf-tracker-list-toolbar-actions .ant-btn {
+    padding-inline: 10px;
+  }
+}
+
+.cnf-tracker-list-table-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cnf-tracker-list-table {
+  --cnf-tracker-row-height: 47px;
+}
+
+.cnf-tracker-list-table .ant-table-body {
+  overflow-y: hidden !important;
+}
+
+.cnf-tracker-list-table .ant-table-content {
+  overflow-y: hidden !important;
+}
+
+.cnf-tracker-list-table .ant-table-tbody > tr > td {
+  padding-block: 8px;
+}
+
+@media (max-width: 900px) {
+  .cnf-tracker-list-table {
+    --cnf-tracker-row-height: 44px;
+  }
+
+  .cnf-tracker-list-table .ant-table-tbody > tr > td {
+    padding-block: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .cnf-tracker-list-table {
+    --cnf-tracker-row-height: 40px;
+  }
+
+  .cnf-tracker-list-table .ant-table-tbody > tr > td {
+    padding-block: 4px;
+    font-size: 12px;
+  }
+}
+
+.cnf-tracker-list-table .ant-table-wrapper {
+  max-width: 100%;
+}
+
+.cnf-tracker-list-table .ant-table-cell-fix-left,
+.cnf-tracker-list-table .ant-table-cell-fix-right {
+  z-index: 2;
+  background: var(--panel, #fff);
+}
+
+.cnf-tracker-list-table .ant-table-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--panel, #fff);
+}
+
+.cnf-tracker-list-table .ant-table-thead > tr > th.ant-table-cell-fix-left {
+  z-index: 4;
+}
+
+[data-theme="dark"] .cnf-tracker-list-table .ant-table-thead > tr > th,
+[data-theme="dark"] .cnf-tracker-list-table .ant-table-cell-fix-left,
+[data-theme="dark"] .cnf-tracker-list-table .ant-table-cell-fix-right {
+  background: var(--panel, #141414);
+}
+
+.cnf-tracker-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+}
+
+.cnf-tracker-column-settings {
+  background: var(--panel, #fff);
+  border: 1px solid var(--border, #f0f0f0);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  max-width: 280px;
+}
+
+.cnf-tracker-column-settings .ant-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .cnf-tracker-sticky-header {
@@ -21,6 +178,69 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.cnf-tracker-detail-modal .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: min(90vh, 920px);
+  overflow: hidden;
+}
+
+.cnf-tracker-detail-modal .ant-modal-header {
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding: 12px 56px 12px 16px;
+}
+
+.cnf-tracker-detail-modal .ant-modal-close {
+  top: 14px;
+  inset-inline-end: 14px;
+  width: 32px;
+  height: 32px;
+  z-index: 2;
+}
+
+.cnf-tracker-detail-modal .ant-modal-body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding-top: 12px;
+}
+
+.cnf-tracker-detail-modal-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+  position: static;
+}
+
+.cnf-tracker-detail-modal-title h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.cnf-tracker-detail-modal-title p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cnf-tracker-detail-modal-panel {
+  margin-top: 0;
+  border: none;
+  background: transparent;
+}
+
+.cnf-tracker-detail-modal-panel .cnf-tracker-form-body {
+  padding-top: 0;
 }
 
 .cnf-tracker-panel {

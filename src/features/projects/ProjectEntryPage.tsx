@@ -11,7 +11,7 @@ import type { ButtonProps } from "antd";
 import type { HookAPI } from "antd/es/modal/useModal";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   clearProjectEntryDraft,
   loadProjectEntryDraft,
@@ -64,6 +64,7 @@ import {
 } from "@/lib/projectHierarchy";
 import { formatServiceError, isMissingValue, toTitleCase } from "@/lib/utils";
 import { emitLogicViolation, isLogicViolationError } from "@/lib/logicViolationEvents";
+import { emitProjectDataChanged } from "@/lib/projectDataEvents";
 import { refreshAllNotifications } from "@/services/notificationService";
 import {
   attachCnfLinkToProject,
@@ -268,9 +269,10 @@ function applyProjectOwnerSavePolicy(
 }
 
 export function ProjectEntryPage() {
-  const { modal } = App.useApp();
+  const { modal, message: messageApi } = App.useApp();
   const { user, profile } = useAuth();
   useDiagLifecycle("ProjectEntryPage");
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectIdParam = searchParams.get("projectId");
   const { registry } = useRegistry();
@@ -319,6 +321,15 @@ export function ProjectEntryPage() {
       skipNextLoadRef.current = true;
       setSearchParams({}, { replace: true });
     }
+  }
+
+  function focusFirstProjectField() {
+    window.requestAnimationFrame(() => {
+      const node = document.getElementById("project-first-field-control");
+      if (node instanceof HTMLElement) {
+        node.focus();
+      }
+    });
   }
 
   function restoreProjectDraft(draft: ReturnType<typeof loadProjectEntryDraft>) {
@@ -602,14 +613,14 @@ export function ProjectEntryPage() {
 
       const isNew = !projectIdParam;
       const payload = applyProjectOwnerSavePolicy(project, profile, isNew, baselineProjectRef.current);
+      let savedProjectId = payload.project_id;
       if (isNew) {
         const result = await saveProject(payload, user.email);
-        message.success(`Project ${result.project_id} created`);
+        savedProjectId = result.project_id;
       } else {
         await updateProject(payload.project_id, payload, user.email, {
           dateAdjustmentsConfirmed: dateChanges.length > 0,
         });
-        message.success("Project updated");
       }
       try {
         await refreshAllNotifications();
@@ -619,9 +630,29 @@ export function ProjectEntryPage() {
           : "Notification refresh failed.";
         message.warning(`Project saved, but notifications were not refreshed: ${notificationMessage}`);
       }
+      emitProjectDataChanged({
+        projectId: savedProjectId,
+        action: isNew ? "create" : "update",
+      });
       if (user?.id) clearProjectEntryDraft(user.id);
       await prepareNewProject();
-      message.info("Form cleared for next entry");
+      focusFirstProjectField();
+      messageApi.success({
+        content: (
+          <span role="status" aria-live="polite">
+            Project data was saved successfully.{" "}
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, height: "auto" }}
+              onClick={() => navigate(`/projects/database?search=${encodeURIComponent(savedProjectId)}`)}
+            >
+              View saved record
+            </Button>
+          </span>
+        ),
+        duration: 8,
+      });
     } catch (err) {
       const errorMessage = formatServiceError(err, "Failed to save project.");
       if (isLogicViolationError(errorMessage)) {
@@ -764,14 +795,18 @@ export function ProjectEntryPage() {
               disabled={viewOnly}
               onClick={handleClear}
             />
-            <ProjectStickyActionButton
-              title="Save Project"
+            <Button
+              className="project-sticky-action-btn project-sticky-save-btn"
               type="primary"
+              title="Save Project"
               icon={<SaveOutlined />}
               loading={saving}
-              disabled={viewOnly}
+              disabled={viewOnly || saving}
+              aria-label={saving ? "Saving project" : "Save Project"}
               onClick={() => void handleSave()}
-            />
+            >
+              {saving ? "Saving..." : "Save"}
+            </Button>
           </div>
         </div>
 
@@ -788,6 +823,7 @@ export function ProjectEntryPage() {
                   <ProjectFieldControl
                     key={field.key}
                     field={field}
+                    domId={field.key === "project_owner" ? "project-first-field" : undefined}
                     value={String(project[field.key as keyof ProjectHierarchy] ?? "")}
                     readOnly={headerReadOnly}
                     disabled={field.type === "readonly"}

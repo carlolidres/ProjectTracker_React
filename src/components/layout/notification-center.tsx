@@ -13,7 +13,8 @@ import {
   isCriticalLogicViolation,
   isInfoLogicViolation,
 } from "@/lib/logicViolations";
-import { getNotificationCount, listNotifications, refreshAllNotifications } from "@/services/notificationService";
+import { getNotificationCount, listNotifications, refreshAllNotifications, dismissNotification } from "@/services/notificationService";
+import { useAuth } from "@/app/auth-provider";
 import type { Notification } from "@/types";
 
 const severityColor: Record<string, string> = {
@@ -32,6 +33,7 @@ interface NotificationCenterProps {
 
 export function NotificationCenter({ open, onOpenChange }: Readonly<NotificationCenterProps>) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -120,7 +122,7 @@ export function NotificationCenter({ open, onOpenChange }: Readonly<Notification
       <Drawer
         title="Notifications"
         placement="right"
-        width={460}
+        width={640}
         open={open}
         onClose={() => onOpenChange(false)}
         extra={
@@ -155,6 +157,20 @@ export function NotificationCenter({ open, onOpenChange }: Readonly<Notification
                       : undefined
                 }
                 actions={[
+                  ...(notification.severity === "high" || notification.severity === "critical" || notification.severity === "logic"
+                    ? [
+                        <Button
+                          key="dismiss"
+                          type="link"
+                          onClick={() => {
+                            if (!user?.email) return;
+                            void dismissNotification(notification.notification_id, user.email).then(() => refresh());
+                          }}
+                        >
+                          Dismiss
+                        </Button>,
+                      ]
+                    : []),
                   <Button key="view" type="link" onClick={() => navigate(`/projects?projectId=${notification.project_id}`)}>
                     View Project
                   </Button>,

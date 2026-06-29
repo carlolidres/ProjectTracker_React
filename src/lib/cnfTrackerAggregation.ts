@@ -38,8 +38,39 @@ function parseCnfEntries(row: ProjectRow): CnfEntry[] {
   return [rowAsCnfEntry(row)];
 }
 
-function normalizeCnfReference(value: string): string {
+export function normalizeCnfReference(value: string): string {
   return value.trim().toUpperCase();
+}
+
+export function isSmokeTestCnfReference(value: string): boolean {
+  const normalized = normalizeCnfReference(value);
+  if (!normalized || normalized === "N/A") return false;
+  return normalized.includes("SMOKE");
+}
+
+export function collectAllCnfMatchedLines(rows: ProjectRow[]): CnfMatchedLine[] {
+  const matches: CnfMatchedLine[] = [];
+  const seenKeys = new Set<string>();
+
+  for (const row of rows) {
+    const entries = parseCnfEntries(row);
+    entries.forEach((entry, entryIndex) => {
+      const cnfRef = String(entry.cnf_reference ?? "").trim();
+      if (isMissingValue(cnfRef) || isSmokeTestCnfReference(cnfRef)) return;
+      const key = `${row.record_id}:${entryIndex}:${normalizeCnfReference(cnfRef)}`;
+      if (seenKeys.has(key)) return;
+      seenKeys.add(key);
+      matches.push({ row, entryIndex, entry });
+    });
+  }
+
+  return matches.sort((a, b) => {
+    const cnfCompare = normalizeCnfReference(a.entry.cnf_reference).localeCompare(
+      normalizeCnfReference(b.entry.cnf_reference),
+    );
+    if (cnfCompare !== 0) return cnfCompare;
+    return String(a.row.po_control_no).localeCompare(String(b.row.po_control_no));
+  });
 }
 
 export function matchProjectLinesByCnfReference(
@@ -118,7 +149,7 @@ export function collectRegisteredCnfReferences(
 
   const remember = (cnfReference: string, row?: ProjectRow, fallbackOwner?: string) => {
     const trimmed = cnfReference.trim();
-    if (isMissingValue(trimmed)) return;
+    if (isMissingValue(trimmed) || isSmokeTestCnfReference(trimmed)) return;
     const key = normalizeCnfReference(trimmed);
     if (byKey.has(key)) return;
     byKey.set(key, {

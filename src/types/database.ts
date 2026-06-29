@@ -22,6 +22,10 @@ export interface Notification {
   message: string;
   status: string;
   created_at: string;
+  dismissed_at?: string | null;
+  resolved_at?: string | null;
+  dismissed_by?: string | null;
+  resolved_by?: string | null;
   kind?: "logic_violation_critical" | "logic_violation_info" | "urgency";
 }
 

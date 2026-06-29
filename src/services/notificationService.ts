@@ -1,7 +1,7 @@
 import { buildLogicViolationNotifications } from "@/lib/logicViolations";
 import {
-  applyNotificationRetention,
   buildStableNotificationId,
+  filterActiveNotifications,
   isRetainedNotificationSeverity,
   NOTIFICATION_RETENTION_MS,
 } from "@/lib/notificationRetention";
@@ -150,55 +150,85 @@ function buildAllNotifications(rows: ProjectRow[]) {
   ]);
 }
 
-async function loadStoredNotificationTimestamps(): Promise<Map<string, string>> {
+async function loadStoredNotificationState(): Promise<
+  Map<string, { created_at: string; status: string; dismissed_at?: string | null; resolved_at?: string | null }>
+> {
   const { data, error } = await supabase
     .from("notifications")
-    .select("notification_id, created_at");
+    .select("notification_id, created_at, status, dismissed_at, resolved_at");
   if (error) throw error;
-  return new Map((data ?? []).map((row) => [row.notification_id, row.created_at]));
+  return new Map(
+    (data ?? []).map((row) => [
+      row.notification_id,
+      {
+        created_at: row.created_at,
+        status: row.status,
+        dismissed_at: row.dismissed_at,
+        resolved_at: row.resolved_at,
+      },
+    ]),
+  );
 }
 
-function mergeNotificationTimestamps(
+function mergeNotificationState(
   notifications: Omit<Notification, "created_at">[],
-  storedTimestamps: Map<string, string>,
+  stored: Map<string, { created_at: string; status: string; dismissed_at?: string | null; resolved_at?: string | null }>,
 ): Notification[] {
   const now = new Date().toISOString();
-  return notifications.map((notification) => ({
-    ...notification,
-    created_at: storedTimestamps.get(notification.notification_id) ?? now,
-  }));
+  return notifications.map((notification) => {
+    const existing = stored.get(notification.notification_id);
+    return {
+      ...notification,
+      created_at: existing?.created_at ?? now,
+      status: existing?.status ?? notification.status ?? "OPEN",
+      dismissed_at: existing?.dismissed_at ?? null,
+      resolved_at: existing?.resolved_at ?? null,
+    };
+  });
+}
+
+async function purgeExpiredStandardNotifications(): Promise<void> {
+  const { error } = await supabase.rpc("purge_expired_standard_notifications");
+  if (error) {
+    // Fallback when migration 031 is not applied yet.
+    if (!error.message.includes("purge_expired_standard_notifications")) {
+      throw error;
+    }
+  }
 }
 
 export async function refreshAllNotifications(): Promise<void> {
+  await purgeExpiredStandardNotifications().catch(() => undefined);
+
   const rows = await listActiveProjects();
   const notifications = buildAllNotifications(rows);
-  const storedTimestamps = await loadStoredNotificationTimestamps();
+  const storedState = await loadStoredNotificationState();
   const now = new Date().toISOString();
   const currentIds = new Set(notifications.map((notification) => notification.notification_id));
 
-  const staleIds = [...storedTimestamps.keys()].filter((notificationId) => !currentIds.has(notificationId));
-  const expiredIds = notifications
-    .filter((notification) => {
-      if (isRetainedNotificationSeverity(notification.severity)) return false;
-      const createdAt = storedTimestamps.get(notification.notification_id);
-      if (!createdAt) return false;
-      const createdMs = new Date(createdAt).getTime();
-      return !Number.isNaN(createdMs) && Date.now() - createdMs >= NOTIFICATION_RETENTION_MS;
-    })
-    .map((notification) => notification.notification_id);
+  const staleIds = [...storedState.keys()].filter((notificationId) => !currentIds.has(notificationId));
 
-  const deleteIds = [...new Set([...staleIds, ...expiredIds])];
-  if (deleteIds.length) {
-    const { error } = await supabase.from("notifications").delete().in("notification_id", deleteIds);
+  if (staleIds.length) {
+    const { error } = await supabase.from("notifications").delete().in("notification_id", staleIds);
     if (error) throw error;
   }
 
-  const payload = notifications
-    .filter((notification) => !expiredIds.includes(notification.notification_id))
-    .map((notification) => ({
+  const payload = notifications.map((notification) => {
+    const existing = storedState.get(notification.notification_id);
+    const createdAt = existing?.created_at ?? now;
+    const isExpiredStandard =
+      existing?.status === "OPEN"
+      && !isRetainedNotificationSeverity(notification.severity)
+      && Date.now() - new Date(createdAt).getTime() >= NOTIFICATION_RETENTION_MS;
+
+    return {
       ...notification,
-      created_at: storedTimestamps.get(notification.notification_id) ?? now,
-    }));
+      created_at: createdAt,
+      status: isExpiredStandard ? "EXPIRED" : existing?.status ?? "OPEN",
+      dismissed_at: existing?.dismissed_at ?? null,
+      resolved_at: existing?.resolved_at ?? null,
+    };
+  }).filter((notification) => notification.status === "OPEN" || storedState.has(notification.notification_id));
 
   if (!payload.length) return;
 
@@ -206,16 +236,44 @@ export async function refreshAllNotifications(): Promise<void> {
   if (error) throw error;
 }
 
+export async function dismissNotification(notificationId: string, userEmail: string): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("notifications")
+    .update({
+      status: "DISMISSED",
+      dismissed_at: now,
+      dismissed_by: userEmail,
+    })
+    .eq("notification_id", notificationId);
+  if (error) throw error;
+}
+
+export async function resolveNotification(notificationId: string, userEmail: string): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("notifications")
+    .update({
+      status: "RESOLVED",
+      resolved_at: now,
+      resolved_by: userEmail,
+    })
+    .eq("notification_id", notificationId);
+  if (error) throw error;
+}
+
 export async function listNotifications(): Promise<Notification[]> {
+  await purgeExpiredStandardNotifications().catch(() => undefined);
+
   const rows = await listActiveProjects();
   const notifications = buildAllNotifications(rows);
-  let storedTimestamps = new Map<string, string>();
+  let storedState = new Map<string, { created_at: string; status: string; dismissed_at?: string | null; resolved_at?: string | null }>();
   try {
-    storedTimestamps = await loadStoredNotificationTimestamps();
+    storedState = await loadStoredNotificationState();
   } catch {
     // Listing still works when the notifications table is unavailable.
   }
-  return applyNotificationRetention(mergeNotificationTimestamps(notifications, storedTimestamps));
+  return filterActiveNotifications(mergeNotificationState(notifications, storedState));
 }
 
 export async function getNotificationCount(): Promise<number> {

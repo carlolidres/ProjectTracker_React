@@ -7,6 +7,7 @@ import { ProjectIdLink } from "@/components/common/project-id-link";
 import { AppShell } from "@/components/layout/app-shell";
 import { DUE_WINDOW_FILTER_OPTIONS, PENDING_ROLE_FILTER_OPTIONS } from "@/lib/fgUrgency";
 import { formatAppDate, formatAppMonth } from "@/lib/date";
+import { subscribeProjectDataChanged } from "@/lib/projectDataEvents";
 import { projectFiltersFromSearchParams } from "@/lib/urlDerivedFilters";
 import { valueOrNA } from "@/lib/utils";
 import { exportProjectsToExcel } from "@/services/exportService";
@@ -36,6 +37,10 @@ export function ProjectsDatabasePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => subscribeProjectDataChanged(() => {
+    void load();
+  }), [load]);
 
   useEffect(() => {
     setFilters((current) => projectFiltersFromSearchParams(searchParams, current));

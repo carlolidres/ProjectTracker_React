@@ -119,6 +119,12 @@ export function normalizeStoredAppDate(value: string): string {
   return serializeAppDate(parseAppDateValue(text)) || text;
 }
 
+export function formatFgMonthDate(value?: string | null): string {
+  const parsed = parseFgMonthValue(value);
+  if (!parsed) return "-";
+  return parsed.endOf("month").format(APP_DATE_DISPLAY_FORMAT);
+}
+
 export function normalizeStoredFgMonth(value: string): string {
   const text = String(value ?? "").trim();
   if (!text || text === "N/A") return "";
