@@ -32,7 +32,8 @@ CNF Tracker list-first UI with detail modal, toolbar cleanup, 7-row paging, smok
 | Type-check | PASSED | `npm run typecheck` |
 | Build | PASSED | `npm run build` |
 | Notification retention tests | PASSED | `npm run test:notifications` |
-| Supabase migration 031 | PENDING | Apply on push/deploy |
+| Supabase migration 031 | PASSED | Applied remotely via MCP (`notification_retention`) |
+| GitHub Pages deploy | PENDING | Triggered by push `9be549f` |
 
 ## Next Action
 

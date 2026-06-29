@@ -795,18 +795,14 @@ export function ProjectEntryPage() {
               disabled={viewOnly}
               onClick={handleClear}
             />
-            <Button
-              className="project-sticky-action-btn project-sticky-save-btn"
+            <ProjectStickyActionButton
+              title={saving ? "Saving project" : "Save Project"}
               type="primary"
-              title="Save Project"
               icon={<SaveOutlined />}
               loading={saving}
               disabled={viewOnly || saving}
-              aria-label={saving ? "Saving project" : "Save Project"}
               onClick={() => void handleSave()}
-            >
-              {saving ? "Saving..." : "Save"}
-            </Button>
+            />
           </div>
         </div>
 
