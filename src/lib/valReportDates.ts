@@ -20,6 +20,10 @@ export const VAL_STATUS_TARGET_DATE_PAIRS = [
 /** VAL status fields whose paired number/date inputs are disabled when status is Not Applicable. */
 export const VAL_STATUS_NOT_APPLICABLE_DISABLED_PAIRS = [
   {
+    statusKey: "protocol_Status",
+    disabledKeys: ["protocol_no", "protocol_target_date"],
+  },
+  {
     statusKey: "val_interim_report_status",
     disabledKeys: ["val_interim_report_no", "val_interim_report_target_date"],
   },

@@ -11,7 +11,7 @@ import type { ButtonProps } from "antd";
 import type { HookAPI } from "antd/es/modal/useModal";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   clearProjectEntryDraft,
   loadProjectEntryDraft,
@@ -65,7 +65,8 @@ import {
 import { formatServiceError, isMissingValue, toTitleCase } from "@/lib/utils";
 import { emitLogicViolation, isLogicViolationError } from "@/lib/logicViolationEvents";
 import { emitProjectDataChanged } from "@/lib/projectDataEvents";
-import { refreshAllNotifications } from "@/services/notificationService";
+import { emitNotificationsRefreshed } from "@/lib/notificationEvents";
+import { refreshAllNotificationsWithRetry } from "@/services/notificationService";
 import {
   attachCnfLinkToProject,
   copyAndLinkCnfFromMother,
@@ -268,11 +269,12 @@ function applyProjectOwnerSavePolicy(
   };
 }
 
+const PROJECT_SAVE_MESSAGE_KEY = "project-save";
+
 export function ProjectEntryPage() {
   const { modal, message: messageApi } = App.useApp();
   const { user, profile } = useAuth();
   useDiagLifecycle("ProjectEntryPage");
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectIdParam = searchParams.get("projectId");
   const { registry } = useRegistry();
@@ -307,7 +309,7 @@ export function ProjectEntryPage() {
   const allCollapseKeys = useMemo(() => collectAllCollapseKeys(project), [project]);
   const bmrLockStatus = useMemo(() => projectBmrLockStatusLabel(project), [project]);
   const bmrLockTooltip =
-    "BMR for the next commercial batch remains locked until the Endorsement Report Status is Approved or Not Applicable.";
+    "Locked when a VAL/VER/CHAR study exists and Endorsement Report Status is not yet Approved or Not Applicable. Unlocked after endorsement is Approved or Not Applicable. Not Applicable when no validation study applies.";
 
   async function prepareNewProject() {
     const nextId = await getNextProjectId();
@@ -614,6 +616,18 @@ export function ProjectEntryPage() {
       const isNew = !projectIdParam;
       const payload = applyProjectOwnerSavePolicy(project, profile, isNew, baselineProjectRef.current);
       let savedProjectId = payload.project_id;
+
+      messageApi.open({
+        type: "loading",
+        content: (
+          <span role="status" aria-live="polite">
+            Saving project...
+          </span>
+        ),
+        key: PROJECT_SAVE_MESSAGE_KEY,
+        duration: 0,
+      });
+
       if (isNew) {
         const result = await saveProject(payload, user.email);
         savedProjectId = result.project_id;
@@ -622,14 +636,28 @@ export function ProjectEntryPage() {
           dateAdjustmentsConfirmed: dateChanges.length > 0,
         });
       }
+
+      messageApi.open({
+        type: "loading",
+        content: (
+          <span role="status" aria-live="polite">
+            Processing related updates...
+          </span>
+        ),
+        key: PROJECT_SAVE_MESSAGE_KEY,
+        duration: 0,
+      });
+
       try {
-        await refreshAllNotifications();
+        await refreshAllNotificationsWithRetry();
+        emitNotificationsRefreshed();
       } catch (notificationError) {
-        const notificationMessage = notificationError instanceof Error
-          ? notificationError.message
-          : "Notification refresh failed.";
-        message.warning(`Project saved, but notifications were not refreshed: ${notificationMessage}`);
+        console.error(
+          "Notification refresh failed after project save:",
+          formatServiceError(notificationError, "Unknown notification refresh error"),
+        );
       }
+
       emitProjectDataChanged({
         projectId: savedProjectId,
         action: isNew ? "create" : "update",
@@ -637,29 +665,24 @@ export function ProjectEntryPage() {
       if (user?.id) clearProjectEntryDraft(user.id);
       await prepareNewProject();
       focusFirstProjectField();
+
       messageApi.success({
         content: (
           <span role="status" aria-live="polite">
-            Project data was saved successfully.{" "}
-            <Button
-              type="link"
-              size="small"
-              style={{ padding: 0, height: "auto" }}
-              onClick={() => navigate(`/projects/database?search=${encodeURIComponent(savedProjectId)}`)}
-            >
-              View saved record
-            </Button>
+            Successfully save!
           </span>
         ),
-        duration: 8,
+        key: PROJECT_SAVE_MESSAGE_KEY,
+        duration: 5,
       });
     } catch (err) {
+      messageApi.destroy(PROJECT_SAVE_MESSAGE_KEY);
       const errorMessage = formatServiceError(err, "Failed to save project.");
       if (isLogicViolationError(errorMessage)) {
         emitLogicViolation({ message: errorMessage, projectId: project.project_id });
       }
       setError(errorMessage);
-      message.error(errorMessage);
+      messageApi.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -811,10 +834,13 @@ export function ProjectEntryPage() {
             <div className="project-form-grid">
               {HEADER_FIELDS.map((field) => {
                 const isProjectOwnerField = field.key === "project_owner";
-                const headerReadOnly =
-                  (viewOnly && field.type !== "readonly") ||
-                  (isProjectOwnerField && !canEditProjectOwner) ||
-                  (!isProjectOwnerField && !canEditHeaderFields && !viewOnly);
+                const headerReadOnly = viewOnly && field.type !== "readonly";
+                const headerDisabled =
+                  field.type === "readonly" ||
+                  (!viewOnly && (
+                    (isProjectOwnerField && !canEditProjectOwner) ||
+                    (!isProjectOwnerField && !canEditHeaderFields)
+                  ));
                 return (
                   <ProjectFieldControl
                     key={field.key}
@@ -822,7 +848,7 @@ export function ProjectEntryPage() {
                     domId={field.key === "project_owner" ? "project-first-field" : undefined}
                     value={String(project[field.key as keyof ProjectHierarchy] ?? "")}
                     readOnly={headerReadOnly}
-                    disabled={field.type === "readonly"}
+                    disabled={headerDisabled}
                     registry={registry}
                     onChange={(value) => updateProjectHead(field.key as keyof ProjectHierarchy, value)}
                   />

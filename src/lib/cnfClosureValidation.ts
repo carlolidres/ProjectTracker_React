@@ -1,5 +1,5 @@
 import { matchProjectLinesByCnfReference } from "@/lib/cnfTrackerAggregation";
-import { isApprovedOrNotApplicableStatus, isApprovedStatus } from "@/lib/utils";
+import { isApprovedStatus, isClosureAcceptable } from "@/lib/utils";
 import type { ProjectRow } from "@/types";
 
 export interface CnfClosureBlocker {
@@ -47,7 +47,7 @@ export function validateCnfTrackerClosure(
     const status = gate.fromEntry
       ? String(first.entry[gate.key as keyof typeof first.entry] ?? "")
       : String(first.row[gate.key as keyof typeof first.row] ?? "");
-    if (!isApprovedOrNotApplicableStatus(status)) {
+    if (!isClosureAcceptable(status)) {
       blockers.push({
         field: gate.key,
         label: gate.label,

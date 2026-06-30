@@ -108,7 +108,7 @@ export function buildIntegrityReport(graph: SchemaGraph, selectedTable?: string)
     severity: "logic",
     title: "BMR lock depends on endorsement status (frontend)",
     detail:
-      "When any PO has Val_Activity VAL/VER/CHAR, TSD BMR fields stay read-only until Endorsement Report Status is Approved or Not Applicable. This rule is enforced in the React form, not in the database.",
+      "When any PO has Val_Activity VAL/VER/CHAR, the header BMR Lock Status shows Locked until canonical Endorsement Report Status is Approved or Not Applicable; otherwise Unlocked, or Not Applicable when no validation study exists. The TSD tab shows an informational banner when Locked; TSD MO/BMR/PO fields remain editable. This rule is enforced in the React form, not in the database.",
     table: "cnf_projects",
   });
 

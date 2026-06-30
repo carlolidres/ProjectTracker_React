@@ -1,7 +1,9 @@
+import { isApprovedOrNotApplicableStatus } from "@/lib/utils";
 import type { ProjectHierarchy } from "@/types";
 
 const STUDY_ACTIVITIES = new Set(["VAL", "VER", "CHAR"]);
-const BMR_UNLOCK_STATUSES = new Set(["Approved", "Not Applicable"]);
+
+export type BmrLockStatusLabel = "Locked" | "Unlocked" | "Not Applicable";
 
 export function projectHasValidationStudy(project: ProjectHierarchy): boolean {
   for (const batch of project.batches) {
@@ -15,46 +17,25 @@ export function projectHasValidationStudy(project: ProjectHierarchy): boolean {
   return false;
 }
 
-export function batchEndorsementUnlocksBmr(project: ProjectHierarchy, batchIndex: number): boolean {
+function canonicalEndorsementStatus(project: ProjectHierarchy): string {
   const canonicalPo = project.batches[0]?.mo_controls[0]?.po_controls[0];
-  if (canonicalPo) {
-    const canonicalStatus = String(canonicalPo.endorsement_report_status ?? "").trim();
-    if (BMR_UNLOCK_STATUSES.has(canonicalStatus)) return true;
-  }
-
-  const batch = project.batches[batchIndex];
-  if (!batch) return false;
-  for (const mo of batch.mo_controls) {
-    for (const po of mo.po_controls) {
-      const status = String(po.endorsement_report_status ?? "").trim();
-      if (BMR_UNLOCK_STATUSES.has(status)) return true;
-    }
-  }
-  return false;
+  return String(canonicalPo?.endorsement_report_status ?? "").trim();
 }
 
-export function isBmrLockedForBatch(project: ProjectHierarchy, batchIndex: number): boolean {
-  if (!projectHasValidationStudy(project)) return false;
-  return !batchEndorsementUnlocksBmr(project, batchIndex);
+function endorsementUnlocksBmr(status: string): boolean {
+  return isApprovedOrNotApplicableStatus(status);
 }
 
-/** True when any batch still has BMR locked under validation-study rules. */
+/** Informational status from validation study presence and canonical endorsement report status. */
+export function projectBmrLockStatusLabel(project: ProjectHierarchy): BmrLockStatusLabel {
+  if (!projectHasValidationStudy(project)) return "Not Applicable";
+  if (endorsementUnlocksBmr(canonicalEndorsementStatus(project))) return "Unlocked";
+  return "Locked";
+}
+
+/** True when a validation study exists and endorsement is not yet Approved or Not Applicable. */
 export function isProjectBmrLocked(project: ProjectHierarchy): boolean {
-  if (!projectHasValidationStudy(project)) return false;
-  return project.batches.some((_, batchIndex) => isBmrLockedForBatch(project, batchIndex));
-}
-
-export function projectBmrLockStatusLabel(project: ProjectHierarchy): "Yes" | "No" {
-  return isProjectBmrLocked(project) ? "Yes" : "No";
-}
-
-export function isBmrFieldKey(fieldKey: string): boolean {
-  return [
-    "mo_bmr_po_submission_status",
-    "mo_bmr_po_target_date",
-    "mo_bmr_po_activation_status",
-    "mo_bmr_po_activation_date",
-  ].includes(fieldKey);
+  return projectBmrLockStatusLabel(project) === "Locked";
 }
 
 export const BMR_LOCK_PRODUCT_MESSAGE =

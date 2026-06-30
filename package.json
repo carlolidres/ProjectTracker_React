@@ -14,7 +14,13 @@
     "migrate:validate": "tsx scripts/migrate-sheets-to-supabase.ts --validate",
     "migrate:dry-run": "tsx scripts/migrate-sheets-to-supabase.ts --dry-run",
     "migrate:import": "tsx scripts/migrate-sheets-to-supabase.ts",
-    "test:notifications": "tsx scripts/verify-notification-retention.ts"
+    "test:notifications": "tsx scripts/verify-notification-retention.ts",
+    "test:notification-db": "tsx --tsconfig tsconfig.app.json scripts/verify-notification-db.ts",
+    "test:cnf-closure": "tsx --tsconfig tsconfig.app.json scripts/verify-cnf-closure-validation.ts",
+    "test:cnf-tracker-table": "tsx --tsconfig tsconfig.app.json scripts/verify-cnf-tracker-table-columns.ts",
+    "test:project-save": "tsx --tsconfig tsconfig.app.json scripts/verify-project-save-notifications.ts",
+    "test:bmr-lock": "tsx --tsconfig tsconfig.app.json scripts/verify-bmr-lock.ts",
+    "test:fixes": "npm run test:project-save && npm run test:cnf-closure && npm run test:cnf-tracker-table && npm run test:notification-db && npm run test:notifications && npm run test:bmr-lock"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",

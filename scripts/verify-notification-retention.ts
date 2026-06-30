@@ -3,6 +3,7 @@ import {
   applyNotificationRetention,
   buildStableNotificationId,
   filterActiveNotifications,
+  filterDisplayedNotifications,
 } from "../src/lib/notificationRetention";
 import type { Notification } from "../src/types";
 
@@ -73,5 +74,9 @@ const active = filterActiveNotifications(
 assert.equal(active.length, 2);
 assert.ok(active.some((item) => item.severity === "high"));
 assert.ok(active.some((item) => item.severity === "medium" && item.title.includes("medium")));
+
+const displayed = filterDisplayedNotifications(active);
+assert.equal(displayed.length, 1);
+assert.equal(displayed[0]?.severity, "high");
 
 console.log("verify-notification-retention: PASS");

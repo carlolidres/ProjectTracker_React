@@ -8,12 +8,14 @@ import {
   vibrateNotificationAlert,
   type LogicViolationEventDetail,
 } from "@/lib/logicViolationEvents";
+import { emitNotificationsRefreshed, subscribeNotificationsRefreshed } from "@/lib/notificationEvents";
 import {
   countCriticalLogicViolations,
   isCriticalLogicViolation,
   isInfoLogicViolation,
 } from "@/lib/logicViolations";
-import { getNotificationCount, listNotifications, refreshAllNotifications, dismissNotification } from "@/services/notificationService";
+import { formatServiceError } from "@/lib/utils";
+import { getNotificationCount, listNotifications, refreshAllNotificationsWithRetry, dismissNotification } from "@/services/notificationService";
 import { useAuth } from "@/app/auth-provider";
 import type { Notification } from "@/types";
 
@@ -58,7 +60,8 @@ export function NotificationCenter({ open, onOpenChange }: Readonly<Notification
       setNotifications(items);
       setUnreadCount(count);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load notifications");
+      console.error("Failed to load notifications:", formatServiceError(err, "Unknown error"));
+      setError("Notifications could not be loaded. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -70,6 +73,12 @@ export function NotificationCenter({ open, onOpenChange }: Readonly<Notification
       void refresh();
     }, 60_000);
     return () => window.clearInterval(intervalId);
+  }, [refresh]);
+
+  useEffect(() => {
+    return subscribeNotificationsRefreshed(() => {
+      void refresh();
+    });
   }, [refresh]);
 
   useEffect(() => {
@@ -88,10 +97,12 @@ export function NotificationCenter({ open, onOpenChange }: Readonly<Notification
     setIsGenerating(true);
     setError(null);
     try {
-      await refreshAllNotifications();
+      await refreshAllNotificationsWithRetry();
       await refresh();
+      emitNotificationsRefreshed();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to refresh notifications");
+      console.error("Failed to refresh notifications:", formatServiceError(err, "Unknown error"));
+      setError("Notifications could not be refreshed. Please try again.");
     } finally {
       setIsGenerating(false);
     }

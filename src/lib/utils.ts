@@ -67,10 +67,15 @@ export function isNotApplicableStatus(status: string): boolean {
   return String(status ?? "").trim() === "Not Applicable";
 }
 
-/** VAL workflow statuses that resolve a status field and waive its paired target date. */
-export function isApprovedOrNotApplicableStatus(status: string): boolean {
+/** CNF closure gate: Approved completes the requirement; Not Applicable waives it. */
+export function isClosureAcceptable(status: string | null | undefined): boolean {
   const trimmed = String(status ?? "").trim();
   return trimmed === "Approved" || trimmed === "Not Applicable";
+}
+
+/** VAL workflow statuses that resolve a status field and waive its paired target date. */
+export function isApprovedOrNotApplicableStatus(status: string): boolean {
+  return isClosureAcceptable(status);
 }
 
 export function isMissingValue(value: unknown): boolean {

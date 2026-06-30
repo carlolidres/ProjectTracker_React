@@ -23,97 +23,37 @@ import {
   filterCnfTrackerListRows,
 } from "@/lib/cnfTrackerList";
 import { valueOrNA } from "@/lib/utils";
+import {
+  CNF_TRACKER_LIST_COLUMN_KEYS,
+  CNF_TRACKER_LIST_COLUMN_LABELS,
+  CNF_TRACKER_LIST_DEFAULT_WIDTHS,
+  type CnfTrackerListColumnKey,
+} from "@/lib/cnfTrackerTableColumns";
 
 const DEFAULT_PAGE_SIZE = 7;
 const DEFAULT_ROW_HEIGHT = 47;
 
-const COLUMN_KEYS = [
-  "cnfNo",
-  "qrmrNo",
-  "productName",
-  "productCode",
-  "uniqueBatchNo",
-  "client",
-  "descriptionOfChange",
-  "department",
-  "valActivity",
-  "valBatchSeqNo",
-  "poControlNumber",
-  "fgMonthDate",
-  "closedDate",
-  "protocolNo",
-  "protocolStatus",
-  "interimReportNo",
-  "interimReportStatus",
-  "finalReportNo",
-  "finalReportStatus",
-  "endorsementNo",
-  "endorsementStatus",
-  "actions",
-] as const;
-
-type ColumnKey = (typeof COLUMN_KEYS)[number];
-
-const COLUMN_LABELS: Record<ColumnKey, string> = {
-  cnfNo: "CNF No.",
-  qrmrNo: "QRMR No.",
-  productName: "Product Name",
-  productCode: "Product Code",
-  uniqueBatchNo: "Unique Batch No.",
-  client: "Client",
-  descriptionOfChange: "Description of Change",
-  department: "Department",
-  valActivity: "Val Activity",
-  valBatchSeqNo: "Val Batch Seq. No.",
-  poControlNumber: "PO Control Number",
-  fgMonthDate: "FG Month Date",
-  closedDate: "Closed Date",
-  protocolNo: "Protocol No.",
-  protocolStatus: "Protocol Status",
-  interimReportNo: "Interim Report No.",
-  interimReportStatus: "Interim Report Status",
-  finalReportNo: "Final Report No.",
-  finalReportStatus: "Final Report Status",
-  endorsementNo: "Endorsement No.",
-  endorsementStatus: "Endorsement Status",
-  actions: "Actions",
-};
-
-const DEFAULT_WIDTHS: Record<ColumnKey, number> = {
-  cnfNo: 200,
-  qrmrNo: 120,
-  productName: 180,
-  productCode: 120,
-  uniqueBatchNo: 140,
-  client: 160,
-  descriptionOfChange: 220,
-  department: 120,
-  valActivity: 120,
-  valBatchSeqNo: 140,
-  poControlNumber: 150,
-  fgMonthDate: 130,
-  closedDate: 130,
-  protocolNo: 130,
-  protocolStatus: 150,
-  interimReportNo: 150,
-  interimReportStatus: 170,
-  finalReportNo: 140,
-  finalReportStatus: 160,
-  endorsementNo: 140,
-  endorsementStatus: 170,
-  actions: 90,
-};
-
 interface ResizableTitleProps extends React.HTMLAttributes<HTMLTableCellElement> {
   width?: number;
   onResizeStart?: (event: React.MouseEvent) => void;
+  colSpan?: number;
 }
 
-function ResizableTitle({ width, onResizeStart, style, children, ...rest }: ResizableTitleProps) {
+function ResizableTitle({ width, onResizeStart, style, children, colSpan, ...rest }: ResizableTitleProps) {
+  if (colSpan === 0) {
+    return null;
+  }
+  if (!onResizeStart) {
+    return (
+      <th {...rest} colSpan={colSpan} style={style}>
+        {children}
+      </th>
+    );
+  }
   return (
-    <th {...rest} style={{ ...style, width, position: "relative" }}>
+    <th {...rest} colSpan={colSpan} style={{ ...style, width, position: "relative" }}>
       {children}
-      {width && onResizeStart ? (
+      {width ? (
         <span
           className="cnf-tracker-resize-handle"
           onMouseDown={onResizeStart}
@@ -141,12 +81,14 @@ export function CnfTrackerListTable({
   onLoad,
 }: CnfTrackerListTableProps) {
   const [search, setSearch] = useState("");
-  const [columnWidths, setColumnWidths] = useState(DEFAULT_WIDTHS);
-  const [hiddenColumns, setHiddenColumns] = useState<Set<ColumnKey>>(new Set());
+  const [columnWidths, setColumnWidths] = useState(CNF_TRACKER_LIST_DEFAULT_WIDTHS);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<CnfTrackerListColumnKey>>(new Set());
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowHeight, setRowHeight] = useState(DEFAULT_ROW_HEIGHT);
   const tableWrapRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   const filteredRows = useMemo(() => filterCnfTrackerListRows(rows, search), [rows, search]);
 
@@ -167,7 +109,7 @@ export function CnfTrackerListTable({
 
   const tableBodyHeight = Math.ceil(rowHeight * rowsOnPage);
 
-  const handleResize = useCallback((key: ColumnKey) => {
+  const handleResize = useCallback((key: CnfTrackerListColumnKey) => {
     return (event: React.MouseEvent) => {
       event.preventDefault();
       const startX = event.clientX;
@@ -188,17 +130,17 @@ export function CnfTrackerListTable({
     };
   }, [columnWidths]);
 
-  const columnVisibilityOptions: CheckboxOptionType<ColumnKey>[] = COLUMN_KEYS.filter(
-    (key) => key !== "actions" && key !== "cnfNo",
+  const columnVisibilityOptions: CheckboxOptionType<CnfTrackerListColumnKey>[] = CNF_TRACKER_LIST_COLUMN_KEYS.filter(
+    (key) => key !== "load" && key !== "cnfNo",
   ).map((key) => ({
-    label: COLUMN_LABELS[key],
+    label: CNF_TRACKER_LIST_COLUMN_LABELS[key],
     value: key,
   }));
 
   const allColumns: ColumnsType<CnfTrackerListRow> = useMemo(
     () => [
       {
-        title: COLUMN_LABELS.cnfNo,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.cnfNo,
         dataIndex: "cnfNo",
         key: "cnfNo",
         fixed: "left",
@@ -211,7 +153,7 @@ export function CnfTrackerListTable({
         render: (value: string) => <Typography.Text strong>{valueOrNA(value)}</Typography.Text>,
       },
       {
-        title: COLUMN_LABELS.qrmrNo,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.qrmrNo,
         dataIndex: "qrmrNo",
         key: "qrmrNo",
         width: columnWidths.qrmrNo,
@@ -224,7 +166,7 @@ export function CnfTrackerListTable({
         onFilter: (value, record) => record.qrmrNo === value,
       },
       {
-        title: COLUMN_LABELS.productName,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.productName,
         dataIndex: "productName",
         key: "productName",
         width: columnWidths.productName,
@@ -233,7 +175,7 @@ export function CnfTrackerListTable({
         render: (value: string) => <TruncatedCell value={valueOrNA(value)} maxWidth={columnWidths.productName - 16} />,
       },
       {
-        title: COLUMN_LABELS.productCode,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.productCode,
         dataIndex: "productCode",
         key: "productCode",
         width: columnWidths.productCode,
@@ -241,7 +183,7 @@ export function CnfTrackerListTable({
         onHeaderCell: () => ({ width: columnWidths.productCode, onResizeStart: handleResize("productCode") }),
       },
       {
-        title: COLUMN_LABELS.uniqueBatchNo,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.uniqueBatchNo,
         dataIndex: "uniqueBatchNo",
         key: "uniqueBatchNo",
         width: columnWidths.uniqueBatchNo,
@@ -252,7 +194,7 @@ export function CnfTrackerListTable({
         }),
       },
       {
-        title: COLUMN_LABELS.client,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.client,
         dataIndex: "client",
         key: "client",
         width: columnWidths.client,
@@ -261,7 +203,7 @@ export function CnfTrackerListTable({
         render: (value: string) => <TruncatedCell value={valueOrNA(value)} maxWidth={columnWidths.client - 16} />,
       },
       {
-        title: COLUMN_LABELS.descriptionOfChange,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.descriptionOfChange,
         dataIndex: "descriptionOfChange",
         key: "descriptionOfChange",
         width: columnWidths.descriptionOfChange,
@@ -275,7 +217,7 @@ export function CnfTrackerListTable({
         ),
       },
       {
-        title: COLUMN_LABELS.department,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.department,
         dataIndex: "department",
         key: "department",
         width: columnWidths.department,
@@ -288,7 +230,7 @@ export function CnfTrackerListTable({
         onFilter: (value, record) => record.department === value,
       },
       {
-        title: COLUMN_LABELS.valActivity,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.valActivity,
         dataIndex: "valActivity",
         key: "valActivity",
         width: columnWidths.valActivity,
@@ -296,7 +238,7 @@ export function CnfTrackerListTable({
         onHeaderCell: () => ({ width: columnWidths.valActivity, onResizeStart: handleResize("valActivity") }),
       },
       {
-        title: COLUMN_LABELS.valBatchSeqNo,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.valBatchSeqNo,
         dataIndex: "valBatchSeqNo",
         key: "valBatchSeqNo",
         width: columnWidths.valBatchSeqNo,
@@ -307,7 +249,7 @@ export function CnfTrackerListTable({
         }),
       },
       {
-        title: COLUMN_LABELS.poControlNumber,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.poControlNumber,
         dataIndex: "poControlNumber",
         key: "poControlNumber",
         width: columnWidths.poControlNumber,
@@ -318,7 +260,7 @@ export function CnfTrackerListTable({
         }),
       },
       {
-        title: COLUMN_LABELS.fgMonthDate,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.fgMonthDate,
         key: "fgMonthDate",
         width: columnWidths.fgMonthDate,
         sorter: (a, b) => fgMonthSortValue(a.fgMonthRaw) - fgMonthSortValue(b.fgMonthRaw),
@@ -326,7 +268,7 @@ export function CnfTrackerListTable({
         render: (_value, record) => formatFgMonthDate(record.fgMonthRaw),
       },
       {
-        title: COLUMN_LABELS.closedDate,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.closedDate,
         key: "closedDate",
         width: columnWidths.closedDate,
         sorter: (a, b) => dateSortValue(a.closedDateRaw) - dateSortValue(b.closedDateRaw),
@@ -334,7 +276,7 @@ export function CnfTrackerListTable({
         render: (_value, record) => formatAppDate(record.closedDateRaw),
       },
       {
-        title: COLUMN_LABELS.protocolNo,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.protocolNo,
         dataIndex: "protocolNo",
         key: "protocolNo",
         width: columnWidths.protocolNo,
@@ -342,7 +284,7 @@ export function CnfTrackerListTable({
         onHeaderCell: () => ({ width: columnWidths.protocolNo, onResizeStart: handleResize("protocolNo") }),
       },
       {
-        title: COLUMN_LABELS.protocolStatus,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.protocolStatus,
         dataIndex: "protocolStatus",
         key: "protocolStatus",
         width: columnWidths.protocolStatus,
@@ -354,7 +296,7 @@ export function CnfTrackerListTable({
         render: (value: string) => <WorkflowStatusBadge status={value} />,
       },
       {
-        title: COLUMN_LABELS.interimReportNo,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.interimReportNo,
         dataIndex: "interimReportNo",
         key: "interimReportNo",
         width: columnWidths.interimReportNo,
@@ -365,7 +307,7 @@ export function CnfTrackerListTable({
         }),
       },
       {
-        title: COLUMN_LABELS.interimReportStatus,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.interimReportStatus,
         dataIndex: "interimReportStatus",
         key: "interimReportStatus",
         width: columnWidths.interimReportStatus,
@@ -377,7 +319,7 @@ export function CnfTrackerListTable({
         render: (value: string) => <WorkflowStatusBadge status={value} />,
       },
       {
-        title: COLUMN_LABELS.finalReportNo,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.finalReportNo,
         dataIndex: "finalReportNo",
         key: "finalReportNo",
         width: columnWidths.finalReportNo,
@@ -388,7 +330,7 @@ export function CnfTrackerListTable({
         }),
       },
       {
-        title: COLUMN_LABELS.finalReportStatus,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.finalReportStatus,
         dataIndex: "finalReportStatus",
         key: "finalReportStatus",
         width: columnWidths.finalReportStatus,
@@ -400,7 +342,7 @@ export function CnfTrackerListTable({
         render: (value: string) => <WorkflowStatusBadge status={value} />,
       },
       {
-        title: COLUMN_LABELS.endorsementNo,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.endorsementNo,
         dataIndex: "endorsementNo",
         key: "endorsementNo",
         width: columnWidths.endorsementNo,
@@ -411,7 +353,7 @@ export function CnfTrackerListTable({
         }),
       },
       {
-        title: COLUMN_LABELS.endorsementStatus,
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.endorsementStatus,
         dataIndex: "endorsementStatus",
         key: "endorsementStatus",
         width: columnWidths.endorsementStatus,
@@ -423,23 +365,30 @@ export function CnfTrackerListTable({
         render: (value: string) => <WorkflowStatusBadge status={value} />,
       },
       {
-        title: COLUMN_LABELS.actions,
-        key: "actions",
+        title: CNF_TRACKER_LIST_COLUMN_LABELS.load,
+        key: "load",
         fixed: "right",
-        width: columnWidths.actions,
-        onHeaderCell: () => ({ width: columnWidths.actions }),
+        align: "center",
+        width: columnWidths.load,
+        minWidth: columnWidths.load,
+        className: "cnf-tracker-action-column",
+        onCell: () => ({
+          className: "cnf-tracker-action-column",
+        }),
         render: (_value, record) => (
-          <Button
-            type="link"
-            size="small"
-            aria-label={`Load CNF ${record.cnfNo}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onLoad(record);
-            }}
-          >
-            Load
-          </Button>
+          <div className="cnf-tracker-action-cell">
+            <Button
+              type="link"
+              size="small"
+              aria-label={`Load CNF ${record.cnfNo}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onLoad(record);
+              }}
+            >
+              Load
+            </Button>
+          </div>
         ),
       },
     ],
@@ -449,11 +398,20 @@ export function CnfTrackerListTable({
   const visibleColumns = useMemo(
     () =>
       allColumns.filter((column) => {
-        const key = String(column.key) as ColumnKey;
-        if (key === "cnfNo" || key === "actions") return true;
+        const key = String(column.key) as CnfTrackerListColumnKey;
+        if (key === "cnfNo" || key === "load") return true;
         return !hiddenColumns.has(key);
       }),
     [allColumns, hiddenColumns],
+  );
+
+  const tableScrollX = useMemo(
+    () =>
+      visibleColumns.reduce((total, column) => {
+        const width = typeof column.width === "number" ? column.width : 120;
+        return total + width;
+      }, 0),
+    [visibleColumns],
   );
 
   const tableComponents: TableProps<CnfTrackerListRow>["components"] = {
@@ -461,6 +419,27 @@ export function CnfTrackerListTable({
       cell: ResizableTitle,
     },
   };
+
+  useLayoutEffect(() => {
+    const syncToolbarHeight = () => {
+      const toolbar = toolbarRef.current;
+      const panel = panelRef.current;
+      if (!toolbar || !panel) return;
+      const height = Math.ceil(toolbar.getBoundingClientRect().height);
+      if (height > 0) {
+        panel.style.setProperty("--cnf-tracker-list-toolbar-height", `${height}px`);
+      }
+    };
+
+    syncToolbarHeight();
+    const observer = new ResizeObserver(syncToolbarHeight);
+    if (toolbarRef.current) observer.observe(toolbarRef.current);
+    window.addEventListener("resize", syncToolbarHeight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", syncToolbarHeight);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const measureRowHeight = () => {
@@ -483,8 +462,8 @@ export function CnfTrackerListTable({
   }, [filteredRows, loading, pageSize, currentPage, visibleColumns]);
 
   return (
-    <section className="cnf-tracker-list-panel" aria-label="CNF Tracker list">
-      <div className="cnf-tracker-list-toolbar">
+    <section ref={panelRef} className="cnf-tracker-list-panel" aria-label="CNF Tracker list">
+      <div ref={toolbarRef} className="cnf-tracker-list-toolbar">
         <Input
           allowClear
           prefix={<SearchOutlined aria-hidden />}
@@ -502,14 +481,14 @@ export function CnfTrackerListTable({
                 <Typography.Text strong>Show columns</Typography.Text>
                 <Checkbox.Group
                   options={columnVisibilityOptions}
-                  value={COLUMN_KEYS.filter(
-                    (key) => key !== "cnfNo" && key !== "actions" && !hiddenColumns.has(key),
+                  value={CNF_TRACKER_LIST_COLUMN_KEYS.filter(
+                    (key) => key !== "cnfNo" && key !== "load" && !hiddenColumns.has(key),
                   )}
                   onChange={(checked) => {
-                    const visible = new Set(checked as ColumnKey[]);
-                    const nextHidden = new Set<ColumnKey>();
-                    for (const key of COLUMN_KEYS) {
-                      if (key === "cnfNo" || key === "actions") continue;
+                    const visible = new Set(checked as CnfTrackerListColumnKey[]);
+                    const nextHidden = new Set<CnfTrackerListColumnKey>();
+                    for (const key of CNF_TRACKER_LIST_COLUMN_KEYS) {
+                      if (key === "cnfNo" || key === "load") continue;
                       if (!visible.has(key)) nextHidden.add(key);
                     }
                     setHiddenColumns(nextHidden);
@@ -548,13 +527,14 @@ export function CnfTrackerListTable({
           <Skeleton active paragraph={{ rows: 8 }} />
         ) : (
           <Table<CnfTrackerListRow>
+            tableLayout="fixed"
             className="cnf-tracker-list-table"
             size="small"
             rowKey="rowKey"
             components={tableComponents}
             dataSource={filteredRows}
             columns={visibleColumns}
-            scroll={{ x: "max-content", y: tableBodyHeight }}
+            scroll={{ x: tableScrollX, y: tableBodyHeight }}
             pagination={{
               current: currentPage,
               pageSize,

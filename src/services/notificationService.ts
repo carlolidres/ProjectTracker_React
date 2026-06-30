@@ -2,9 +2,17 @@ import { buildLogicViolationNotifications } from "@/lib/logicViolations";
 import {
   buildStableNotificationId,
   filterActiveNotifications,
+  filterDisplayedNotifications,
   isRetainedNotificationSeverity,
   NOTIFICATION_RETENTION_MS,
+  shouldPersistNotificationOnRefresh,
 } from "@/lib/notificationRetention";
+import {
+  deleteNotificationIds,
+  removeExpiredStandardNotifications,
+  upsertNotificationRows,
+} from "@/lib/notificationDb";
+import { runWithRetry, toNotificationDbRow } from "@/lib/notificationRefresh";
 import { supabase } from "@/lib/supabaseClient";
 import { fgSortValue, projectRowFgDays } from "@/lib/fgUrgency";
 import { getFocusGroup } from "@/lib/projectPriority";
@@ -190,15 +198,14 @@ function mergeNotificationState(
 async function purgeExpiredStandardNotifications(): Promise<void> {
   const { error } = await supabase.rpc("purge_expired_standard_notifications");
   if (error) {
-    // Fallback when migration 031 is not applied yet.
-    if (!error.message.includes("purge_expired_standard_notifications")) {
-      throw error;
-    }
+    // Best-effort: RPC may be missing or session may not satisfy is_active_user().
+    return;
   }
 }
 
 export async function refreshAllNotifications(): Promise<void> {
-  await purgeExpiredStandardNotifications().catch(() => undefined);
+  await purgeExpiredStandardNotifications();
+  await removeExpiredStandardNotifications();
 
   const rows = await listActiveProjects();
   const notifications = buildAllNotifications(rows);
@@ -207,10 +214,8 @@ export async function refreshAllNotifications(): Promise<void> {
   const currentIds = new Set(notifications.map((notification) => notification.notification_id));
 
   const staleIds = [...storedState.keys()].filter((notificationId) => !currentIds.has(notificationId));
-
   if (staleIds.length) {
-    const { error } = await supabase.from("notifications").delete().in("notification_id", staleIds);
-    if (error) throw error;
+    await deleteNotificationIds(staleIds);
   }
 
   const payload = notifications.map((notification) => {
@@ -228,12 +233,19 @@ export async function refreshAllNotifications(): Promise<void> {
       dismissed_at: existing?.dismissed_at ?? null,
       resolved_at: existing?.resolved_at ?? null,
     };
-  }).filter((notification) => notification.status === "OPEN" || storedState.has(notification.notification_id));
+  }).filter((notification) =>
+    shouldPersistNotificationOnRefresh(notification, storedState, notification.notification_id),
+  );
 
-  if (!payload.length) return;
+  if (payload.length) {
+    await upsertNotificationRows(payload.map(toNotificationDbRow));
+  }
 
-  const { error } = await supabase.from("notifications").upsert(payload, { onConflict: "notification_id" });
-  if (error) throw error;
+  await removeExpiredStandardNotifications();
+}
+
+export async function refreshAllNotificationsWithRetry(maxAttempts = 2): Promise<void> {
+  await runWithRetry(() => refreshAllNotifications(), { maxAttempts });
 }
 
 export async function dismissNotification(notificationId: string, userEmail: string): Promise<void> {
@@ -263,7 +275,8 @@ export async function resolveNotification(notificationId: string, userEmail: str
 }
 
 export async function listNotifications(): Promise<Notification[]> {
-  await purgeExpiredStandardNotifications().catch(() => undefined);
+  await purgeExpiredStandardNotifications();
+  await removeExpiredStandardNotifications().catch(() => undefined);
 
   const rows = await listActiveProjects();
   const notifications = buildAllNotifications(rows);
@@ -273,7 +286,9 @@ export async function listNotifications(): Promise<Notification[]> {
   } catch {
     // Listing still works when the notifications table is unavailable.
   }
-  return filterActiveNotifications(mergeNotificationState(notifications, storedState));
+  return filterDisplayedNotifications(
+    filterActiveNotifications(mergeNotificationState(notifications, storedState)),
+  );
 }
 
 export async function getNotificationCount(): Promise<number> {

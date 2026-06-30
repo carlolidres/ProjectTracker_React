@@ -38,7 +38,7 @@ function buildLogicNotification(params: {
     project_id: params.projectId,
     record_id: params.recordId,
     fg_month: params.fgMonth,
-    severity: params.critical ? "logic" : "info",
+    severity: params.critical ? "critical" : "info",
     title: params.title,
     message: params.message,
     status: "OPEN",

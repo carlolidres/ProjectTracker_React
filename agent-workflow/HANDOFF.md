@@ -1,29 +1,25 @@
 # Current Handoff
 
-Last Updated: `2026-06-29`
-Version: `v70 cnf-tracker list modal toolbar retention`
+Last Updated: `2026-06-30`
+Version: `v71 notification refresh + 24h purge`
 Branch: `main`
 
 ## Current Status
 
-CNF Tracker list-first UI with detail modal, toolbar cleanup, 7-row paging, smoke-entry filter, and notification retention (migration 031) ready for deploy.
+Notification drawer refresh hardened; low/medium/info notifications purged from UI and DB after 24 hours. Local verification passed.
 
 ## Recently Completed
 
-- CNF Tracker: list table (21 columns), Load opens `CnfTrackerDetailModal`, toolbar search left / Columns+Retry right, 7 rows per page, dynamic table height, SMOKE test refs filtered.
-- Notifications: 24h expiration for standard severities; High/Critical/Logic retained until dismissed; migration `031_notification_retention.sql`.
-- Projects Form: save success reset, duplicate-submit guard, `project-data-changed` event for database refresh.
+- CNF Tracker list freeze pane: toolbar + table header stick below topbar on page scroll (`cnf-tracker.css`, `CnfTrackerListTable.tsx`); toolbar height measured via ResizeObserver; meeting-view top offset included.
+- Notification refresh: batched deletes/upserts, optional-column upsert fallback, purge RPC best-effort, `removeExpiredStandardNotifications` deletes EXPIRED and stale OPEN standard rows.
+- Drawer Refresh uses `refreshAllNotificationsWithRetry`; user-safe errors via `formatServiceError` + `console.error` diagnostics.
+- Retention helpers: `isExpirableNotificationSeverity`, `removeExpiredStandardNotifications`, `shouldPersistNotificationOnRefresh`.
+- Tests: `npm run test:notification-db` added to `test:fixes`.
 
 ## Active Work
 
-- Objective: `Deploy v70 to GitHub Pages and apply migration 031 to Supabase.`
-- Progress: `Local verification passed; commit/push/deploy in progress.`
-
-## Known Issues
-
-| Severity | Issue | Impact | Next action |
-|---|---|---|---|
-| Low | pg_cron schedule for notification purge optional | Relies on frontend/RPC fallback until scheduled | Enable pg_cron when available |
+- Objective: `Browser smoke: notification Refresh button and 24h purge on deployed app.`
+- Progress: `Local typecheck, test:fixes, and build passed.`
 
 ## Verification
 
@@ -31,13 +27,12 @@ CNF Tracker list-first UI with detail modal, toolbar cleanup, 7-row paging, smok
 |---|---|---|
 | Type-check | PASSED | `npm run typecheck` |
 | Build | PASSED | `npm run build` |
-| Notification retention tests | PASSED | `npm run test:notifications` |
-| Supabase migration 031 | PASSED | Applied remotely via MCP (`notification_retention`) |
-| GitHub Pages deploy | PENDING | Triggered by push `9be549f` |
+| Fix regression tests | PASSED | `npm run test:fixes` |
+| GitHub Pages deploy | PENDING | Not run in this session |
 
 ## Next Action
 
-`Browser smoke: CNF Tracker list/modal, notification dismiss/expire, project save reset on GitHub Pages.`
+`Deploy and verify notification Refresh in drawer; confirm medium/low/info age out after 24h while critical/high persist.`
 
 ## Decisions and Simplifications
 

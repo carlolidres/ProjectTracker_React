@@ -18,7 +18,7 @@ import {
 import { buildFieldDomId } from "@/lib/duplicateReview";
 import { isCnfMotherLinked, isCnfMotherUnlinked, motherProjectUrl } from "@/lib/cnfMotherLink";
 import { isFgMonthLocked } from "@/lib/fgMonthLock";
-import { bmrLockReason, isBmrFieldKey, isBmrLockedForBatch, isProjectBmrLocked } from "@/lib/bmrLock";
+import { bmrLockReason, isProjectBmrLocked } from "@/lib/bmrLock";
 import { applyQrmrTargetDatesFromFgMonth } from "@/lib/qrmrFgMonth";
 import {
   formatProjectCloseBlockerMessage,
@@ -122,6 +122,17 @@ function visiblePoFields(fields: ProjectFieldDef[]): ProjectFieldDef[] {
   return fields.filter((field) => !field.projectLevelVal);
 }
 
+function resolveEditableFieldLock(
+  canEdit: boolean,
+  viewOnly: boolean,
+  businessLocked: boolean,
+): { readOnly: boolean; disabled: boolean } {
+  if (viewOnly) return { readOnly: true, disabled: false };
+  if (!canEdit) return { readOnly: false, disabled: true };
+  if (businessLocked) return { readOnly: false, disabled: true };
+  return { readOnly: false, disabled: false };
+}
+
 function groupPoFieldsForRender(fields: ProjectFieldDef[]): ProjectFieldDef[][] {
   const groups: ProjectFieldDef[][] = [];
   let index = 0;
@@ -173,10 +184,6 @@ export function ProjectHierarchyForm({
   const cnfUnlinked = isCnfMotherUnlinked(cnfMotherLink);
   const canModifyHierarchy = canEdit && !viewOnly;
   const canModifyCnf = canModifyHierarchy && !cnfLinked;
-  const fieldLockProps = {
-    readOnly: viewOnly,
-    disabled: !canEdit && !viewOnly,
-  };
   const allBatchKeys = project.batches.map((batch, batchIndex) => batchKey(batch, batchIndex));
 
   function updatePo(
@@ -287,7 +294,6 @@ export function ProjectHierarchyForm({
     const batchKeyValue = batchKey(batch, batchIndex);
     const batchLabel = displayLabel(batch.unique_batch, `Batch ${batchIndex + 1}`);
     const batchMoKeys = batch.mo_controls.map((mo, moIndex) => moKey(mo, batchIndex, moIndex));
-    const bmrLocked = isTsdTab && isBmrLockedForBatch(project, batchIndex);
 
     const moItems = batch.mo_controls.map((mo, moIndex) => {
       const moKeyValue = moKey(mo, batchIndex, moIndex);
@@ -341,8 +347,12 @@ export function ProjectHierarchyForm({
                     const fgMonthLocked =
                       field.key === "fg_month" &&
                       isFgMonthLocked(savedFgMonths, batchIndex, moIndex, poIndex);
-                    const bmrFieldLocked = bmrLocked && isBmrFieldKey(field.key);
                     const valNaDisabled = isPoFieldDisabledByValNotApplicable(po, field.key);
+                    const { readOnly, disabled } = resolveEditableFieldLock(
+                      canEdit,
+                      viewOnly,
+                      fgMonthLocked || valNaDisabled,
+                    );
 
                     return (
                     <ProjectFieldControl
@@ -356,8 +366,8 @@ export function ProjectHierarchyForm({
                         fieldKey: field.key,
                       })}
                       value={poFieldDisplayValue(field.key, po, batchIndex, moIndex, poIndex)}
-                      readOnly={fieldLockProps.readOnly || fgMonthLocked || bmrFieldLocked || valNaDisabled}
-                      disabled={fieldLockProps.disabled || valNaDisabled}
+                      readOnly={readOnly}
+                      disabled={disabled}
                       registry={registry}
                       onChange={(value) => {
                         if (field.key === "final_status" && value.toUpperCase() === "CLOSED") {
@@ -583,10 +593,15 @@ export function ProjectHierarchyForm({
                             <div className="project-form-grid">
                               {cnfFieldsForTab.map((field) => {
                                 const qaNaDisabled = isQaCnfFieldDisabledByNotApplicable(entry, field.key);
-                                const cnfReadOnly =
-                                  fieldLockProps.readOnly
-                                  || cnfLinked
+                                const cnfBusinessLocked =
+                                  cnfLinked
+                                  || qaNaDisabled
                                   || (isQaTab && (field.key === "cnf_reference" || field.key === "change_description"));
+                                const { readOnly: cnfReadOnly, disabled: cnfDisabled } = resolveEditableFieldLock(
+                                  canEdit,
+                                  viewOnly,
+                                  cnfBusinessLocked,
+                                );
                                 return (
                                 <ProjectFieldControl
                                   key={field.key}
@@ -601,7 +616,7 @@ export function ProjectHierarchyForm({
                                   })}
                                   value={String(entry[field.key as keyof CnfEntry] ?? "")}
                                   readOnly={cnfReadOnly}
-                                  disabled={fieldLockProps.disabled || cnfLinked || qaNaDisabled}
+                                  disabled={cnfDisabled}
                                   registry={registry}
                                   onChange={(value) =>
                                     updateCnfEntry(
@@ -682,7 +697,7 @@ export function ProjectHierarchyForm({
                     fieldKey: MO_FIELDS[0].key,
                   })}
                   value={mo.mo_control_no}
-                  {...fieldLockProps}
+                  {...resolveEditableFieldLock(canEdit, viewOnly, false)}
                   registry={registry}
                   onChange={(value) => {
                     const next = structuredClone(project);
@@ -806,7 +821,7 @@ export function ProjectHierarchyForm({
                   fieldKey: BATCH_FIELDS[0].key,
                 })}
                 value={batch.unique_batch}
-                {...fieldLockProps}
+                {...resolveEditableFieldLock(canEdit, viewOnly, false)}
                 registry={registry}
                 onChange={(value) => {
                   const next = structuredClone(project);
@@ -832,6 +847,7 @@ export function ProjectHierarchyForm({
     if (!canonicalPo) return null;
     return fields.map((field) => {
       const valNaDisabled = isPoFieldDisabledByValNotApplicable(canonicalPo, field.key);
+      const { readOnly, disabled } = resolveEditableFieldLock(canEdit, viewOnly, valNaDisabled);
       return (
         <ProjectFieldControl
           key={field.key}
@@ -844,8 +860,8 @@ export function ProjectHierarchyForm({
             fieldKey: field.key,
           })}
           value={poFieldDisplayValue(field.key, canonicalPo, 0, 0, 0)}
-          readOnly={fieldLockProps.readOnly || valNaDisabled}
-          disabled={fieldLockProps.disabled || valNaDisabled}
+          readOnly={readOnly}
+          disabled={disabled}
           registry={registry}
           onChange={(value) => updateCanonicalPoField(field, value)}
         />
