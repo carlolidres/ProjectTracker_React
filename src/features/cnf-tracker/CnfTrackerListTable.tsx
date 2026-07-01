@@ -12,7 +12,7 @@ import {
 } from "antd";
 import type { ColumnsType, TableProps } from "antd/es/table";
 import type { CheckboxOptionType } from "antd/es/checkbox";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { TruncatedCell } from "@/components/common/truncated-cell";
 import { WorkflowStatusBadge } from "@/components/common/workflow-status-badge";
 import { formatAppDate, formatFgMonthDate } from "@/lib/date";
@@ -30,8 +30,7 @@ import {
   type CnfTrackerListColumnKey,
 } from "@/lib/cnfTrackerTableColumns";
 
-const DEFAULT_PAGE_SIZE = 7;
-const DEFAULT_ROW_HEIGHT = 47;
+const HORIZONTAL_SCROLL_STEP_PX = 120;
 
 interface ResizableTitleProps extends React.HTMLAttributes<HTMLTableCellElement> {
   width?: number;
@@ -83,31 +82,39 @@ export function CnfTrackerListTable({
   const [search, setSearch] = useState("");
   const [columnWidths, setColumnWidths] = useState(CNF_TRACKER_LIST_DEFAULT_WIDTHS);
   const [hiddenColumns, setHiddenColumns] = useState<Set<CnfTrackerListColumnKey>>(new Set());
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowHeight, setRowHeight] = useState(DEFAULT_ROW_HEIGHT);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const hScrollTrackRef = useRef<HTMLDivElement>(null);
+  const isSyncingHorizontalScroll = useRef(false);
+  const [bodyMaxHeight, setBodyMaxHeight] = useState(480);
+  const [hScrollWidth, setHScrollWidth] = useState(0);
+  const [canScrollHorizontally, setCanScrollHorizontally] = useState(false);
 
   const filteredRows = useMemo(() => filterCnfTrackerListRows(rows, search), [rows, search]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search]);
+  const getTableBody = useCallback(() => {
+    const body = tableWrapRef.current?.querySelector(".ant-table-body");
+    return body instanceof HTMLElement ? body : null;
+  }, []);
 
-  useEffect(() => {
-    const maxPage = Math.max(1, Math.ceil(filteredRows.length / pageSize) || 1);
-    if (currentPage > maxPage) setCurrentPage(maxPage);
-  }, [filteredRows.length, pageSize, currentPage]);
+  const handleTableKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    const body = getTableBody();
+    if (!body) return;
+    const delta = event.key === "ArrowLeft" ? -HORIZONTAL_SCROLL_STEP_PX : HORIZONTAL_SCROLL_STEP_PX;
+    body.scrollBy({ left: delta, behavior: "smooth" });
+    event.preventDefault();
+  }, [getTableBody]);
 
-  const rowsOnPage = useMemo(() => {
-    if (!filteredRows.length) return 1;
-    const start = (currentPage - 1) * pageSize;
-    return Math.min(pageSize, Math.max(0, filteredRows.length - start));
-  }, [filteredRows.length, currentPage, pageSize]);
-
-  const tableBodyHeight = Math.ceil(rowHeight * rowsOnPage);
+  const handleTableWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    const body = getTableBody();
+    if (!body || !canScrollHorizontally) return;
+    const horizontalDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.shiftKey ? event.deltaY : 0;
+    if (!horizontalDelta) return;
+    body.scrollLeft += horizontalDelta;
+    event.preventDefault();
+  }, [canScrollHorizontally, getTableBody]);
 
   const handleResize = useCallback((key: CnfTrackerListColumnKey) => {
     return (event: React.MouseEvent) => {
@@ -420,46 +427,108 @@ export function CnfTrackerListTable({
     },
   };
 
-  useLayoutEffect(() => {
-    const syncToolbarHeight = () => {
-      const toolbar = toolbarRef.current;
-      const panel = panelRef.current;
-      if (!toolbar || !panel) return;
-      const height = Math.ceil(toolbar.getBoundingClientRect().height);
-      if (height > 0) {
-        panel.style.setProperty("--cnf-tracker-list-toolbar-height", `${height}px`);
-      }
-    };
+  const syncHorizontalScrollMeta = useCallback(() => {
+    const body = getTableBody();
+    const track = hScrollTrackRef.current;
+    if (!body || !track) return;
 
-    syncToolbarHeight();
-    const observer = new ResizeObserver(syncToolbarHeight);
+    const canScroll = body.scrollWidth > body.clientWidth + 1;
+    setCanScrollHorizontally(canScroll);
+    setHScrollWidth(body.scrollWidth);
+
+    if (!isSyncingHorizontalScroll.current && Math.abs(track.scrollLeft - body.scrollLeft) > 1) {
+      isSyncingHorizontalScroll.current = true;
+      track.scrollLeft = body.scrollLeft;
+      isSyncingHorizontalScroll.current = false;
+    }
+  }, [getTableBody]);
+
+  const handleHorizontalTrackScroll = useCallback(() => {
+    if (isSyncingHorizontalScroll.current) return;
+    const body = getTableBody();
+    const track = hScrollTrackRef.current;
+    if (!body || !track) return;
+    isSyncingHorizontalScroll.current = true;
+    body.scrollLeft = track.scrollLeft;
+    isSyncingHorizontalScroll.current = false;
+  }, [getTableBody]);
+
+  const syncListLayoutMetrics = useCallback(() => {
+    const toolbar = toolbarRef.current;
+    const panel = panelRef.current;
+    const tableWrap = tableWrapRef.current;
+    if (!toolbar || !panel || !tableWrap) return;
+
+    const toolbarHeight = Math.ceil(toolbar.getBoundingClientRect().height);
+    if (toolbarHeight > 0) {
+      panel.style.setProperty("--cnf-tracker-list-toolbar-height", `${toolbarHeight}px`);
+    }
+
+    const headerEl = tableWrap.querySelector(".ant-table-thead");
+    const headerHeight = headerEl ? Math.ceil(headerEl.getBoundingClientRect().height) : 44;
+    panel.style.setProperty("--cnf-tracker-list-header-height", `${headerHeight}px`);
+
+    const horizontalTrackHeight = canScrollHorizontally ? 14 : 0;
+    const viewportBottom = window.innerHeight - 24;
+    const tableTop = tableWrap.getBoundingClientRect().top;
+    const nextBodyMax = Math.max(240, Math.floor(viewportBottom - tableTop - headerHeight - horizontalTrackHeight - 4));
+    setBodyMaxHeight(nextBodyMax);
+  }, [canScrollHorizontally]);
+
+  useLayoutEffect(() => {
+    syncListLayoutMetrics();
+    const observer = new ResizeObserver(syncListLayoutMetrics);
     if (toolbarRef.current) observer.observe(toolbarRef.current);
-    window.addEventListener("resize", syncToolbarHeight);
+    if (panelRef.current) observer.observe(panelRef.current);
+    if (tableWrapRef.current) observer.observe(tableWrapRef.current);
+    window.addEventListener("resize", syncListLayoutMetrics);
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", syncToolbarHeight);
+      window.removeEventListener("resize", syncListLayoutMetrics);
     };
-  }, []);
+  }, [syncListLayoutMetrics]);
 
   useLayoutEffect(() => {
-    const measureRowHeight = () => {
-      const table = tableWrapRef.current?.querySelector(".cnf-tracker-list-table");
-      const sampleRow = table?.querySelector(".ant-table-tbody > tr.ant-table-row");
-      if (sampleRow instanceof HTMLElement) {
-        const measured = sampleRow.getBoundingClientRect().height;
-        if (measured > 0) setRowHeight(measured);
-      }
+    if (loading && !rows.length) return;
+
+    const container = tableWrapRef.current?.querySelector(".ant-table-container");
+    const body = getTableBody();
+    const track = hScrollTrackRef.current;
+    if (!container || !body || !track) return;
+
+    if (track.parentElement !== container) {
+      container.insertBefore(track, body);
+    }
+
+    syncHorizontalScrollMeta();
+
+    const onBodyScroll = () => {
+      if (isSyncingHorizontalScroll.current) return;
+      const activeTrack = hScrollTrackRef.current;
+      if (!activeTrack) return;
+      isSyncingHorizontalScroll.current = true;
+      activeTrack.scrollLeft = body.scrollLeft;
+      isSyncingHorizontalScroll.current = false;
     };
 
-    measureRowHeight();
-    const observer = new ResizeObserver(measureRowHeight);
-    if (tableWrapRef.current) observer.observe(tableWrapRef.current);
-    window.addEventListener("resize", measureRowHeight);
+    body.addEventListener("scroll", onBodyScroll);
+    const bodyObserver = new ResizeObserver(syncHorizontalScrollMeta);
+    bodyObserver.observe(body);
+
     return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measureRowHeight);
+      body.removeEventListener("scroll", onBodyScroll);
+      bodyObserver.disconnect();
     };
-  }, [filteredRows, loading, pageSize, currentPage, visibleColumns]);
+  }, [
+    getTableBody,
+    loading,
+    rows.length,
+    syncHorizontalScrollMeta,
+    tableScrollX,
+    visibleColumns.length,
+    filteredRows.length,
+    bodyMaxHeight,
+  ]);
 
   return (
     <section ref={panelRef} className="cnf-tracker-list-panel" aria-label="CNF Tracker list">
@@ -473,6 +542,9 @@ export function CnfTrackerListTable({
           className="cnf-tracker-list-search"
           aria-label="Search CNF tracker records"
         />
+        <Typography.Text type="secondary" className="cnf-tracker-list-record-count" aria-live="polite">
+          {filteredRows.length} CNF record{filteredRows.length === 1 ? "" : "s"}
+        </Typography.Text>
         <div className="cnf-tracker-list-toolbar-actions">
           <Dropdown
             trigger={["click"]}
@@ -522,7 +594,24 @@ export function CnfTrackerListTable({
         />
       ) : null}
 
-      <div ref={tableWrapRef} className="cnf-tracker-list-table-wrap">
+      <div
+        ref={tableWrapRef}
+        className="cnf-tracker-list-table-wrap"
+        tabIndex={0}
+        role="region"
+        aria-label="CNF tracker table. Use left and right arrow keys to scroll columns when focused."
+        onKeyDown={handleTableKeyDown}
+        onWheel={handleTableWheel}
+      >
+        <div
+          ref={hScrollTrackRef}
+          className={`cnf-tracker-h-scroll-track${canScrollHorizontally ? " cnf-tracker-h-scroll-track--visible" : ""}`}
+          aria-hidden={!canScrollHorizontally}
+          onScroll={handleHorizontalTrackScroll}
+        >
+          <div className="cnf-tracker-h-scroll-inner" style={{ width: hScrollWidth }} />
+        </div>
+
         {loading && !rows.length ? (
           <Skeleton active paragraph={{ rows: 8 }} />
         ) : (
@@ -534,18 +623,8 @@ export function CnfTrackerListTable({
             components={tableComponents}
             dataSource={filteredRows}
             columns={visibleColumns}
-            scroll={{ x: tableScrollX, y: tableBodyHeight }}
-            pagination={{
-              current: currentPage,
-              pageSize,
-              showSizeChanger: true,
-              pageSizeOptions: ["7", "10", "20", "50", "100"],
-              showTotal: (total) => `${total} CNF record${total === 1 ? "" : "s"}`,
-              onChange: (page, size) => {
-                setCurrentPage(page);
-                if (size && size !== pageSize) setPageSize(size);
-              },
-            }}
+            scroll={{ x: tableScrollX, y: bodyMaxHeight }}
+            pagination={false}
             locale={{
               emptyText: (
                 <Empty

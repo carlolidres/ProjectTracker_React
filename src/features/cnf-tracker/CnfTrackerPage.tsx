@@ -172,20 +172,18 @@ export function CnfTrackerPage() {
           if (draft?.trackerIdParam === trackerIdParam) {
             setForm(draft.form);
             setInitiatorTouched(draft.initiatorTouched);
-            setDetailModalOpen(true);
             resumeDraftFlush();
           } else {
             const record = await loadRecord(trackerIdParam);
             if (!record && !cancelled) {
               setFormError(`CNF Tracker record ${trackerIdParam} not found.`);
             }
-            if (!cancelled) setDetailModalOpen(true);
             resumeDraftFlush();
           }
+          if (!cancelled) setSearchParams({});
         } else if (draft) {
           setForm(draft.form);
           setInitiatorTouched(draft.initiatorTouched);
-          setDetailModalOpen(true);
           resumeDraftFlush();
         } else {
           resumeDraftFlush();
