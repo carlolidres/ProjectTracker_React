@@ -62,7 +62,7 @@ export const PROJECT_LEVEL_VAL_FIELDS = new Set([
 
 export const PO_FIELDS: ProjectFieldDef[] = [
   { key: "so_no", label: "SO No.", type: "alphanumeric", role: "AM/BM/PL", tooltip: "Sales order number (alphanumeric)." },
-  { key: "po_control_no", label: "PO Control No.", type: "alphanumeric", role: "AM/BM/PL", required: true, tooltip: "PO control number (alphanumeric)." },
+  { key: "po_control_no", label: "PO Control No.", type: "alphanumeric", role: "AM/BM/PL", required: true, tooltip: "PO control number (letters, numbers, hyphens, parentheses)." },
   {
     key: "fg_month",
     label: "FG Month",
