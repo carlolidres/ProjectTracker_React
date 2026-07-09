@@ -29,15 +29,70 @@ export async function listPendingPasswordResetRequests(): Promise<PasswordResetR
   return (data ?? []) as PasswordResetRequest[];
 }
 
-export async function adminCompletePasswordReset(userId: string): Promise<string> {
-  const { data, error } = await supabase.rpc("admin_complete_password_reset", {
-    target_user_id: userId,
+export interface AdminPasswordResetResult {
+  emailed: boolean;
+  email: string | null;
+  temporaryPassword: string | null;
+  warning?: string;
+}
+
+export async function adminCompletePasswordReset(userId: string): Promise<AdminPasswordResetResult> {
+  const { data, error } = await supabase.functions.invoke("admin-approve-password-reset", {
+    body: { userId },
   });
-  if (error) throw error;
-  if (typeof data !== "string" || !data.trim()) {
-    throw new Error("Password reset did not return a temporary credential.");
+
+  const payload = (data ?? {}) as {
+    ok?: boolean;
+    emailed?: boolean;
+    email?: string;
+    temporaryPassword?: string;
+    error?: string;
+  };
+
+  if (error) {
+    let detail = error.message || "Failed to approve password reset.";
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === "function") {
+      try {
+        const body = (await context.json()) as { error?: string; temporaryPassword?: string; emailed?: boolean; email?: string };
+        if (body.temporaryPassword) {
+          return {
+            emailed: false,
+            email: body.email ?? null,
+            temporaryPassword: body.temporaryPassword,
+            warning: body.error || "Temporary password was issued, but email delivery failed.",
+          };
+        }
+        if (body.error) detail = body.error;
+      } catch {
+        // Keep the original Functions error message.
+      }
+    }
+    throw new Error(detail);
   }
-  return data;
+
+  if (payload.error && !payload.temporaryPassword) {
+    throw new Error(payload.error);
+  }
+
+  if (payload.emailed) {
+    return {
+      emailed: true,
+      email: payload.email ?? null,
+      temporaryPassword: null,
+    };
+  }
+
+  if (payload.temporaryPassword) {
+    return {
+      emailed: false,
+      email: payload.email ?? null,
+      temporaryPassword: payload.temporaryPassword,
+      warning: payload.error || "Temporary password was issued, but email delivery failed.",
+    };
+  }
+
+  throw new Error(payload.error || "Password reset did not complete.");
 }
 
 export async function clearMustChangePassword(): Promise<void> {

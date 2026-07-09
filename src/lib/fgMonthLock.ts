@@ -1,6 +1,7 @@
 import { formatAppMonth } from "@/lib/date";
+import { canAdjustSavedFgMonth } from "@/lib/roleAccess";
 import { valueOrNA } from "@/lib/utils";
-import type { ProjectHierarchy } from "@/types";
+import type { ProjectHierarchy, UserRole } from "@/types";
 
 export function fgMonthPath(batchIndex: number, moIndex: number, poIndex: number) {
   return `${batchIndex}-${moIndex}-${poIndex}`;
@@ -26,7 +27,9 @@ export function isFgMonthLocked(
   batchIndex: number,
   moIndex: number,
   poIndex: number,
+  role?: UserRole,
 ) {
+  if (canAdjustSavedFgMonth(role)) return false;
   return Boolean(savedFgMonths[fgMonthPath(batchIndex, moIndex, poIndex)]);
 }
 

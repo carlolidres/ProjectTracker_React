@@ -1,44 +1,39 @@
 # Current Handoff
 
-Last Updated: `2026-06-30`
-Version: `v71 notification refresh + 24h purge`
+Last Updated: `2026-07-09`
+Version: `v75 Projects Database spreadsheet Phase 2`
 Branch: `main`
 
 ## Current Status
 
-Notification drawer refresh hardened; low/medium/info notifications purged from UI and DB after 24 hours. Local verification passed.
+Phase 2 browser smoke completed on Projects Database (`Admin`). Core interactions verified; clipboard paste blocked by automation focus (code path present). Discard now reloads from server so in-place AG Grid mutations are reverted.
 
 ## Recently Completed
 
-- CNF Tracker list freeze pane: toolbar + table header stick below topbar on page scroll (`cnf-tracker.css`, `CnfTrackerListTable.tsx`); toolbar height measured via ResizeObserver; meeting-view top offset included.
-- Notification refresh: batched deletes/upserts, optional-column upsert fallback, purge RPC best-effort, `removeExpiredStandardNotifications` deletes EXPIRED and stale OPEN standard rows.
-- Drawer Refresh uses `refreshAllNotificationsWithRetry`; user-safe errors via `formatServiceError` + `console.error` diagnostics.
-- Retention helpers: `isExpirableNotificationSeverity`, `removeExpiredStandardNotifications`, `shouldPersistNotificationOnRefresh`.
-- Tests: `npm run test:notification-db` added to `test:fixes`.
-
-## Active Work
-
-- Objective: `Browser smoke: notification Refresh button and 24h purge on deployed app.`
-- Progress: `Local typecheck, test:fixes, and build passed.`
+- Phase 2 Excel interactions + browser smoke
+- Discard button fixed to call `load()` (reload) instead of only clearing dirty state
 
 ## Verification
 
 | Check | Status | Result |
 |---|---|---|
-| Type-check | PASSED | `npm run typecheck` |
-| Build | PASSED | `npm run build` |
-| Fix regression tests | PASSED | `npm run test:fixes` |
-| GitHub Pages deploy | PENDING | Not run in this session |
+| Grid + role legend + Project ID links | PASSED | 33 rows, legend present, links present |
+| Floating column filters | PASSED | AM filter `Iya` narrowed visible AM cells; 11+ floating filters |
+| Multi-cell selection (Shift+click) | PASSED | 3 selected cells highlighted |
+| Inline edit + dirty/unsaved | PASSED | `so_no` → `SMOKE-P2`; dirty=1; Save enabled; unsaved banner |
+| Row height persist | PASSED | Comfortable → 48px; `localStorage` `project-tracker:projects-db:row-height` |
+| Undo/redo stack via API `setDataValue` | PARTIAL | Dirty tracking works; AG Grid undo size stayed 0 for programmatic `setDataValue` (UI editor path needs manual confirm) |
+| Clipboard paste | NOT_RUN | `navigator.clipboard` denied (document not focused in automation) |
+| Data restore after smoke | PASSED | Refresh restored `so_no` `106092` |
+| Type-check / build | PASSED | Prior session |
 
 ## Next Action
 
-`Deploy and verify notification Refresh in drawer; confirm medium/low/info age out after 24h while critical/high persist.`
+`Optional manual confirm: Ctrl+C/V paste and Ctrl+Z undo after a real single-click cell edit.`
 
 ## Decisions and Simplifications
 
-- `ponytail:` Column resize uses native mouse events instead of adding `react-resizable`.
-- Standard notifications marked `EXPIRED` in DB rather than deleted to preserve history.
-- SMOKE CNF references filtered in UI only (not deleted from database).
+- `ponytail:` Discard reloads list instead of trying to reverse AG Grid in-place mutations.
 
 ## Dumb-Zone Recovery
 

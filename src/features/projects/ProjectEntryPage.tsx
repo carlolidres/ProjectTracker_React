@@ -555,8 +555,10 @@ export function ProjectEntryPage() {
         content: (
           <div>
             <p>
-              FG Month cannot be changed after it is saved. Please confirm you are sure about the
-              following value{assignments.length > 1 ? "s" : ""}:
+              Please confirm you are sure about the following FG Month
+              value{assignments.length > 1 ? "s" : ""}. After save, only Admin and
+              AM/BM/PL can change FG Month, and a reason will be required for Lessons
+              Learned.
             </p>
             <ul>
               {assignments.map((item) => (
@@ -889,6 +891,7 @@ export function ProjectEntryPage() {
             }}
             onCopyFromFirstPo={copyFromFirstPo}
             savedFgMonths={savedFgMonths}
+            userRole={profile?.role}
             cnfMotherLink={project.cnf_mother_link}
             canCopyCnfFromProject={canUseCnfCopy}
             onRequestCopyCnf={() => void openCopyCnfModal()}

@@ -27,6 +27,8 @@
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@supabase/supabase-js": "^2.49.8",
     "@xyflow/react": "^12.11.0",
+    "ag-grid-community": "^36.0.0",
+    "ag-grid-react": "^36.0.0",
     "antd": "^5.25.4",
     "dayjs": "^1.11.13",
     "react": "^19.1.0",

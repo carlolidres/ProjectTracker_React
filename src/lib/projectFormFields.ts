@@ -68,7 +68,8 @@ export const PO_FIELDS: ProjectFieldDef[] = [
     label: "FG Month",
     type: "month",
     role: "AM/BM/PL",
-    tooltip: "Target finished-goods month. Once saved, this value cannot be changed.",
+    tooltip:
+      "Target finished-goods month. After save, only Admin and AM/BM/PL can change it; a reason is required and logged to Lessons Learned.",
   },
   { key: "business_unit", label: "Business Unit", type: "select", role: "AM/BM/PL", registry: "business_unit", tooltip: "CM, BM, or PL." },
   { key: "updatedDocsVer", label: "Updated Docs/Ver", type: "select", role: "AM/BM/PL", registry: "updatedDocsVer", tooltip: "Indicate if documents/version were updated (Yes/No)." },

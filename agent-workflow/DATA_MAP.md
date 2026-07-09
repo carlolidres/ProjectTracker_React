@@ -60,7 +60,7 @@ A schema task is incomplete while code, types, migration records, and verificati
 | Audit log | `audit_logs` | Immutable critical activity history | Must remain readable and protected. |
 | Feedback | `app_feedback` | In-app feedback capture and admin handling | Subject to TTL/status migrations. |
 | Lesson learned | `lessons_learned` | Lessons learned workflow | Added after early migration phases. |
-| Password reset | `password_reset_requests` | Password reset/admin approval support | Must avoid leaking secrets. |
+| Password reset | `password_reset_requests` + `admin_messages` + Edge Function `admin-approve-password-reset` | User requests reset; admin approves; 16-char temp password emailed via Gmail secrets; `profiles.must_change_password` gates app access | Never put Gmail/app passwords or service role keys in frontend. |
 
 ## Core Relationship Shape
 

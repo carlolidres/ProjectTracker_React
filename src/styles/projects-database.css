@@ -1,0 +1,171 @@
+.projects-db-page {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--topbar-height, 72px) - 24px);
+  gap: 12px;
+}
+
+.projects-db-page .page-header {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.projects-db-toolbar {
+  flex-shrink: 0;
+}
+
+.projects-db-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 8px 12px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.projects-db-legend-label {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+  margin-right: 4px;
+}
+
+.projects-db-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text, #111827);
+}
+
+.projects-db-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.projects-db-full-chrome {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 6px 10px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+}
+
+.projects-db-full-chrome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  margin-left: auto;
+}
+
+.projects-db-grid-shell {
+  flex: 1 1 auto;
+  min-height: 360px;
+  height: calc(100vh - var(--topbar-height, 72px) - 280px);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface, #fff);
+}
+
+.projects-db-page-full {
+  min-height: calc(100vh - var(--topbar-height, 72px) - 16px);
+  gap: 8px;
+}
+
+.projects-db-page-full .projects-db-grid-shell {
+  height: calc(100vh - var(--topbar-height, 72px) - 72px);
+  min-height: 520px;
+}
+
+.projects-db-grid-shell .ag-root-wrapper {
+  border: none;
+  border-radius: 0;
+}
+
+.projects-db-unsaved {
+  color: #b45309;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* Role-tinted column cells */
+.projects-db-cell-am { background-color: var(--role-am-tint) !important; }
+.projects-db-cell-pp { background-color: var(--role-pp-tint) !important; }
+.projects-db-cell-tsd { background-color: var(--role-tsd-tint) !important; }
+.projects-db-cell-val { background-color: var(--role-val-tint) !important; }
+.projects-db-cell-qc { background-color: var(--role-qc-tint) !important; }
+.projects-db-cell-id { background-color: var(--role-id-tint) !important; }
+
+.projects-db-cell-dirty {
+  box-shadow: inset 3px 0 0 #f59e0b;
+}
+
+.projects-db-cell-selected {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+  background-image: linear-gradient(rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.12)) !important;
+}
+
+.projects-db-cell-readonly {
+  color: #4b5563;
+}
+
+.ag-header-group-cell.projects-db-group-am,
+.ag-header-cell.projects-db-header-am {
+  background-color: var(--role-am-header) !important;
+  color: var(--role-am-text) !important;
+  font-weight: 700;
+}
+
+.ag-header-group-cell.projects-db-group-pp,
+.ag-header-cell.projects-db-header-pp {
+  background-color: var(--role-pp-header) !important;
+  color: var(--role-pp-text) !important;
+  font-weight: 700;
+}
+
+.ag-header-group-cell.projects-db-group-tsd,
+.ag-header-cell.projects-db-header-tsd {
+  background-color: var(--role-tsd-header) !important;
+  color: var(--role-tsd-text) !important;
+  font-weight: 700;
+}
+
+.ag-header-group-cell.projects-db-group-val,
+.ag-header-cell.projects-db-header-val {
+  background-color: var(--role-val-header) !important;
+  color: var(--role-val-text) !important;
+  font-weight: 700;
+}
+
+.ag-header-group-cell.projects-db-group-qc,
+.ag-header-cell.projects-db-header-qc {
+  background-color: var(--role-qc-header) !important;
+  color: var(--role-qc-text) !important;
+  font-weight: 700;
+}
+
+.ag-header-group-cell.projects-db-group-id,
+.ag-header-cell.projects-db-header-id {
+  background-color: var(--role-id-header) !important;
+  color: var(--role-id-text) !important;
+  font-weight: 700;
+}
+
+.projects-db-grid-shell .ag-body-horizontal-scroll,
+.projects-db-grid-shell .ag-body-vertical-scroll {
+  opacity: 1;
+}

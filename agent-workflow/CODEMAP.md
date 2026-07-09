@@ -26,14 +26,20 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Dashboard components | `src/features/dashboard/components/` | Charts and meeting overlay pieces. |
 | Project Entry | `src/features/projects/ProjectEntryPage.tsx` | Main project form page. |
 | Project form components | `src/features/projects/components/` | Hierarchy form, role tabs, field controls, CNF copy modal. |
-| Projects Database | `src/features/projects/ProjectsDatabasePage.tsx` | Search/filter/table/export project database view. |
+| Projects Database | `src/features/projects/ProjectsDatabasePage.tsx` | Role-colored AG Grid spreadsheet; search/filter/export; inline role-gated edits. |
+| Projects Database Grid | `src/features/projects/components/ProjectsDatabaseGrid.tsx` | Frozen Project ID + two-level role headers; cell edit + width persist. |
+| Projects Database columns | `src/lib/projectsDatabaseColumns.ts` | Spreadsheet column/group/role/editor config. |
+| Role colors | `src/lib/roleColors.ts`, `src/styles/role-colors.css` | Shared form + spreadsheet role palette. |
+| Spreadsheet save | `src/services/projectsDatabaseService.ts` | Patch edits → `updateProject` + emit sync. |
 | CNF Tracker | `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF tracker workflow and CNF reference selection. |
 | Support Activities | `src/features/support-activities/SupportActivitiesPage.tsx` | Support activity form and database view. |
 | Audit Trail | `src/features/audit-trail/AuditTrailPage.tsx` | Audit log browsing and filters. |
 | Lessons Learned | `src/features/lessons-learned/LessonsLearnedPage.tsx` | Lessons learned workflow. |
 | Archived | `src/features/archived/ArchivedPage.tsx` | Admin archive view. |
 | Registry | `src/features/registry/RegistryPage.tsx` | Admin registry management. |
-| Admin Users | `src/features/admin/AdminUsersPage.tsx` | Admin user/profile management. |
+| Admin Users | `src/features/admin/AdminUsersPage.tsx` | Admin user/profile management and password-reset approval. |
+| Password reset service | `src/services/passwordResetService.ts` | Forgot-password request + admin approve via Edge Function. |
+| Password reset Edge Function | `supabase/functions/admin-approve-password-reset/` | Issues 16-char temp password and emails via Gmail secrets. |
 | Data Map | `src/features/admin/DataMapPage.tsx` | App data-map/integrity visualization. |
 
 ## Shared Components

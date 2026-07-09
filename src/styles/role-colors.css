@@ -1,0 +1,50 @@
+:root {
+  --role-am-text: #0b6f71;
+  --role-am-bg: #edf8f6;
+  --role-am-accent: #0f8b8d;
+  --role-am-border: #b9d9d3;
+  --role-am-tint: rgba(15, 139, 141, 0.06);
+  --role-am-header: #d8efec;
+
+  --role-qa-text: #8c4a24;
+  --role-qa-bg: #fdf3eb;
+  --role-qa-accent: #b86a3a;
+  --role-qa-border: #e8cdb8;
+  --role-qa-tint: rgba(184, 106, 58, 0.06);
+  --role-qa-header: #f7e6d8;
+
+  --role-pp-text: #285b9c;
+  --role-pp-bg: #eff5fc;
+  --role-pp-accent: #3d6fa8;
+  --role-pp-border: #bed0e5;
+  --role-pp-tint: rgba(61, 111, 168, 0.06);
+  --role-pp-header: #dce8f5;
+
+  --role-tsd-text: #8a5a12;
+  --role-tsd-bg: #fff7e8;
+  --role-tsd-accent: #a36c18;
+  --role-tsd-border: #e6d1aa;
+  --role-tsd-tint: rgba(163, 108, 24, 0.06);
+  --role-tsd-header: #f5e8cc;
+
+  --role-val-text: #6842a6;
+  --role-val-bg: #f5f0fb;
+  --role-val-accent: #7651ad;
+  --role-val-border: #d4c4e8;
+  --role-val-tint: rgba(118, 81, 173, 0.06);
+  --role-val-header: #e8dff4;
+
+  --role-qc-text: #26734d;
+  --role-qc-bg: #eef8f1;
+  --role-qc-accent: #39805b;
+  --role-qc-border: #bddbc9;
+  --role-qc-tint: rgba(57, 128, 91, 0.06);
+  --role-qc-header: #d8eee0;
+
+  --role-id-text: #374151;
+  --role-id-bg: #f3f4f6;
+  --role-id-accent: #6b7280;
+  --role-id-border: #d1d5db;
+  --role-id-tint: rgba(107, 114, 128, 0.04);
+  --role-id-header: #e5e7eb;
+}

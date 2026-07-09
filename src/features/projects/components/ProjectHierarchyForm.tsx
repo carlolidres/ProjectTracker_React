@@ -32,7 +32,7 @@ import {
   isCanonicalPo,
   syncProjectCnfEntryCounts,
 } from "@/lib/projectHierarchy";
-import type { CnfEntry, PoControl, ProjectCnfMotherLink, ProjectHierarchy } from "@/types";
+import type { CnfEntry, PoControl, ProjectCnfMotherLink, ProjectHierarchy, UserRole } from "@/types";
 import { generateHierarchyId, isApprovedStatus, isMissingValue, valueOrNA } from "@/lib/utils";
 import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
 
@@ -97,6 +97,7 @@ interface ProjectHierarchyFormProps {
   onChange: (project: ProjectHierarchy) => void;
   onCopyFromFirstPo: (batchIndex: number, moIndex: number, poIndex: number) => void;
   savedFgMonths?: Record<string, string>;
+  userRole?: UserRole;
   cnfMotherLink?: ProjectCnfMotherLink;
   canCopyCnfFromProject?: boolean;
   onRequestCopyCnf?: () => void;
@@ -164,6 +165,7 @@ export function ProjectHierarchyForm({
   onChange,
   onCopyFromFirstPo,
   savedFgMonths = {},
+  userRole,
   cnfMotherLink,
   canCopyCnfFromProject = false,
   onRequestCopyCnf,
@@ -346,7 +348,7 @@ export function ProjectHierarchyForm({
                   const renderField = (field: ProjectFieldDef) => {
                     const fgMonthLocked =
                       field.key === "fg_month" &&
-                      isFgMonthLocked(savedFgMonths, batchIndex, moIndex, poIndex);
+                      isFgMonthLocked(savedFgMonths, batchIndex, moIndex, poIndex, userRole);
                     const valNaDisabled = isPoFieldDisabledByValNotApplicable(po, field.key);
                     const { readOnly, disabled } = resolveEditableFieldLock(
                       canEdit,

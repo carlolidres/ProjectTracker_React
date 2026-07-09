@@ -68,6 +68,7 @@
   margin: 0;
   font-size: 1.25rem;
   line-height: 1.25;
+  text-transform: uppercase;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -302,50 +303,50 @@
   box-shadow: inset 0 -3px currentColor;
 }
 
-.project-tab-am { color: #0b6f71; background: #edf8f6; }
-.project-tab-qa { color: #8c4a24; background: #fdf3eb; }
-.project-tab-pp { color: #285b9c; background: #eff5fc; }
-.project-tab-tsd { color: #8a5a12; background: #fff7e8; }
-.project-tab-val { color: #6842a6; background: #f5f0fb; }
-.project-tab-qc { color: #26734d; background: #eef8f1; }
+.project-tab-am { color: var(--role-am-text); background: var(--role-am-bg); }
+.project-tab-qa { color: var(--role-qa-text); background: var(--role-qa-bg); }
+.project-tab-pp { color: var(--role-pp-text); background: var(--role-pp-bg); }
+.project-tab-tsd { color: var(--role-tsd-text); background: var(--role-tsd-bg); }
+.project-tab-val { color: var(--role-val-text); background: var(--role-val-bg); }
+.project-tab-qc { color: var(--role-qc-text); background: var(--role-qc-bg); }
 
 .project-tab-layer {
-  --layer-accent: #0f8b8d;
-  --layer-border: #b9d9d3;
-  --layer-summary: #edf8f6;
+  --layer-accent: var(--role-am-accent);
+  --layer-border: var(--role-am-border);
+  --layer-summary: var(--role-am-bg);
   padding: 2px 4px 4px;
   border-left: 4px solid var(--layer-accent);
   border-radius: 10px;
 }
 
 .project-tab-layer-am {
-  --layer-accent: #0f8b8d;
-  --layer-border: #b9d9d3;
-  --layer-summary: #eaf6f3;
+  --layer-accent: var(--role-am-accent);
+  --layer-border: var(--role-am-border);
+  --layer-summary: var(--role-am-bg);
 }
 
 .project-tab-layer-qa {
-  --layer-accent: #b86a3a;
-  --layer-border: #e8cdb8;
-  --layer-summary: #fdf3eb;
+  --layer-accent: var(--role-qa-accent);
+  --layer-border: var(--role-qa-border);
+  --layer-summary: var(--role-qa-bg);
 }
 
 .project-tab-layer-pp {
-  --layer-accent: #3d6fa8;
-  --layer-border: #bed0e5;
-  --layer-summary: #edf4fb;
+  --layer-accent: var(--role-pp-accent);
+  --layer-border: var(--role-pp-border);
+  --layer-summary: var(--role-pp-bg);
 }
 
 .project-tab-layer-tsd {
-  --layer-accent: #a36c18;
-  --layer-border: #e6d1aa;
-  --layer-summary: #fff6e5;
+  --layer-accent: var(--role-tsd-accent);
+  --layer-border: var(--role-tsd-border);
+  --layer-summary: var(--role-tsd-bg);
 }
 
 .project-tab-layer-val {
-  --layer-accent: #7651ad;
-  --layer-border: #d4c4e8;
-  --layer-summary: #f3eef9;
+  --layer-accent: var(--role-val-accent);
+  --layer-border: var(--role-val-border);
+  --layer-summary: var(--role-val-bg);
 }
 
 .project-val-tab-header {
@@ -374,9 +375,9 @@
 }
 
 .project-tab-layer-qc {
-  --layer-accent: #39805b;
-  --layer-border: #bddbc9;
-  --layer-summary: #edf7f0;
+  --layer-accent: var(--role-qc-accent);
+  --layer-border: var(--role-qc-border);
+  --layer-summary: var(--role-qc-bg);
 }
 
 .project-tab-layer .ant-collapse {

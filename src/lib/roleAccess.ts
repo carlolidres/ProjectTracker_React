@@ -65,6 +65,11 @@ export function canEditProjectFields(role: UserRole, fieldGroup: "am" | "qa" | "
   return map[fieldGroup]?.includes(role) ?? false;
 }
 
+/** Admin and AM/BM/PL may change a saved FG Month (reason logged to Lessons Learned on save). */
+export function canAdjustSavedFgMonth(role: UserRole | undefined): boolean {
+  return role === "admin" || role === "am_bm_pl";
+}
+
 export function getVisibleNavPaths(role: UserRole | undefined): string[] {
   if (!role) return [];
   return ROUTE_ACCESS.filter((entry) => canAccessRoute(role, entry.path)).map((entry) => entry.path);

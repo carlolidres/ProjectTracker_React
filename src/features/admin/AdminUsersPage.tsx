@@ -116,24 +116,31 @@ export function AdminUsersPage() {
     setResettingUserId(profile.id);
     setError(null);
     try {
-      const temporaryPassword = await adminCompletePasswordReset(profile.id);
-      Modal.info({
-        title: "Temporary password issued",
-        width: 520,
-        content: (
-          <div>
-            <Typography.Paragraph>
-              Share this one-time password with {getProfileShortName(profile) || profile.email} securely.
-              They must change it before using Project Tracker.
-            </Typography.Paragraph>
-            <Input.TextArea
-              readOnly
-              autoSize={{ minRows: 2, maxRows: 3 }}
-              value={temporaryPassword}
-            />
-          </div>
-        ),
-      });
+      const result = await adminCompletePasswordReset(profile.id);
+      if (result.emailed) {
+        message.success(
+          `Temporary password emailed to ${result.email ?? profile.email}. They must change it on next login.`,
+        );
+      } else {
+        Modal.warning({
+          title: "Temporary password issued (email failed)",
+          width: 520,
+          content: (
+            <div>
+              <Typography.Paragraph>
+                {result.warning || "Email delivery failed."} Share this one-time password with{" "}
+                {getProfileShortName(profile) || profile.email} securely. They must change it before using
+                Project Tracker.
+              </Typography.Paragraph>
+              <Input.TextArea
+                readOnly
+                autoSize={{ minRows: 2, maxRows: 3 }}
+                value={result.temporaryPassword ?? ""}
+              />
+            </div>
+          ),
+        });
+      }
       await loadProfiles();
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : "Failed to reset password.");
@@ -276,9 +283,9 @@ export function AdminUsersPage() {
                   </Button>
                   {pendingResetUserIds.has(profile.id) ? (
                     <Popconfirm
-                      title="Reset password?"
-                      description="This sets the user's password to the default reset password."
-                      okText="Reset password"
+                      title="Approve password reset?"
+                      description="Generates a 16-character temporary password and emails it to the user's registered address. They must set a new password on next login."
+                      okText="Reset Password"
                       onConfirm={() => void handlePasswordReset(profile)}
                     >
                       <Button
