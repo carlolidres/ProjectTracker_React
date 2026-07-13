@@ -3,33 +3,35 @@
 Last Updated: `2026-07-13`
 Version: `v80 Data Map SQL Schema canvas`
 Branch: `main`
+Commit: `e95889e`
 
 ## Current Status
 
-Data Map Schema Canvas now renders migration-derived SQL table cards (PK/FK/UQ/IDX) with animated relationship edges and light/dark theme support.
+`v80` committed, pushed to `origin/main`, and deployed to GitHub Pages successfully. Supabase migrations `033`/`034` were already applied earlier on remote.
 
 ## Recently Completed
 
-- Replaced circle nodes with SQL Schema cards matching `screenshot/SchemaSample.png` style
-- Enhanced `parseMigrations` for PK/UQ/IDX/FK constraint flags; still adapts from current `supabase/migrations`
-- Theme-aware card/edge CSS; selected tables animate related edges
-- Canvas legend for PK/FK/UQ/IDX
+- Commit + push `e95889e`
+- GitHub Pages deploy run `29252770781` success
+- CNF Tracker↔Projects integration, Product/Client UX, SQL Schema canvas, New Product Unique Batch blank
 
 ## Verification
 
 | Check | Status | Result |
 |---|---|---|
-| `npm run typecheck` | PASSED | |
-| `npm run build` | PASSED | |
-| Browser smoke Data Map | NOT_RUN | Open `/admin/data-map` light + dark |
+| git commit / push | PASSED | `e95889e` on `main` |
+| GitHub Pages deploy | PASSED | run `29252770781` |
+| Migrations `033`/`034` on Supabase | PASSED | applied earlier (`20260713125255`, `20260713125304`) |
 
 ## Next Action
 
-Smoke Data Map in browser (light/dark): confirm table cards, badges, and edge highlight on click.
+Browser smoke on production Pages site (CNF New Product Unique Batch blank, Data Map SQL cards, Product/Client sync).
 
-## Decisions and Simplifications
+## Left Uncommitted (intentional)
 
-- `ponytail:` Schema stays migration-parsed at build time; no live Supabase introspection required for the canvas.
+- `.cursor/settings.json`
+- `screenshot/Screenshot 2026-07-09 204047.png`
+- empty `supabase/migrations/20260713121028_cnf_tracker_project_links.sql`
 
 ## Dumb-Zone Recovery
 
