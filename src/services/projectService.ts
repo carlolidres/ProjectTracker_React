@@ -24,6 +24,8 @@ import {
   propagateMotherCnfToLinkedChildren,
   validateChildProjectCnfSave,
 } from "@/services/cnfLinkService";
+import { syncLinkedTrackersFromProject } from "@/services/cnfTrackerLinkService";
+import { projectSnapshotForTrackerSync } from "@/lib/cnfTrackerSync";
 import type {
   BatchControl,
   CnfEntry,
@@ -44,8 +46,24 @@ function normalizeCnfEntries(entries: CnfEntry[] | undefined, legacyRow: Partial
     for (const key of CNF_ENTRY_KEYS) {
       normalized[key] = normalizeProjectValue(entry[key]);
     }
+    if (entry.cnf_initiator !== undefined) normalized.cnf_initiator = normalizeProjectValue(entry.cnf_initiator);
+    if (entry.cnf_details !== undefined) normalized.cnf_details = normalizeProjectValue(entry.cnf_details);
+    if (entry.cnf_tracker_record_id) {
+      normalized.cnf_tracker_record_id = String(entry.cnf_tracker_record_id).trim();
+    }
     return normalized;
   });
+}
+
+/** Strip tracker-only snapshot keys before spreading onto flat cnf_projects columns. */
+function stripTrackerOnlyCnfFields(entry: CnfEntry): Omit<CnfEntry, "cnf_initiator" | "cnf_details" | "cnf_tracker_record_id"> {
+  const {
+    cnf_initiator: _initiator,
+    cnf_details: _details,
+    cnf_tracker_record_id: _trackerId,
+    ...flat
+  } = entry;
+  return flat;
 }
 
 function parseCnfEntries(row: Partial<ProjectRow | PoControl>): CnfEntry[] {
@@ -90,10 +108,13 @@ export function flattenProjectPayload(payload: ProjectHierarchy, projectId: stri
           mo_instance_id: mo.mo_instance_id,
           mo_control_no: mo.mo_control_no,
           ...po,
-          ...firstCnf,
+          ...stripTrackerOnlyCnfFields(firstCnf),
           cnf_entries_json: JSON.stringify(cnfEntries),
         };
         delete line.cnf_entries;
+        delete line.cnf_initiator;
+        delete line.cnf_details;
+        delete line.cnf_tracker_record_id;
         lines.push(line);
       }
     }
@@ -407,6 +428,12 @@ export async function saveProject(payload: ProjectHierarchy, userEmail: string) 
     await logAuditEntries("Projects", "CREATE", row.record_id as string, projectId, {}, row, "Project created", userEmail);
   }
 
+  await syncLinkedTrackersFromProject(
+    projectId,
+    projectSnapshotForTrackerSync({ ...payloadToSave, project_id: projectId }),
+    userEmail,
+  );
+
   return { project_id: projectId, records: dbRows };
 }
 
@@ -478,6 +505,12 @@ export async function updateProject(
   }
 
   await propagateMotherCnfToLinkedChildren(projectId, payloadToSave, userEmail);
+
+  await syncLinkedTrackersFromProject(
+    projectId,
+    projectSnapshotForTrackerSync({ ...payloadToSave, project_id: projectId }),
+    userEmail,
+  );
 
   return { project_id: projectId };
 }

@@ -8,6 +8,11 @@ export interface CnfEntry {
   cnf_status: string;
   client_approval_target_date: string;
   remarks: string;
+  /** Snapshot from CNF Tracker; stored in cnf_entries_json only. */
+  cnf_initiator?: string;
+  cnf_details?: string;
+  /** Stable link to cnf_tracker_records.record_id. */
+  cnf_tracker_record_id?: string;
 }
 
 export interface PoControl {

@@ -4,6 +4,8 @@ export const DEFAULT_REGISTRY: Record<string, string[]> = {
   activity_type: ["PILOT/TRIAL", "TRC", "VAL/VER"],
   business_unit: ["CM", "BM", "PL"],
   cnf_status: ["CNF Creation", "Routing", "Client Approval", "Approved"],
+  cnf_product: [],
+  cnf_client: [],
   updatedDocsVer: ["Yes", "No"],
   yn_status: ["Y", "N"],
   Val_Activity: ["VAL", "VER", "CHAR", "COMML"],

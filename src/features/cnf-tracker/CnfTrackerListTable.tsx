@@ -1,4 +1,4 @@
-import { ReloadOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
+import { PlusOutlined, ReloadOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
 import {
   Alert,
   Button,
@@ -15,6 +15,7 @@ import type { CheckboxOptionType } from "antd/es/checkbox";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { TruncatedCell } from "@/components/common/truncated-cell";
 import { WorkflowStatusBadge } from "@/components/common/workflow-status-badge";
+import { UniqueBatchProjectLink } from "@/features/cnf-tracker/UniqueBatchProjectLink";
 import { formatAppDate, formatFgMonthDate } from "@/lib/date";
 import {
   type CnfTrackerListRow,
@@ -68,16 +69,22 @@ interface CnfTrackerListTableProps {
   rows: CnfTrackerListRow[];
   loading: boolean;
   error: string | null;
+  canCreate?: boolean;
+  highlightedTrackerId?: string | null;
   onRetry: () => void;
   onLoad: (row: CnfTrackerListRow) => void;
+  onNew?: () => void;
 }
 
 export function CnfTrackerListTable({
   rows,
   loading,
   error,
+  canCreate,
+  highlightedTrackerId,
   onRetry,
   onLoad,
+  onNew,
 }: CnfTrackerListTableProps) {
   const [search, setSearch] = useState("");
   const [columnWidths, setColumnWidths] = useState(CNF_TRACKER_LIST_DEFAULT_WIDTHS);
@@ -199,6 +206,13 @@ export function CnfTrackerListTable({
           width: columnWidths.uniqueBatchNo,
           onResizeStart: handleResize("uniqueBatchNo"),
         }),
+        render: (value: string, record) => (
+          <UniqueBatchProjectLink
+            uniqueBatch={value}
+            projectIds={record.projectId ? [record.projectId] : []}
+            cnfTrackerId={record.trackerId || undefined}
+          />
+        ),
       },
       {
         title: CNF_TRACKER_LIST_COLUMN_LABELS.client,
@@ -546,6 +560,11 @@ export function CnfTrackerListTable({
           {filteredRows.length} CNF record{filteredRows.length === 1 ? "" : "s"}
         </Typography.Text>
         <div className="cnf-tracker-list-toolbar-actions">
+          {canCreate && onNew ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={onNew} aria-label="New CNF">
+              New CNF
+            </Button>
+          ) : null}
           <Dropdown
             trigger={["click"]}
             dropdownRender={() => (
@@ -636,6 +655,11 @@ export function CnfTrackerListTable({
             onRow={(record) => ({
               onDoubleClick: () => onLoad(record),
             })}
+            rowClassName={(record) =>
+              highlightedTrackerId && record.trackerId === highlightedTrackerId
+                ? "cnf-tracker-list-row-highlight"
+                : ""
+            }
           />
         )}
       </div>

@@ -31,7 +31,8 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Projects Database columns | `src/lib/projectsDatabaseColumns.ts` | Spreadsheet column/group/role/editor config. |
 | Role colors | `src/lib/roleColors.ts`, `src/styles/role-colors.css` | Shared form + spreadsheet role palette. |
 | Spreadsheet save | `src/services/projectsDatabaseService.ts` | Patch edits → `updateProject` + emit sync. |
-| CNF Tracker | `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF tracker workflow and CNF reference selection. |
+| CNF Tracker | `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF tracker list, New CNF, detail modal, Unique Batch navigation. |
+| CNF create/select modals | `src/features/cnf-tracker/CnfCreateModal.tsx`, `CnfTrackerSelectModal.tsx` | Shared New CNF form and Insert CNF picker for Projects. |
 | Support Activities | `src/features/support-activities/SupportActivitiesPage.tsx` | Support activity form and database view. |
 | Audit Trail | `src/features/audit-trail/AuditTrailPage.tsx` | Audit log browsing and filters. |
 | Lessons Learned | `src/features/lessons-learned/LessonsLearnedPage.tsx` | Lessons learned workflow. |
@@ -40,7 +41,8 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Admin Users | `src/features/admin/AdminUsersPage.tsx` | Admin user/profile management and password-reset approval. |
 | Password reset service | `src/services/passwordResetService.ts` | Forgot-password request + admin approve via Edge Function. |
 | Password reset Edge Function | `supabase/functions/admin-approve-password-reset/` | Issues 16-char temp password and emails via Gmail secrets. |
-| Data Map | `src/features/admin/DataMapPage.tsx` | App data-map/integrity visualization. |
+| Data Map | `src/features/admin/DataMapPage.tsx` | SQL Schema canvas (migration-derived table cards + FK edges) and integrity review. |
+| Schema map parser | `src/lib/schemaMap/parseMigrations.ts` | Parses `supabase/migrations/*.sql` into tables/columns/PK-FK/indexes for Data Map. |
 
 ## Shared Components
 
@@ -65,7 +67,9 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/app/auth-provider.tsx` | Auth provider and user/profile state. |
 | `src/services/profileService.ts` | Profile and user-management data access. |
 | `src/services/projectService.ts` | Project CRUD, hierarchy persistence, audit integration. |
-| `src/services/cnfTrackerService.ts` | CNF tracker records and workflow data access. |
+| `src/services/cnfTrackerService.ts` | CNF tracker records, duplicate checks, audit. |
+| `src/services/cnfTrackerLinkService.ts` | `project_cnf_tracker_links` CRUD. |
+| `src/lib/cnfProjectIntegration.ts` | CNF↔Project apply/prefill, New Product carry-over, duplicate helpers. |
 | `src/services/cnfLinkService.ts` | Project/CNF relationship operations. |
 | `src/services/supportActivityService.ts` | Support activity data access. |
 | `src/services/dashboardService.ts` | Dashboard metrics and worklist data. |

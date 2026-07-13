@@ -44,12 +44,25 @@ export function idsEqual(a: unknown, b: unknown): boolean {
   return String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
 }
 
+const BUSINESS_SPECIAL_CHARS = new Set([
+  "-", "_", "\\", "/", "(", ")", ".", ",", ":", ";", "&", "+", "=", "#", "%", "'", '"', "@", " ",
+]);
+
+function isAllowedBusinessChar(ch: string): boolean {
+  if (ch === "<" || ch === ">") return false;
+  const code = ch.codePointAt(0) ?? 0;
+  if (code < 32 || code === 127) return false;
+  if (/\p{L}|\p{N}/u.test(ch)) return true;
+  return BUSINESS_SPECIAL_CHARS.has(ch);
+}
+
+/** Allow business/document specials; strip control chars and HTML/script delimiters. */
 export function sanitizeAlphanumericInput(value: string): string {
-  return value.replace(/[^A-Za-z0-9\-_/ ]/g, "");
+  return Array.from(value).filter(isAllowedBusinessChar).join("");
 }
 
 export function sanitizePoControlNoInput(value: string): string {
-  return value.replace(/[^A-Za-z0-9\-_/ ()]/g, "");
+  return Array.from(value).filter(isAllowedBusinessChar).join("");
 }
 
 export function sanitizeAuditValue(value: unknown): string {

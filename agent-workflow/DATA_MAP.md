@@ -110,8 +110,21 @@ Purpose: Stores CNF tracker records and associated workflow state.
 Key rules:
 
 - Preserve v61 draft persistence and navigation behavior.
-- Link to project records through controlled relationship logic.
+- Header fields include `cnf_details`, `product_name`, `client_name`, `qrmr_no`, `unique_batch_no`, `change_description` (migrations `033`/`034`).
+- Active `cnf_reference` uniqueness is enforced with normalized whitespace (DB unique index + service checks).
+- Link to projects through `project_cnf_tracker_links` by `record_id` (stable IDs); project CNF text remains a historical snapshot.
+- When linked, Project form is source of truth for Product/Client/QRMR/Description; save syncs tracker (Project → Tracker only).
 - Do not reintroduce v62/v63 seed-import instability without a new approved plan.
+
+### `project_cnf_tracker_links`
+
+Purpose: Junction between `cnf_tracker_records.record_id` and `cnf_projects.project_id`.
+
+Key rules:
+
+- Unique (`cnf_tracker_record_id`, `project_id`).
+- Backfilled from matching `cnf_reference` without rewriting project CNF text.
+- Distinct from mother/child `project_cnf_links` copy relationships.
 
 ### `support_activities`
 

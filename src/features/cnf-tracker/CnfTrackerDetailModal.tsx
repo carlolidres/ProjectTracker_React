@@ -4,11 +4,15 @@ import {
   SaveOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
-import { Alert, Button, Card, Input, Modal, Select, Space, Table, Tag, Typography } from "antd";
+import { Alert, Button, Card, Modal, Select, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { CreatableNaSelect } from "@/components/common/creatable-na-select";
 import { FieldHelpIcon } from "@/components/common/field-help-icon";
+import { NaClearingInput, NaClearingTextArea } from "@/components/common/na-clearing-input";
+import { UniqueBatchProjectLink } from "@/features/cnf-tracker/UniqueBatchProjectLink";
 import type { CnfTrackerAggregatedView } from "@/lib/cnfTrackerAggregation";
-import { isMissingValue, valueOrNA, cn } from "@/lib/utils";
+import { isCnfTrackerCreateRequiredComplete } from "@/lib/cnfProjectIntegration";
+import { isMissingValue, valueOrNA, cn, sanitizeAlphanumericInput } from "@/lib/utils";
 import type { CnfTrackerStatus } from "@/types/cnfTracker";
 
 const TRACKER_STATUS_OPTIONS: { label: string; value: CnfTrackerStatus }[] = [
@@ -20,7 +24,14 @@ export interface CnfTrackerDetailFormState {
   cnf_tracker_id: string;
   cnf_reference: string;
   cnf_initiator: string;
+  cnf_details: string;
+  product_name: string;
+  client_name: string;
+  qrmr_no: string;
+  unique_batch_no: string;
+  change_description: string;
   tracker_status: CnfTrackerStatus;
+  record_id?: string;
 }
 
 interface CnfTrackerDetailModalProps {
@@ -28,19 +39,30 @@ interface CnfTrackerDetailModalProps {
   form: CnfTrackerDetailFormState;
   aggregation: CnfTrackerAggregatedView;
   poTableColumns: ColumnsType<CnfTrackerAggregatedView["poLines"][number]>;
+  linkedProjectIds: string[];
+  isCreateMode: boolean;
+  projectLinked: boolean;
   viewOnly: boolean;
   canEdit: boolean;
   meetingViewReadOnly: boolean;
   saving: boolean;
   formError: string | null;
+  productOptions: { id?: string; value: string }[];
+  clientOptions: { id?: string; value: string }[];
+  canManageOptions?: boolean;
+  duplicateHint?: string | null;
+  onOpenDuplicate?: () => void;
   onClose: () => void;
   onNew: () => void;
   onClear: () => void;
   onSave: () => void;
-  onReferenceChange: (value: string) => void;
-  onInitiatorChange: (value: string) => void;
+  onFormChange: (patch: Partial<CnfTrackerDetailFormState>) => void;
   onStatusChange: (status: CnfTrackerStatus) => void;
   onOpenReferencePicker: () => void;
+  onCreateProduct?: (value: string) => Promise<void> | void;
+  onCreateClient?: (value: string) => Promise<void> | void;
+  onRemoveProduct?: (option: { id?: string; value: string }) => Promise<void> | void;
+  onRemoveClient?: (option: { id?: string; value: string }) => Promise<void> | void;
   blockViewOnlyInteraction: (event: React.SyntheticEvent) => void;
 }
 
@@ -49,32 +71,82 @@ export function CnfTrackerDetailModal({
   form,
   aggregation,
   poTableColumns,
+  linkedProjectIds,
+  isCreateMode,
+  projectLinked,
   viewOnly,
   canEdit,
   meetingViewReadOnly,
   saving,
   formError,
+  productOptions,
+  clientOptions,
+  canManageOptions,
+  duplicateHint,
+  onOpenDuplicate,
   onClose,
   onNew,
   onClear,
   onSave,
-  onReferenceChange,
-  onInitiatorChange,
+  onFormChange,
   onStatusChange,
   onOpenReferencePicker,
+  onCreateProduct,
+  onCreateClient,
+  onRemoveProduct,
+  onRemoveClient,
   blockViewOnlyInteraction,
 }: CnfTrackerDetailModalProps) {
   const hasReference = !isMissingValue(form.cnf_reference);
-  const referenceTitle = hasReference ? form.cnf_reference.trim() : "Enter CNF Reference";
+  const referenceTitle = isCreateMode
+    ? "New CNF"
+    : hasReference
+      ? form.cnf_reference.trim()
+      : "Enter CNF Reference";
+
+  const projectOwnedReadOnly = projectLinked && !isCreateMode;
+  const fieldsReadOnly = viewOnly || projectOwnedReadOnly;
+
+  const canSave =
+    !viewOnly &&
+    !saving &&
+    (isCreateMode
+      ? isCnfTrackerCreateRequiredComplete({
+          ...form,
+          cnf_details: form.cnf_details,
+        })
+      : !isMissingValue(form.cnf_reference));
+
+  const uniqueBatchDisplay = isCreateMode || !isMissingValue(form.unique_batch_no)
+    ? form.unique_batch_no
+    : aggregation.uniqueBatch;
+  const productDisplay = projectOwnedReadOnly && !isMissingValue(aggregation.productName)
+    ? aggregation.productName
+    : form.product_name;
+  const clientDisplay = projectOwnedReadOnly && !isMissingValue(aggregation.clientName)
+    ? aggregation.clientName
+    : form.client_name;
+  const qrmrDisplay = projectOwnedReadOnly && !isMissingValue(aggregation.qrmrRefNo)
+    ? aggregation.qrmrRefNo
+    : form.qrmr_no;
+  const changeDisplay = projectOwnedReadOnly && !isMissingValue(aggregation.changeDescription)
+    ? aggregation.changeDescription
+    : form.change_description;
+
+  const projectIdsForBatch = linkedProjectIds.length
+    ? linkedProjectIds
+    : aggregation.poLines.map((line) => line.projectId).filter(Boolean);
 
   const modalTitle = (
     <div className="cnf-tracker-detail-modal-title project-sticky-header">
       <div className="cnf-tracker-sticky-header-text project-sticky-header-text">
         <h2>{referenceTitle}</h2>
         <p>
-          {hasReference
-            ? `Initiator: ${valueOrNA(form.cnf_initiator)}`
-            : "CNF Reference drives aggregated project data"}
+          {isCreateMode
+            ? "Create a CNF Tracker record"
+            : hasReference
+              ? `Initiator: ${valueOrNA(form.cnf_initiator)}`
+              : "CNF Reference drives aggregated project data"}
         </p>
       </div>
       <div className="cnf-tracker-sticky-header-actions project-sticky-header-actions">
@@ -95,10 +167,10 @@ export function CnfTrackerDetailModal({
         <Button
           className="project-sticky-action-btn"
           type="primary"
-          title="Save CNF Tracker"
+          title="Save CNF"
           icon={<SaveOutlined />}
           loading={saving}
-          disabled={viewOnly}
+          disabled={!canSave}
           onClick={onSave}
         />
       </div>
@@ -109,156 +181,246 @@ export function CnfTrackerDetailModal({
     <Modal
       open={open}
       onCancel={onClose}
-      footer={null}
-      width="min(96vw, 1200px)"
+      footer={
+        isCreateMode ? (
+          <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+            <Button onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="primary" onClick={onSave} loading={saving} disabled={!canSave}>
+              Save CNF
+            </Button>
+          </Space>
+        ) : null
+      }
+      width="min(95vw, 1600px)"
       centered
       destroyOnHidden
       className="cnf-tracker-detail-modal"
       title={modalTitle}
       closable
     >
-      {formError ? <Alert type="error" showIcon message={formError} style={{ marginBottom: 16 }} /> : null}
-      {!canEdit && !meetingViewReadOnly ? (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message="View only"
-          description="Admin, QA, and VAL can update CNF Tracker records. Fields look active but cannot be changed in your role."
-        />
-      ) : null}
+      <div className="cnf-tracker-detail-modal-scroll">
+        {formError ? <Alert type="error" showIcon message={formError} style={{ marginBottom: 16 }} /> : null}
+        {duplicateHint ? (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={`Existing CNF: ${duplicateHint}`}
+            action={
+              onOpenDuplicate ? (
+                <Typography.Link onClick={onOpenDuplicate}>Open existing</Typography.Link>
+              ) : null
+            }
+          />
+        ) : null}
+        {!canEdit && !meetingViewReadOnly ? (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="View only"
+            description="Admin, QA, and VAL can update CNF Tracker records."
+          />
+        ) : null}
+        {projectOwnedReadOnly ? (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="Linked to Project"
+            description="Product, Client, QRMR No., and Description of Change are sourced from the linked Project form. Edit and save the Project to update these values."
+          />
+        ) : null}
 
-      <div className="cnf-tracker-panel project-panel cnf-tracker-detail-modal-panel">
-        <div className="cnf-tracker-form-body project-form-body">
-          <div className="cnf-tracker-header-section project-header-section">
-            <div className="cnf-tracker-form-grid project-form-grid">
-              <div className={cn("cnf-tracker-field project-field", viewOnly && "project-field-view-only")}>
-                <label className="cnf-tracker-field-label project-field-label" htmlFor="cnf-tracker-reference">
-                  <FieldHelpIcon title="Alphanumeric CNF reference used to aggregate matching project PO lines." />
-                  <span className="project-field-label-text">CNF Reference</span>
-                </label>
-                <Input
-                  id="cnf-tracker-reference"
-                  value={form.cnf_reference}
-                  readOnly={viewOnly}
-                  suffix={
-                    viewOnly ? null : (
-                      <Button
-                        type="text"
-                        size="small"
-                        className="cnf-reference-picker-trigger"
-                        icon={<SearchOutlined />}
-                        aria-label="Browse registered CNF references"
-                        onClick={onOpenReferencePicker}
-                      />
-                    )
-                  }
-                  onChange={(event) => {
-                    if (viewOnly) return;
-                    onReferenceChange(event.target.value);
-                  }}
-                />
-              </div>
-              <div className={cn("cnf-tracker-field project-field", viewOnly && "project-field-view-only")}>
-                <label className="cnf-tracker-field-label project-field-label" htmlFor="cnf-tracker-initiator">
-                  <FieldHelpIcon title="Defaults from the first matching project owner when the reference loads." />
-                  <span className="project-field-label-text">CNF Initiator</span>
-                </label>
-                <Input
-                  id="cnf-tracker-initiator"
-                  value={form.cnf_initiator}
-                  readOnly={viewOnly}
-                  onChange={(event) => {
-                    if (viewOnly) return;
-                    onInitiatorChange(event.target.value);
-                  }}
-                />
-              </div>
-              <div className={cn("cnf-tracker-field project-field", viewOnly && "project-field-view-only")}>
-                <label className="cnf-tracker-field-label project-field-label" htmlFor="cnf-tracker-status">
-                  <FieldHelpIcon title="Closed only when CNF closure validation rules are met." />
-                  <span className="project-field-label-text">Tracker Status</span>
-                </label>
-                <Space wrap>
-                  <Select
-                    id="cnf-tracker-status"
-                    className={cn(viewOnly && "project-field-view-only-select")}
-                    style={{ minWidth: 160 }}
-                    value={form.tracker_status}
-                    options={TRACKER_STATUS_OPTIONS}
-                    open={viewOnly ? false : undefined}
-                    showSearch={!viewOnly}
-                    tabIndex={viewOnly ? -1 : undefined}
-                    onMouseDown={viewOnly ? blockViewOnlyInteraction : undefined}
-                    onClick={viewOnly ? blockViewOnlyInteraction : undefined}
-                    onKeyDown={viewOnly ? blockViewOnlyInteraction : undefined}
-                    onChange={(value) => {
-                      if (viewOnly) return;
-                      onStatusChange(value);
-                    }}
+        <div className="cnf-tracker-panel project-panel cnf-tracker-detail-modal-panel">
+          <div className="cnf-tracker-form-body project-form-body">
+            <div className="cnf-tracker-header-section project-header-section">
+              <div className="cnf-tracker-form-grid project-form-grid">
+                <div className={cn("cnf-tracker-field project-field", viewOnly && "project-field-view-only")}>
+                  <label className="cnf-tracker-field-label project-field-label" htmlFor="cnf-tracker-reference">
+                    <FieldHelpIcon title="Alphanumeric CNF reference used to aggregate matching project PO lines." />
+                    <span className="project-field-label-text">
+                      CNF Reference{isCreateMode ? " *" : ""}
+                    </span>
+                  </label>
+                  <NaClearingInput
+                    id="cnf-tracker-reference"
+                    value={form.cnf_reference}
+                    readOnly={viewOnly}
+                    sanitize={sanitizeAlphanumericInput}
+                    onChange={(value) => onFormChange({ cnf_reference: sanitizeAlphanumericInput(value) })}
                   />
-                  <Tag color={form.tracker_status === "Closed" ? "green" : "blue"} className="cnf-tracker-status-badge">
-                    CNF Status: {form.tracker_status}
-                  </Tag>
-                </Space>
+                  {!viewOnly && !isCreateMode ? (
+                    <Button
+                      type="link"
+                      size="small"
+                      className="cnf-reference-picker-trigger"
+                      icon={<SearchOutlined />}
+                      aria-label="Browse registered CNF references"
+                      onClick={onOpenReferencePicker}
+                    >
+                      Browse
+                    </Button>
+                  ) : null}
+                </div>
+                <div className={cn("cnf-tracker-field project-field", viewOnly && "project-field-view-only")}>
+                  <label className="cnf-tracker-field-label project-field-label" htmlFor="cnf-tracker-initiator">
+                    <FieldHelpIcon title="Person or group that initiated the CNF." />
+                    <span className="project-field-label-text">
+                      CNF Initiator{isCreateMode ? " *" : ""}
+                    </span>
+                  </label>
+                  <NaClearingInput
+                    id="cnf-tracker-initiator"
+                    value={form.cnf_initiator}
+                    readOnly={viewOnly}
+                    sanitize={sanitizeAlphanumericInput}
+                    onChange={(value) => onFormChange({ cnf_initiator: sanitizeAlphanumericInput(value) })}
+                  />
+                </div>
+                {!isCreateMode ? (
+                  <div className={cn("cnf-tracker-field project-field", viewOnly && "project-field-view-only")}>
+                    <label className="cnf-tracker-field-label project-field-label" htmlFor="cnf-tracker-status">
+                      <FieldHelpIcon title="Closed only when CNF closure validation rules are met." />
+                      <span className="project-field-label-text">Tracker Status</span>
+                    </label>
+                    <Space wrap>
+                      <Select
+                        id="cnf-tracker-status"
+                        className={cn("cnf-tracker-status-select", viewOnly && "project-field-view-only-select")}
+                        style={{ minWidth: 160 }}
+                        value={form.tracker_status}
+                        options={TRACKER_STATUS_OPTIONS}
+                        open={viewOnly ? false : undefined}
+                        showSearch={!viewOnly}
+                        tabIndex={viewOnly ? -1 : undefined}
+                        onMouseDown={viewOnly ? blockViewOnlyInteraction : undefined}
+                        onClick={viewOnly ? blockViewOnlyInteraction : undefined}
+                        onKeyDown={viewOnly ? blockViewOnlyInteraction : undefined}
+                        onChange={(value) => {
+                          if (viewOnly) return;
+                          onStatusChange(value);
+                        }}
+                      />
+                      <Tag color={form.tracker_status === "Closed" ? "green" : "blue"} className="cnf-tracker-status-badge">
+                        CNF Status: {valueOrNA(aggregation.cnfStatus)}
+                      </Tag>
+                    </Space>
+                  </div>
+                ) : null}
               </div>
             </div>
-          </div>
 
-          {hasReference ? (
-            <>
-              <Card title="CNF Details" className="cnf-tracker-section-card">
-                <div className="cnf-tracker-form-grid project-form-grid">
-                  <div className="cnf-tracker-field project-field">
-                    <label className="cnf-tracker-field-label project-field-label">QRMR No.</label>
-                    <div className="cnf-tracker-readonly-block">{valueOrNA(aggregation.qrmrRefNo)}</div>
+            {(isCreateMode || hasReference) ? (
+              <>
+                <Card title="CNF Details" className="cnf-tracker-section-card">
+                  <div className="cnf-tracker-form-grid project-form-grid">
+                    <div className={cn("cnf-tracker-field project-field", fieldsReadOnly && "project-field-view-only")}>
+                      <label className="cnf-tracker-field-label project-field-label">Product</label>
+                      <CreatableNaSelect
+                        value={productDisplay}
+                        options={productOptions}
+                        readOnly={fieldsReadOnly}
+                        canManageOptions={canManageOptions && !projectOwnedReadOnly}
+                        onChange={(value) => onFormChange({ product_name: value })}
+                        onCreateOption={onCreateProduct}
+                        onRemoveOption={onRemoveProduct}
+                      />
+                    </div>
+                    <div className={cn("cnf-tracker-field project-field", fieldsReadOnly && "project-field-view-only")}>
+                      <label className="cnf-tracker-field-label project-field-label">Client</label>
+                      <CreatableNaSelect
+                        value={clientDisplay}
+                        options={clientOptions}
+                        readOnly={fieldsReadOnly}
+                        canManageOptions={canManageOptions && !projectOwnedReadOnly}
+                        onChange={(value) => onFormChange({ client_name: value })}
+                        onCreateOption={onCreateClient}
+                        onRemoveOption={onRemoveClient}
+                      />
+                    </div>
+                    <div className={cn("cnf-tracker-field project-field", fieldsReadOnly && "project-field-view-only")}>
+                      <label className="cnf-tracker-field-label project-field-label">QRMR No.</label>
+                      <NaClearingInput
+                        value={qrmrDisplay}
+                        readOnly={fieldsReadOnly}
+                        sanitize={sanitizeAlphanumericInput}
+                        onChange={(value) => onFormChange({ qrmr_no: sanitizeAlphanumericInput(value) })}
+                      />
+                    </div>
+                    <div className={cn("cnf-tracker-field project-field", viewOnly && "project-field-view-only")}>
+                      <label className="cnf-tracker-field-label project-field-label">Unique Batch No.</label>
+                      {isCreateMode ? (
+                        <NaClearingInput
+                          value={form.unique_batch_no}
+                          readOnly={viewOnly}
+                          sanitize={sanitizeAlphanumericInput}
+                          onChange={(value) => onFormChange({ unique_batch_no: sanitizeAlphanumericInput(value) })}
+                        />
+                      ) : (
+                        <div className="cnf-tracker-readonly-block">
+                          <UniqueBatchProjectLink
+                            uniqueBatch={uniqueBatchDisplay}
+                            projectIds={projectIdsForBatch}
+                            cnfTrackerId={form.cnf_tracker_id}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className={cn("cnf-tracker-field project-field cnf-tracker-field-span-3", fieldsReadOnly && "project-field-view-only")}>
+                      <label className="cnf-tracker-field-label project-field-label">
+                        Description of Change{isCreateMode ? " *" : ""}
+                      </label>
+                      <NaClearingTextArea
+                        rows={3}
+                        value={changeDisplay}
+                        readOnly={fieldsReadOnly}
+                        onChange={(value) => onFormChange({ change_description: value.replace(/[<>]/g, "") })}
+                      />
+                    </div>
                   </div>
-                  <div className="cnf-tracker-field project-field">
-                    <label className="cnf-tracker-field-label project-field-label">Unique Batch No.</label>
-                    <div className="cnf-tracker-readonly-block">{valueOrNA(aggregation.uniqueBatch)}</div>
-                  </div>
-                  <div className="cnf-tracker-field project-field cnf-tracker-field-span-3">
-                    <label className="cnf-tracker-field-label project-field-label">Description of Change</label>
-                    <div className="cnf-tracker-readonly-block">{valueOrNA(aggregation.changeDescription)}</div>
-                  </div>
-                </div>
-              </Card>
+                </Card>
 
-              <Card
-                title="List of POs where CNF was implemented"
-                className="cnf-tracker-section-card cnf-tracker-po-table"
-              >
-                {aggregation.poLines.length ? (
-                  <div
-                    className="cnf-tracker-po-table-scroll"
-                    tabIndex={0}
-                    role="region"
-                    aria-label="PO implementation table. Use arrow keys to scroll when focused."
+                {!isCreateMode ? (
+                  <Card
+                    title="List of POs where CNF was implemented"
+                    className="cnf-tracker-section-card cnf-tracker-po-table"
                   >
-                    <Table
-                      size="small"
-                      rowKey={(row) => `${row.projectId}-${row.poControlNo}`}
-                      pagination={false}
-                      dataSource={aggregation.poLines}
-                      columns={poTableColumns}
-                      scroll={{ x: 1100, y: 280 }}
-                    />
-                  </div>
-                ) : (
-                  <Typography.Text type="secondary">
-                    No active project PO lines match this CNF reference yet.
-                  </Typography.Text>
-                )}
-              </Card>
-            </>
-          ) : (
-            <Alert
-              type="info"
-              showIcon
-              message="Enter a CNF Reference to load aggregated project data."
-              style={{ marginTop: 8 }}
-            />
-          )}
+                    {aggregation.poLines.length ? (
+                      <div
+                        className="cnf-tracker-po-table-scroll"
+                        tabIndex={0}
+                        role="region"
+                        aria-label="PO implementation table. Use arrow keys to scroll when focused."
+                      >
+                        <Table
+                          size="small"
+                          rowKey={(row) => `${row.projectId}-${row.poControlNo}`}
+                          pagination={false}
+                          dataSource={aggregation.poLines}
+                          columns={poTableColumns}
+                          scroll={{ x: 1400, y: 320 }}
+                        />
+                      </div>
+                    ) : (
+                      <Typography.Text type="secondary">
+                        No active project PO lines match this CNF reference yet.
+                      </Typography.Text>
+                    )}
+                  </Card>
+                ) : null}
+              </>
+            ) : (
+              <Alert
+                type="info"
+                showIcon
+                message="Enter a CNF Reference to load aggregated project data."
+                style={{ marginTop: 8 }}
+              />
+            )}
+          </div>
         </div>
       </div>
     </Modal>

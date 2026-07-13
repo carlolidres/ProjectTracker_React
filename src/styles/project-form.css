@@ -244,13 +244,16 @@
 .project-field .ant-input.na-guide,
 .project-field textarea.ant-input.na-guide,
 .project-field .ant-select.na-guide > .ant-select-selector,
-.project-field .ant-select.na-guide .ant-select-selection-item {
+.project-field .ant-select.na-guide .ant-select-selection-item,
+.project-field .ant-select.na-guide .ant-select-content,
+.project-field .ant-select.na-guide .ant-select-selection-placeholder {
   color: #8a98a6 !important;
   background: #f8fafb !important;
   font-style: italic;
 }
 
-.project-field .ant-select.na-guide > .ant-select-selector {
+.project-field .ant-select.na-guide > .ant-select-selector,
+.project-field .ant-select.na-guide .ant-select-content {
   background: #f8fafb !important;
 }
 
@@ -552,9 +555,11 @@
 [data-theme="dark"] .project-field .ant-input.na-guide,
 [data-theme="dark"] .project-field textarea.ant-input.na-guide,
 [data-theme="dark"] .project-field .ant-select.na-guide > .ant-select-selector,
-[data-theme="dark"] .project-field .ant-select.na-guide .ant-select-selection-item {
-  color: var(--muted) !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+[data-theme="dark"] .project-field .ant-select.na-guide .ant-select-selection-item,
+[data-theme="dark"] .project-field .ant-select.na-guide .ant-select-content,
+[data-theme="dark"] .project-field .ant-select.na-guide .ant-select-selection-placeholder {
+  color: #9aa7b5 !important;
+  background: color-mix(in srgb, var(--panel) 80%, #000) !important;
 }
 
 [data-theme="dark"] .project-field-view-only .ant-input-affix-wrapper,

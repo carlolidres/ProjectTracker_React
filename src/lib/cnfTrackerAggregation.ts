@@ -38,8 +38,18 @@ function parseCnfEntries(row: ProjectRow): CnfEntry[] {
   return [rowAsCnfEntry(row)];
 }
 
+/** Case-insensitive CNF key: trim + collapse internal whitespace + uppercase. */
 export function normalizeCnfReference(value: string): string {
-  return value.trim().toUpperCase();
+  return value.trim().replace(/\s+/g, " ").toUpperCase();
+}
+
+export function normalizeCnfTextKey(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+export function isBlankOrNaCnfValue(value: string | undefined | null): boolean {
+  const key = normalizeCnfTextKey(String(value ?? ""));
+  return !key || key === "n/a";
 }
 
 export function isSmokeTestCnfReference(value: string): boolean {
@@ -101,6 +111,8 @@ export interface CnfTrackerAggregatedView {
   qrmrRefNo: string;
   changeDescription: string;
   uniqueBatch: string;
+  productName: string;
+  clientName: string;
   moControlNo: string;
   poControlNo: string;
   protocolNo: string;
@@ -113,7 +125,9 @@ export interface CnfTrackerAggregatedView {
     productName: string;
     poControlNo: string;
     protocolNo: string;
+    interimReportNo: string;
     validationReportNo: string;
+    endorsementNo: string;
     valActivity: string;
     valStability: string;
     valBatchSeqNo: string;
@@ -185,6 +199,8 @@ export function aggregateCnfTrackerView(matches: CnfMatchedLine[]): CnfTrackerAg
     qrmrRefNo: valueOrNA(entry?.qrmr_ref_no),
     changeDescription: valueOrNA(entry?.change_description),
     uniqueBatch: valueOrNA(row?.unique_batch),
+    productName: valueOrNA(row?.product_name),
+    clientName: valueOrNA(row?.client_name),
     moControlNo: valueOrNA(row?.mo_control_no),
     poControlNo: valueOrNA(row?.po_control_no),
     protocolNo: valueOrNA(row?.protocol_no),
@@ -197,7 +213,9 @@ export function aggregateCnfTrackerView(matches: CnfMatchedLine[]): CnfTrackerAg
       productName: valueOrNA(matchRow.product_name),
       poControlNo: valueOrNA(matchRow.po_control_no),
       protocolNo: valueOrNA(matchRow.protocol_no),
+      interimReportNo: valueOrNA(matchRow.val_interim_report_no),
       validationReportNo: valueOrNA(matchRow.validation_report_no),
+      endorsementNo: valueOrNA(matchRow.endorsement_report_no),
       valActivity: valueOrNA(matchRow.Val_Activity),
       valStability: valueOrNA(matchRow.Val_Stability),
       valBatchSeqNo: valueOrNA(matchRow.Val_Batch_Seq_No),

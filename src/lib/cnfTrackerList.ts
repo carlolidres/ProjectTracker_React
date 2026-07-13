@@ -57,6 +57,7 @@ export interface CnfTrackerListRow {
   endorsementStatus: string;
   projectId: string;
   trackerId: string;
+  trackerRecordId: string;
 }
 
 const SEARCH_FIELDS: Array<keyof CnfTrackerListRow> = [
@@ -114,6 +115,7 @@ function rowFromMatch(
     endorsementStatus: valueOrNA(projectRow.endorsement_report_status),
     projectId: valueOrNA(projectRow.project_id),
     trackerId: tracker?.cnf_tracker_id ?? "",
+    trackerRecordId: tracker?.record_id ?? "",
   };
 }
 
@@ -123,12 +125,12 @@ function rowFromTrackerOnly(record: CnfTrackerRecord): CnfTrackerListRow {
   return {
     rowKey: `tracker:${record.cnf_tracker_id}:${key}`,
     cnfNo,
-    qrmrNo: "N/A",
+    qrmrNo: valueOrNA(record.qrmr_no),
     productName: "N/A",
     productCode: "N/A",
-    uniqueBatchNo: "N/A",
+    uniqueBatchNo: valueOrNA(record.unique_batch_no),
     client: "N/A",
-    descriptionOfChange: "N/A",
+    descriptionOfChange: valueOrNA(record.change_description),
     department: "N/A",
     valActivity: "N/A",
     valBatchSeqNo: "N/A",
@@ -145,6 +147,7 @@ function rowFromTrackerOnly(record: CnfTrackerRecord): CnfTrackerListRow {
     endorsementStatus: "N/A",
     projectId: "N/A",
     trackerId: record.cnf_tracker_id,
+    trackerRecordId: record.record_id ?? "",
   };
 }
 

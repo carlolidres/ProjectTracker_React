@@ -1,6 +1,10 @@
 export interface SchemaColumn {
   name: string;
   type: string;
+  isPrimaryKey?: boolean;
+  isUnique?: boolean;
+  isIndexed?: boolean;
+  isNullable?: boolean;
   references?: { table: string; column?: string };
 }
 
@@ -36,9 +40,29 @@ function stripComments(sql: string): string {
     .replace(/--[^\n]*/g, "");
 }
 
+function cleanType(raw: string): string {
+  return raw
+    .replace(/\bprimary\s+key\b/gi, "")
+    .replace(/\bunique\b/gi, "")
+    .replace(/\bnot\s+null\b/gi, "")
+    .replace(/\bnull\b/gi, "")
+    .replace(/\bdefault\s+[\s\S]+$/i, "")
+    .replace(/\breferences\s+[\s\S]+$/i, "")
+    .replace(/,$/, "")
+    .replace(/\s+/g, " ")
+    .trim() || "unknown";
+}
+
 function parseColumnLine(line: string): SchemaColumn | null {
   const trimmed = line.trim().replace(/,$/, "");
-  if (!trimmed || trimmed.startsWith("constraint ") || trimmed.startsWith("primary key") || trimmed.startsWith("unique ")) {
+  if (
+    !trimmed ||
+    /^constraint\s+/i.test(trimmed) ||
+    /^primary\s+key\b/i.test(trimmed) ||
+    /^unique\b/i.test(trimmed) ||
+    /^foreign\s+key\b/i.test(trimmed) ||
+    /^check\b/i.test(trimmed)
+  ) {
     return null;
   }
 
@@ -46,9 +70,15 @@ function parseColumnLine(line: string): SchemaColumn | null {
   const name = parts[0]?.replace(/"/g, "");
   if (!name) return null;
 
-  const type = parts.slice(1).join(" ").split(/\s+references\s+/i)[0]?.replace(/,$/, "") ?? "unknown";
+  const type = cleanType(parts.slice(1).join(" "));
   const refMatch = trimmed.match(/references\s+(?:public\.)?(\w+)(?:\s*\(([^)]+)\))?/i);
-  const column: SchemaColumn = { name, type };
+  const column: SchemaColumn = {
+    name,
+    type,
+    isPrimaryKey: /\bprimary\s+key\b/i.test(trimmed),
+    isUnique: /\bunique\b/i.test(trimmed),
+    isNullable: !/\bnot\s+null\b/i.test(trimmed) && !/\bprimary\s+key\b/i.test(trimmed),
+  };
   if (refMatch) {
     column.references = {
       table: refMatch[1],
@@ -56,6 +86,53 @@ function parseColumnLine(line: string): SchemaColumn | null {
     };
   }
   return column;
+}
+
+function applyTableConstraints(body: string, table: SchemaTable, edges: SchemaEdge[]) {
+  const pkMatch = body.match(/primary\s+key\s*\(([^)]+)\)/i);
+  if (pkMatch) {
+    const cols = pkMatch[1].split(",").map((part) => part.trim().replace(/"/g, ""));
+    for (const colName of cols) {
+      const column = table.columns.find((item) => item.name === colName);
+      if (column) column.isPrimaryKey = true;
+    }
+  }
+
+  const uniqueMatches = body.matchAll(/unique\s*\(([^)]+)\)/gi);
+  for (const match of uniqueMatches) {
+    const cols = match[1].split(",").map((part) => part.trim().replace(/"/g, ""));
+    if (cols.length === 1) {
+      const column = table.columns.find((item) => item.name === cols[0]);
+      if (column) column.isUnique = true;
+    }
+  }
+
+  const fkMatches = body.matchAll(
+    /foreign\s+key\s*\(([^)]+)\)\s*references\s+(?:public\.)?(\w+)\s*(?:\(([^)]+)\))?/gi,
+  );
+  for (const match of fkMatches) {
+    const localCols = match[1].split(",").map((part) => part.trim().replace(/"/g, ""));
+    const remoteTable = match[2];
+    const remoteCols = (match[3] ?? "")
+      .split(",")
+      .map((part) => part.trim().replace(/"/g, ""))
+      .filter(Boolean);
+    localCols.forEach((localCol, index) => {
+      const column = table.columns.find((item) => item.name === localCol);
+      if (column) {
+        column.references = {
+          table: remoteTable,
+          column: remoteCols[index] || remoteCols[0],
+        };
+      }
+      edges.push({
+        id: `${table.name}.${localCol}->${remoteTable}`,
+        source: table.name,
+        target: remoteTable,
+        label: localCol,
+      });
+    });
+  }
 }
 
 function parseCreateTable(sql: string, tables: Map<string, SchemaTable>, edges: SchemaEdge[]) {
@@ -84,13 +161,15 @@ function parseCreateTable(sql: string, tables: Map<string, SchemaTable>, edges: 
       }
     }
 
-    tables.set(name, {
+    const table: SchemaTable = {
       name,
       schema,
       columns,
       indexes: tables.get(name)?.indexes ?? [],
       policies: tables.get(name)?.policies ?? [],
-    });
+    };
+    applyTableConstraints(body, table, edges);
+    tables.set(name, table);
   }
 }
 
@@ -140,14 +219,34 @@ function parseAlterTable(sql: string, tables: Map<string, SchemaTable>, edges: S
   }
 }
 
+function markIndexedColumns(table: SchemaTable, indexColumns: string[]) {
+  for (const colName of indexColumns) {
+    const column = table.columns.find((item) => item.name === colName);
+    if (column) column.isIndexed = true;
+  }
+}
+
 function parseIndexesAndPolicies(sql: string, tables: Map<string, SchemaTable>) {
-  const indexPattern = /create\s+(?:unique\s+)?index\s+(?:if\s+not\s+exists\s+)?(\w+)\s+on\s+(?:public\.)?(\w+)/gi;
+  const indexPattern =
+    /create\s+(unique\s+)?index\s+(?:if\s+not\s+exists\s+)?(\w+)\s+on\s+(?:public\.)?(\w+)\s*(?:using\s+\w+\s*)?\(([^)]+)\)/gi;
   let match: RegExpExecArray | null;
   while ((match = indexPattern.exec(sql)) !== null) {
-    const [, indexName, tableName] = match;
+    const isUnique = Boolean(match[1]);
+    const indexName = match[2];
+    const tableName = match[3];
+    const indexCols = match[4]
+      .split(",")
+      .map((part) => part.trim().replace(/"/g, "").split(/\s+/)[0])
+      .filter(Boolean);
     const table = tables.get(tableName);
-    if (table && !table.indexes.includes(indexName)) {
+    if (!table) continue;
+    if (!table.indexes.includes(indexName)) {
       table.indexes.push(indexName);
+    }
+    markIndexedColumns(table, indexCols);
+    if (isUnique && indexCols.length === 1) {
+      const column = table.columns.find((item) => item.name === indexCols[0]);
+      if (column) column.isUnique = true;
     }
   }
 
@@ -178,5 +277,13 @@ export function parseMigrationGraph(): SchemaGraph {
   return {
     tables: [...tables.values()].sort((a, b) => a.name.localeCompare(b.name)),
     edges: uniqueEdges,
+  };
+}
+
+export function estimateTableCardSize(table: SchemaTable): { width: number; height: number } {
+  const rowCount = Math.max(table.columns.length, 1);
+  return {
+    width: 280,
+    height: 44 + rowCount * 24 + 8,
   };
 }

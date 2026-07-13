@@ -1,5 +1,6 @@
-import { CopyOutlined, DeleteOutlined, DisconnectOutlined, LinkOutlined, LockOutlined, PlusOutlined } from "@ant-design/icons";
+import { CopyOutlined, DeleteOutlined, DisconnectOutlined, LinkOutlined, LockOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import { Button, Collapse, Modal, Space, Tag, Tooltip, Typography, message } from "antd";
+import { CnfReferenceSelect } from "@/features/projects/components/CnfReferenceSelect";
 import { ProjectFieldControl } from "@/features/projects/components/ProjectFieldControl";
 import {
   BATCH_FIELDS,
@@ -33,6 +34,7 @@ import {
   syncProjectCnfEntryCounts,
 } from "@/lib/projectHierarchy";
 import type { CnfEntry, PoControl, ProjectCnfMotherLink, ProjectHierarchy, UserRole } from "@/types";
+import type { CnfTrackerRecord } from "@/types/cnfTracker";
 import { generateHierarchyId, isApprovedStatus, isMissingValue, valueOrNA } from "@/lib/utils";
 import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
 
@@ -104,6 +106,11 @@ interface ProjectHierarchyFormProps {
   onRequestUnlinkCnf?: () => void;
   onBlockedLinkedCnfEdit?: () => void;
   onBlockedLinkedCnfNumberChange?: () => void;
+  cnfTrackerRecords?: CnfTrackerRecord[];
+  canCreateCnfTracker?: boolean;
+  onRequestInsertCnf?: () => void;
+  onRequestNewCnf?: () => void;
+  onSelectCnfTracker?: (record: CnfTrackerRecord, cnfIndex: number) => void;
 }
 
 function displayLabel(value: string, fallback: string) {
@@ -172,6 +179,11 @@ export function ProjectHierarchyForm({
   onRequestUnlinkCnf,
   onBlockedLinkedCnfEdit,
   onBlockedLinkedCnfNumberChange,
+  cnfTrackerRecords = [],
+  canCreateCnfTracker = false,
+  onRequestInsertCnf,
+  onRequestNewCnf,
+  onSelectCnfTracker,
 }: ProjectHierarchyFormProps) {
   useDiagLifecycle("ProjectHierarchyForm");
   const isAmTab = activeTab === "AM/BM/PL";
@@ -488,6 +500,28 @@ export function ProjectHierarchyForm({
                             CNF Entry
                           </Button>
                         ) : null}
+                        {canModifyCnf ? (
+                          <Tooltip title="Insert an existing CNF from CNF Tracker">
+                            <Button
+                              size="small"
+                              icon={<SearchOutlined />}
+                              disabled={!canModifyCnf}
+                              onClick={() => onRequestInsertCnf?.()}
+                            >
+                              Insert CNF
+                            </Button>
+                          </Tooltip>
+                        ) : null}
+                        {canModifyCnf && canCreateCnfTracker ? (
+                          <Button
+                            size="small"
+                            type="default"
+                            disabled={!canModifyCnf}
+                            onClick={() => onRequestNewCnf?.()}
+                          >
+                            New CNF
+                          </Button>
+                        ) : null}
                       </Space>
                     ) : null}
                   </div>
@@ -604,18 +638,38 @@ export function ProjectHierarchyForm({
                                   viewOnly,
                                   cnfBusinessLocked,
                                 );
+                                const fieldDomId = buildFieldDomId({
+                                  level: "cnf",
+                                  batchIndex,
+                                  moIndex,
+                                  poIndex,
+                                  cnfIndex,
+                                  fieldKey: field.key,
+                                });
+
+                                if (isAmTab && field.key === "cnf_reference" && !cnfLinked) {
+                                  return (
+                                    <div key={field.key} className="project-field">
+                                      <label className="project-field-label" htmlFor={fieldDomId}>
+                                        <span className="project-field-label-text">{field.label}</span>
+                                      </label>
+                                      <CnfReferenceSelect
+                                        id={fieldDomId}
+                                        value={String(entry.cnf_reference ?? "")}
+                                        records={cnfTrackerRecords}
+                                        readOnly={cnfReadOnly}
+                                        disabled={cnfDisabled}
+                                        onSelectRecord={(record) => onSelectCnfTracker?.(record, cnfIndex)}
+                                      />
+                                    </div>
+                                  );
+                                }
+
                                 return (
                                 <ProjectFieldControl
                                   key={field.key}
                                   field={field}
-                                  domId={buildFieldDomId({
-                                    level: "cnf",
-                                    batchIndex,
-                                    moIndex,
-                                    poIndex,
-                                    cnfIndex,
-                                    fieldKey: field.key,
-                                  })}
+                                  domId={fieldDomId}
                                   value={String(entry[field.key as keyof CnfEntry] ?? "")}
                                   readOnly={cnfReadOnly}
                                   disabled={cnfDisabled}
