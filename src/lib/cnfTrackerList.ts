@@ -35,6 +35,7 @@ export const CNF_TRACKER_COLUMN_MAPPING = [
 export interface CnfTrackerListRow {
   rowKey: string;
   cnfNo: string;
+  cnfInitiator: string;
   qrmrNo: string;
   productName: string;
   productCode: string;
@@ -55,6 +56,9 @@ export interface CnfTrackerListRow {
   finalReportStatus: string;
   endorsementNo: string;
   endorsementStatus: string;
+  titleActivityName: string;
+  activityType: string;
+  cnfClassification: "process" | "non_process";
   projectId: string;
   trackerId: string;
   trackerRecordId: string;
@@ -62,6 +66,7 @@ export interface CnfTrackerListRow {
 
 const SEARCH_FIELDS: Array<keyof CnfTrackerListRow> = [
   "cnfNo",
+  "cnfInitiator",
   "qrmrNo",
   "productName",
   "productCode",
@@ -71,7 +76,15 @@ const SEARCH_FIELDS: Array<keyof CnfTrackerListRow> = [
   "interimReportNo",
   "finalReportNo",
   "endorsementNo",
+  "titleActivityName",
+  "activityType",
 ];
+
+function classifyTracker(record?: CnfTrackerRecord): "process" | "non_process" {
+  return String(record?.cnf_classification ?? "process").trim().toLowerCase() === "non_process"
+    ? "non_process"
+    : "process";
+}
 
 function trackerByReference(records: CnfTrackerRecord[]): Map<string, CnfTrackerRecord> {
   const map = new Map<string, CnfTrackerRecord>();
@@ -86,6 +99,8 @@ function trackerByReference(records: CnfTrackerRecord[]): Map<string, CnfTracker
 function rowFromMatch(
   match: ReturnType<typeof collectAllCnfMatchedLines>[number],
   tracker?: CnfTrackerRecord,
+  supportTitle?: string,
+  supportType?: string,
 ): CnfTrackerListRow {
   const { row: projectRow, entryIndex, entry } = match;
   const cnfNo = valueOrNA(entry.cnf_reference);
@@ -93,6 +108,7 @@ function rowFromMatch(
   return {
     rowKey: `${projectRow.record_id}:${entryIndex}:${key}`,
     cnfNo,
+    cnfInitiator: valueOrNA(tracker?.cnf_initiator),
     qrmrNo: valueOrNA(entry.qrmr_ref_no),
     productName: valueOrNA(projectRow.product_name),
     productCode: valueOrNA(projectRow.fg_code),
@@ -113,23 +129,31 @@ function rowFromMatch(
     finalReportStatus: valueOrNA(projectRow.validation_report_status),
     endorsementNo: valueOrNA(projectRow.endorsement_report_no),
     endorsementStatus: valueOrNA(projectRow.endorsement_report_status),
+    titleActivityName: valueOrNA(supportTitle),
+    activityType: valueOrNA(supportType),
+    cnfClassification: classifyTracker(tracker),
     projectId: valueOrNA(projectRow.project_id),
     trackerId: tracker?.cnf_tracker_id ?? "",
     trackerRecordId: tracker?.record_id ?? "",
   };
 }
 
-function rowFromTrackerOnly(record: CnfTrackerRecord): CnfTrackerListRow {
+function rowFromTrackerOnly(
+  record: CnfTrackerRecord,
+  supportTitle?: string,
+  supportType?: string,
+): CnfTrackerListRow {
   const cnfNo = valueOrNA(record.cnf_reference);
   const key = normalizeCnfReference(cnfNo);
   return {
     rowKey: `tracker:${record.cnf_tracker_id}:${key}`,
     cnfNo,
+    cnfInitiator: valueOrNA(record.cnf_initiator),
     qrmrNo: valueOrNA(record.qrmr_no),
-    productName: "N/A",
+    productName: valueOrNA(record.product_name),
     productCode: "N/A",
     uniqueBatchNo: valueOrNA(record.unique_batch_no),
-    client: "N/A",
+    client: valueOrNA(record.client_name),
     descriptionOfChange: valueOrNA(record.change_description),
     department: "N/A",
     valActivity: "N/A",
@@ -145,15 +169,24 @@ function rowFromTrackerOnly(record: CnfTrackerRecord): CnfTrackerListRow {
     finalReportStatus: "N/A",
     endorsementNo: "N/A",
     endorsementStatus: "N/A",
+    titleActivityName: valueOrNA(supportTitle),
+    activityType: valueOrNA(supportType),
+    cnfClassification: classifyTracker(record),
     projectId: "N/A",
     trackerId: record.cnf_tracker_id,
     trackerRecordId: record.record_id ?? "",
   };
 }
 
+export type SupportTitleLookup = Map<
+  string,
+  { titleActivityName: string; activityType: string }
+>;
+
 export function buildCnfTrackerListRows(
   projects: ProjectRow[],
   trackerRecords: CnfTrackerRecord[],
+  supportByTrackerRecordId: SupportTitleLookup = new Map(),
 ): CnfTrackerListRow[] {
   const trackers = trackerByReference(trackerRecords);
   const matches = collectAllCnfMatchedLines(projects);
@@ -162,13 +195,27 @@ export function buildCnfTrackerListRows(
   const rows = matches.map((match) => {
     const key = normalizeCnfReference(match.entry.cnf_reference);
     coveredRefs.add(key);
-    return rowFromMatch(match, trackers.get(key));
+    const tracker = trackers.get(key);
+    const support = tracker?.record_id
+      ? supportByTrackerRecordId.get(String(tracker.record_id))
+      : undefined;
+    return rowFromMatch(
+      match,
+      tracker,
+      support?.titleActivityName,
+      support?.activityType,
+    );
   });
 
   for (const record of trackerRecords) {
     const key = normalizeCnfReference(record.cnf_reference);
-    if (!key || key === "N/A" || coveredRefs.has(key) || isSmokeTestCnfReference(record.cnf_reference)) continue;
-    rows.push(rowFromTrackerOnly(record));
+    if (!key || key === "N/A" || coveredRefs.has(key) || isSmokeTestCnfReference(record.cnf_reference)) {
+      continue;
+    }
+    const support = record.record_id
+      ? supportByTrackerRecordId.get(String(record.record_id))
+      : undefined;
+    rows.push(rowFromTrackerOnly(record, support?.titleActivityName, support?.activityType));
   }
 
   return rows.sort((a, b) => a.cnfNo.localeCompare(b.cnfNo));

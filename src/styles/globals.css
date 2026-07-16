@@ -61,6 +61,9 @@ html, body, #root {
   top: 0;
   height: 100vh;
   flex-shrink: 0;
+  overflow-x: hidden;
+  transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
 }
 
 .sidebar-shell-collapsed { width: var(--sidebar-collapsed-width); }
@@ -79,9 +82,17 @@ html, body, #root {
   margin-bottom: 20px;
 }
 
+.sidebar-shell-collapsed .sidebar-brand {
+  justify-content: center;
+  gap: 0;
+}
+
 .sidebar-logo {
   width: 42px;
   height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  flex: 0 0 42px;
   border-radius: 10px;
   background: var(--primary);
   color: #fff;
@@ -90,6 +101,51 @@ html, body, #root {
   justify-content: center;
   font-weight: 700;
   text-decoration: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  box-sizing: border-box;
+  transition: box-shadow 0.28s ease, filter 0.2s ease;
+}
+
+.sidebar-logo-button:hover {
+  filter: brightness(1.06);
+}
+
+.sidebar-logo-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Keep PT tile fixed size; glow when rail is collapsed (expand affordance). */
+.sidebar-shell-collapsed .sidebar-logo,
+.app-root.sidebar-collapsed .sidebar-desktop .sidebar-logo {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  flex: 0 0 42px;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--primary) 55%, #fff),
+    0 0 14px color-mix(in srgb, var(--primary) 70%, transparent),
+    0 0 28px color-mix(in srgb, var(--primary) 40%, transparent);
+  animation: sidebar-logo-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes sidebar-logo-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--primary) 50%, #fff),
+      0 0 12px color-mix(in srgb, var(--primary) 55%, transparent),
+      0 0 22px color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--primary) 70%, #fff),
+      0 0 18px color-mix(in srgb, var(--primary) 80%, transparent),
+      0 0 34px color-mix(in srgb, var(--primary) 45%, transparent);
+  }
 }
 
 .sidebar-brand-title { display: block; font-weight: 700; }
@@ -111,16 +167,36 @@ html, body, #root {
   border-radius: 8px;
   color: var(--text);
   text-decoration: none;
+  transition:
+    padding 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    gap 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.15s ease;
 }
 
 .sidebar-nav-item:hover { background: rgba(22, 119, 255, 0.08); }
 .sidebar-nav-item-active { background: rgba(22, 119, 255, 0.14); color: var(--primary); font-weight: 600; }
-.sidebar-nav-item-collapsed { justify-content: center; padding-inline: 8px; }
-.sidebar-nav-item-collapsed .sidebar-label { display: none; }
+.sidebar-nav-item-collapsed { justify-content: center; padding-inline: 8px; gap: 0; }
 
+.sidebar-label {
+  display: inline-block;
+  max-width: 180px;
+  opacity: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    opacity 0.18s ease,
+    max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    margin 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-nav-item-collapsed .sidebar-label,
 .sidebar-collapsed .sidebar-brand-text,
-.sidebar-collapsed .sidebar-user-text,
-.sidebar-collapsed .sidebar-credit { display: none; }
+.sidebar-collapsed .sidebar-user-text {
+  opacity: 0;
+  max-width: 0;
+  margin: 0;
+  pointer-events: none;
+}
 
 .sidebar-footer {
   display: flex;
@@ -128,14 +204,6 @@ html, body, #root {
   gap: 10px;
   flex-shrink: 0;
   margin-top: auto;
-}
-
-.sidebar-credit {
-  margin: 0;
-  text-align: center;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.35;
 }
 
 .sidebar-user-button {
@@ -149,6 +217,9 @@ html, body, #root {
   padding: 10px;
   cursor: pointer;
   color: inherit;
+  transition:
+    padding 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    gap 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-user-button-collapsed {
@@ -296,6 +367,63 @@ html, body, #root {
   position: sticky;
   top: 0;
   z-index: 10;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.22s ease,
+    padding 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.22s ease,
+    transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.topbar-sidebar-toggle-icons {
+  position: relative;
+  display: inline-flex;
+  width: 1em;
+  height: 1em;
+  align-items: center;
+  justify-content: center;
+}
+
+.topbar-sidebar-toggle-icon {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.topbar-sidebar-toggle-icon-fold {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+
+.topbar-sidebar-toggle-icon-unfold {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.85);
+}
+
+.topbar-sidebar-toggle-icons.is-collapsed .topbar-sidebar-toggle-icon-fold {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.85);
+}
+
+.topbar-sidebar-toggle-icons.is-collapsed .topbar-sidebar-toggle-icon-unfold {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+
+/* Desktop: collapse topbar (animated) while rail sidebar is collapsed; expand via PT logo. */
+@media (min-width: 961px) {
+  .app-root.sidebar-collapsed .topbar.topbar-hidden-when-sidebar-collapsed {
+    height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-bottom-color: transparent;
+    transform: translateY(-8px);
+    pointer-events: none;
+  }
 }
 
 .topbar-title {
@@ -375,6 +503,20 @@ html, body, #root {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .sidebar-shell,
+  .sidebar-nav-item,
+  .sidebar-label,
+  .sidebar-user-button,
+  .topbar,
+  .topbar-sidebar-toggle-icon {
+    transition: none !important;
+  }
+
+  .sidebar-shell-collapsed .sidebar-logo,
+  .app-root.sidebar-collapsed .sidebar-desktop .sidebar-logo {
+    animation: none;
+  }
+
   .notification-bell-alert .ant-btn,
   .notification-bell-alert .anticon-bell,
   .notification-bell-alert .ant-badge-count,
@@ -449,12 +591,6 @@ html, body, #root {
   gap: 8px;
 }
 
-.feedback-inbox-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .feedback-inbox-loading {
   display: flex;
   justify-content: center;
@@ -465,8 +601,12 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 420px;
+  max-height: calc(100vh - 220px);
   overflow-y: auto;
+}
+
+.feedback-chat-drawer .ant-drawer-body {
+  padding-top: 12px;
 }
 
 .feedback-inbox-item {
@@ -485,13 +625,9 @@ html, body, #root {
   flex-wrap: wrap;
 }
 
-.feedback-chat-modal .ant-modal {
-  max-width: calc(100vw - 24px) !important;
-}
-
 @media (max-width: 640px) {
-  .feedback-chat-modal .ant-modal {
-    margin: 12px auto !important;
+  .feedback-chat-drawer.ant-drawer-right > .ant-drawer-content-wrapper {
+    width: min(100vw, 560px) !important;
   }
 
   .feedback-inbox-item-header {
@@ -500,7 +636,7 @@ html, body, #root {
   }
 
   .feedback-inbox-list {
-    max-height: min(60vh, 420px);
+    max-height: calc(100vh - 240px);
   }
 
   .feedback-chat-actions {
@@ -742,4 +878,36 @@ html, body, #root {
   text-align: left;
   white-space: normal;
   word-break: break-word;
+}
+
+/* Gray italic N/A guide for empty optional fields (inputs, textareas, selects). */
+.ant-input.na-guide,
+textarea.ant-input.na-guide,
+.ant-input-affix-wrapper.na-guide,
+.ant-input-affix-wrapper.na-guide .ant-input,
+.ant-select.na-guide > .ant-select-selector,
+.ant-select.na-guide .ant-select-selection-item,
+.ant-select.na-guide .ant-select-content,
+.ant-select.na-guide .ant-select-selection-placeholder {
+  color: #8a98a6 !important;
+  background: #f8fafb !important;
+  font-style: italic;
+}
+
+.ant-select.na-guide > .ant-select-selector,
+.ant-select.na-guide .ant-select-content {
+  background: #f8fafb !important;
+}
+
+[data-theme="dark"] .ant-input.na-guide,
+[data-theme="dark"] textarea.ant-input.na-guide,
+[data-theme="dark"] .ant-input-affix-wrapper.na-guide,
+[data-theme="dark"] .ant-input-affix-wrapper.na-guide .ant-input,
+[data-theme="dark"] .ant-select.na-guide > .ant-select-selector,
+[data-theme="dark"] .ant-select.na-guide .ant-select-selection-item,
+[data-theme="dark"] .ant-select.na-guide .ant-select-content,
+[data-theme="dark"] .ant-select.na-guide .ant-select-selection-placeholder {
+  color: #9aa7b5 !important;
+  background: color-mix(in srgb, var(--panel) 80%, #000) !important;
+  font-style: italic;
 }

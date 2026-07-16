@@ -18,6 +18,7 @@ export function AppShell({ children }: Readonly<AppShellProps>) {
         state={sidebar.state}
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
+        onExpandSidebar={sidebar.expand}
       />
       <div className="app-main">
         <Topbar

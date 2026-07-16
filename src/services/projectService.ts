@@ -25,6 +25,7 @@ import {
   validateChildProjectCnfSave,
 } from "@/services/cnfLinkService";
 import { syncLinkedTrackersFromProject } from "@/services/cnfTrackerLinkService";
+import { ensureEndorsementFromProjectSave } from "@/services/endorsementTrackerService";
 import { projectSnapshotForTrackerSync } from "@/lib/cnfTrackerSync";
 import type {
   BatchControl,
@@ -396,6 +397,39 @@ function assertDateAdjustmentsConfirmed(
   }
 }
 
+async function ensureProjectEndorsementTracker(
+  projectId: string,
+  payload: ProjectHierarchy,
+  canonicalRecordId: string,
+  userEmail: string,
+): Promise<{ endorsement_tracker_id?: string; endorsement_record_id?: string }> {
+  const canonicalPo = payload.batches[0]?.mo_controls[0]?.po_controls[0];
+  if (!canonicalPo || !canonicalRecordId) return {};
+  try {
+    const ensured = await ensureEndorsementFromProjectSave({
+      project: {
+        project_id: projectId,
+        record_id: canonicalRecordId,
+        product_name: payload.product_name,
+        fg_code: payload.fg_code,
+        endorsement_report_no: canonicalPo.endorsement_report_no,
+        endorsement_report_status: canonicalPo.endorsement_report_status,
+        cnf_reference: canonicalPo.cnf_reference,
+      },
+      userEmail,
+    });
+    if (!ensured) return {};
+    return {
+      endorsement_tracker_id: ensured.endorsement_tracker_id,
+      endorsement_record_id: ensured.record_id,
+    };
+  } catch (error) {
+    throw new Error(
+      formatServiceError(error, "Project saved, but endorsement tracker could not be created or linked."),
+    );
+  }
+}
+
 export async function saveProject(payload: ProjectHierarchy, userEmail: string) {
   const projectId =
     valueOrNA(payload.project_id) === NA_VALUE
@@ -434,7 +468,14 @@ export async function saveProject(payload: ProjectHierarchy, userEmail: string) 
     userEmail,
   );
 
-  return { project_id: projectId, records: dbRows };
+  const endorsement = await ensureProjectEndorsementTracker(
+    projectId,
+    payloadToSave,
+    String(dbRows[0]?.record_id ?? ""),
+    userEmail,
+  );
+
+  return { project_id: projectId, records: dbRows, ...endorsement };
 }
 
 export async function updateProject(
@@ -476,12 +517,14 @@ export async function updateProject(
   for (const row of existing) existingByKey[poLineKey(row)] = row;
 
   const incomingKeys = new Set<string>();
+  let canonicalRecordId = "";
 
   for (const line of lines) {
     const key = poLineKey(line);
     incomingKeys.add(key);
     const prior = existingByKey[key];
     const dbRow = toDbRow({ ...line, record_id: prior?.record_id }, { userEmail, now, isNew: !prior });
+    if (!canonicalRecordId) canonicalRecordId = String(dbRow.record_id ?? prior?.record_id ?? "");
 
     if (prior) {
       const { error } = await supabase.from("cnf_projects").update(mapProjectToDb(dbRow)).eq("record_id", prior.record_id);
@@ -512,7 +555,14 @@ export async function updateProject(
     userEmail,
   );
 
-  return { project_id: projectId };
+  const endorsement = await ensureProjectEndorsementTracker(
+    projectId,
+    payloadToSave,
+    canonicalRecordId,
+    userEmail,
+  );
+
+  return { project_id: projectId, ...endorsement };
 }
 
 export async function archiveProject(projectId: string, userEmail: string) {

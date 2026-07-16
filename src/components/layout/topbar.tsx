@@ -1,9 +1,11 @@
 import { MenuFoldOutlined, MenuOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
 import { useState } from "react";
+import { AppVersionButton } from "@/components/layout/app-version-button";
 import { FeedbackChat } from "@/components/layout/feedback-chat";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import type { SidebarState } from "@/hooks/use-sidebar-state";
+import { cn } from "@/lib/utils";
 
 interface TopbarProps {
   sidebarState: SidebarState;
@@ -16,7 +18,7 @@ export function Topbar({ sidebarState, onToggleSidebar, onOpenMobileSidebar }: T
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   return (
-    <header className="topbar">
+    <header className={cn("topbar", isCollapsed && "topbar-hidden-when-sidebar-collapsed")}>
       <Button
         type="text"
         icon={<MenuOutlined />}
@@ -28,9 +30,14 @@ export function Topbar({ sidebarState, onToggleSidebar, onOpenMobileSidebar }: T
         <Button
           type="text"
           className="desktop-only topbar-sidebar-toggle"
-          icon={isCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           onClick={onToggleSidebar}
+          icon={
+            <span className={cn("topbar-sidebar-toggle-icons", isCollapsed && "is-collapsed")}>
+              <MenuFoldOutlined className="topbar-sidebar-toggle-icon topbar-sidebar-toggle-icon-fold" />
+              <MenuUnfoldOutlined className="topbar-sidebar-toggle-icon topbar-sidebar-toggle-icon-unfold" />
+            </span>
+          }
         />
       </Tooltip>
       <div className="topbar-title">
@@ -38,6 +45,7 @@ export function Topbar({ sidebarState, onToggleSidebar, onOpenMobileSidebar }: T
         <p className="topbar-title-sub">An End-to-End Project Monitoring System</p>
       </div>
       <div className="topbar-actions">
+        <AppVersionButton />
         <FeedbackChat />
         <NotificationCenter open={notificationsOpen} onOpenChange={setNotificationsOpen} />
       </div>

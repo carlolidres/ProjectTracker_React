@@ -9,5 +9,9 @@ export function useSidebarState() {
     setState((current) => (current === "expanded" ? "collapsed" : "expanded"));
   }, []);
 
-  return { state, toggle };
+  const expand = useCallback(() => {
+    setState("expanded");
+  }, []);
+
+  return { state, toggle, expand };
 }

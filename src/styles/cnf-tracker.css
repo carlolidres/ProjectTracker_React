@@ -20,6 +20,125 @@
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), var(--cnf-tracker-list-chrome-shadow);
 }
 
+.cnf-tracker-list-classification {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 16px 0;
+}
+
+.cnf-tracker-list-segment {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 72%, var(--panel));
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.cnf-tracker-list-segment-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text) 72%, transparent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.cnf-tracker-list-segment-btn:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+
+.cnf-tracker-list-segment-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary, #1677ff) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.cnf-tracker-list-segment-btn.is-active {
+  color: var(--text);
+  background: var(--panel);
+  border-color: color-mix(in srgb, var(--border) 80%, transparent);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  font-weight: 600;
+}
+
+.cnf-tracker-list-segment-icon {
+  font-size: 14px;
+  color: color-mix(in srgb, var(--text) 55%, transparent);
+}
+
+.cnf-tracker-list-segment-btn.is-active .cnf-tracker-list-segment-icon {
+  color: var(--primary, #1677ff);
+}
+
+.cnf-tracker-list-segment-label {
+  white-space: nowrap;
+}
+
+.cnf-tracker-list-segment-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 55%, transparent);
+  color: color-mix(in srgb, var(--text) 78%, transparent);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cnf-tracker-list-segment-btn.is-active .cnf-tracker-list-segment-count {
+  background: color-mix(in srgb, var(--primary, #1677ff) 16%, transparent);
+  color: var(--primary, #1677ff);
+}
+
+@media (max-width: 720px) {
+  .cnf-tracker-list-classification {
+    padding: 10px 12px 0;
+  }
+
+  .cnf-tracker-list-segment {
+    width: 100%;
+  }
+
+  .cnf-tracker-list-segment-btn {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
+
+[data-theme="dark"] .cnf-tracker-list-segment {
+  background: color-mix(in srgb, var(--bg) 80%, #000);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .cnf-tracker-list-segment-btn.is-active {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
 .cnf-tracker-list-toolbar {
   display: flex;
   flex-wrap: nowrap;

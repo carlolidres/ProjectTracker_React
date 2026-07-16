@@ -1,4 +1,4 @@
-import { PlusOutlined, ReloadOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
+import { ApartmentOutlined, PartitionOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
 import {
   Alert,
   Button,
@@ -32,6 +32,8 @@ import {
 } from "@/lib/cnfTrackerTableColumns";
 
 const HORIZONTAL_SCROLL_STEP_PX = 120;
+
+type ListTab = "process" | "non_process";
 
 interface ResizableTitleProps extends React.HTMLAttributes<HTMLTableCellElement> {
   width?: number;
@@ -71,6 +73,8 @@ interface CnfTrackerListTableProps {
   error: string | null;
   canCreate?: boolean;
   highlightedTrackerId?: string | null;
+  listTab?: ListTab;
+  onListTabChange?: (tab: ListTab) => void;
   onRetry: () => void;
   onLoad: (row: CnfTrackerListRow) => void;
   onNew?: () => void;
@@ -82,10 +86,19 @@ export function CnfTrackerListTable({
   error,
   canCreate,
   highlightedTrackerId,
+  listTab: controlledTab,
+  onListTabChange,
   onRetry,
   onLoad,
   onNew,
 }: CnfTrackerListTableProps) {
+  const [internalTab, setInternalTab] = useState<ListTab>("process");
+  const listTab = controlledTab ?? internalTab;
+  function setListTab(tab: ListTab) {
+    if (onListTabChange) onListTabChange(tab);
+    else setInternalTab(tab);
+  }
+
   const [search, setSearch] = useState("");
   const [columnWidths, setColumnWidths] = useState(CNF_TRACKER_LIST_DEFAULT_WIDTHS);
   const [hiddenColumns, setHiddenColumns] = useState<Set<CnfTrackerListColumnKey>>(new Set());
@@ -98,7 +111,20 @@ export function CnfTrackerListTable({
   const [hScrollWidth, setHScrollWidth] = useState(0);
   const [canScrollHorizontally, setCanScrollHorizontally] = useState(false);
 
-  const filteredRows = useMemo(() => filterCnfTrackerListRows(rows, search), [rows, search]);
+  const tabRows = useMemo(
+    () => rows.filter((row) => row.cnfClassification === listTab),
+    [rows, listTab],
+  );
+  const filteredRows = useMemo(() => filterCnfTrackerListRows(tabRows, search), [tabRows, search]);
+  const isNonProcess = listTab === "non_process";
+  const processCount = useMemo(
+    () => rows.filter((row) => row.cnfClassification === "process").length,
+    [rows],
+  );
+  const nonProcessCount = useMemo(
+    () => rows.filter((row) => row.cnfClassification === "non_process").length,
+    [rows],
+  );
 
   const getTableBody = useCallback(() => {
     const body = tableWrapRef.current?.querySelector(".ant-table-body");
@@ -416,15 +442,74 @@ export function CnfTrackerListTable({
     [columnWidths, handleResize, onLoad, rows],
   );
 
-  const visibleColumns = useMemo(
-    () =>
-      allColumns.filter((column) => {
-        const key = String(column.key) as CnfTrackerListColumnKey;
-        if (key === "cnfNo" || key === "load") return true;
-        return !hiddenColumns.has(key);
-      }),
-    [allColumns, hiddenColumns],
+  const nonProcessColumns: ColumnsType<CnfTrackerListRow> = useMemo(
+    () => [
+      {
+        title: "CNF Reference *",
+        dataIndex: "cnfNo",
+        key: "cnfNo",
+        fixed: "left",
+        width: 220,
+        sorter: (a, b) => a.cnfNo.localeCompare(b.cnfNo),
+        render: (value: string) => <Typography.Text strong>{valueOrNA(value)}</Typography.Text>,
+      },
+      {
+        title: "CNF Initiator *",
+        dataIndex: "cnfInitiator",
+        key: "cnfInitiator",
+        width: 160,
+        sorter: (a, b) => a.cnfInitiator.localeCompare(b.cnfInitiator),
+        render: (value: string) => valueOrNA(value),
+      },
+      {
+        title: "QRMR No.",
+        dataIndex: "qrmrNo",
+        key: "qrmrNo",
+        width: 140,
+        sorter: (a, b) => a.qrmrNo.localeCompare(b.qrmrNo),
+        render: (value: string) => valueOrNA(value),
+      },
+      {
+        title: "Title / Activity Name",
+        dataIndex: "titleActivityName",
+        key: "titleActivityName",
+        width: 220,
+        sorter: (a, b) => a.titleActivityName.localeCompare(b.titleActivityName),
+        render: (value: string) => (
+          <TruncatedCell value={valueOrNA(value)} maxWidth={204} />
+        ),
+      },
+      {
+        title: "Activity Type",
+        dataIndex: "activityType",
+        key: "activityType",
+        width: 180,
+        sorter: (a, b) => a.activityType.localeCompare(b.activityType),
+        render: (value: string) => valueOrNA(value),
+      },
+      {
+        title: "Load",
+        key: "load",
+        fixed: "right",
+        width: 90,
+        render: (_: unknown, record) => (
+          <Button type="link" onClick={() => onLoad(record)} aria-label={`Load ${record.cnfNo}`}>
+            Load
+          </Button>
+        ),
+      },
+    ],
+    [onLoad],
   );
+
+  const visibleColumns = useMemo(() => {
+    if (isNonProcess) return nonProcessColumns;
+    return allColumns.filter((column) => {
+      const key = String(column.key) as CnfTrackerListColumnKey;
+      if (key === "cnfNo" || key === "load") return true;
+      return !hiddenColumns.has(key);
+    });
+  }, [allColumns, hiddenColumns, isNonProcess, nonProcessColumns]);
 
   const tableScrollX = useMemo(
     () =>
@@ -546,18 +631,72 @@ export function CnfTrackerListTable({
 
   return (
     <section ref={panelRef} className="cnf-tracker-list-panel" aria-label="CNF Tracker list">
+      <div className="cnf-tracker-list-classification" role="presentation">
+        <div
+          className="cnf-tracker-list-segment"
+          role="tablist"
+          aria-label="CNF classification"
+        >
+          <button
+            type="button"
+            role="tab"
+            id="cnf-list-tab-process"
+            aria-selected={listTab === "process"}
+            aria-controls="cnf-list-panel-table"
+            className={
+              listTab === "process"
+                ? "cnf-tracker-list-segment-btn is-active"
+                : "cnf-tracker-list-segment-btn"
+            }
+            onClick={() => setListTab("process")}
+          >
+            <ApartmentOutlined aria-hidden className="cnf-tracker-list-segment-icon" />
+            <span className="cnf-tracker-list-segment-label">Process</span>
+            <span className="cnf-tracker-list-segment-count" aria-label={`${processCount} records`}>
+              {processCount}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="cnf-list-tab-non-process"
+            aria-selected={listTab === "non_process"}
+            aria-controls="cnf-list-panel-table"
+            className={
+              listTab === "non_process"
+                ? "cnf-tracker-list-segment-btn is-active"
+                : "cnf-tracker-list-segment-btn"
+            }
+            onClick={() => setListTab("non_process")}
+          >
+            <PartitionOutlined aria-hidden className="cnf-tracker-list-segment-icon" />
+            <span className="cnf-tracker-list-segment-label">Non-Process</span>
+            <span
+              className="cnf-tracker-list-segment-count"
+              aria-label={`${nonProcessCount} records`}
+            >
+              {nonProcessCount}
+            </span>
+          </button>
+        </div>
+      </div>
+
       <div ref={toolbarRef} className="cnf-tracker-list-toolbar">
         <Input
           allowClear
           prefix={<SearchOutlined aria-hidden />}
-          placeholder="Search CNF, QRMR, product, client, protocol, reports…"
+          placeholder={
+            isNonProcess
+              ? "Search CNF reference, initiator, QRMR, title, activity type…"
+              : "Search CNF, QRMR, product, client, protocol, reports…"
+          }
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           className="cnf-tracker-list-search"
           aria-label="Search CNF tracker records"
         />
         <Typography.Text type="secondary" className="cnf-tracker-list-record-count" aria-live="polite">
-          {filteredRows.length} CNF record{filteredRows.length === 1 ? "" : "s"}
+          {filteredRows.length} shown
         </Typography.Text>
         <div className="cnf-tracker-list-toolbar-actions">
           {canCreate && onNew ? (
@@ -565,33 +704,35 @@ export function CnfTrackerListTable({
               New CNF
             </Button>
           ) : null}
-          <Dropdown
-            trigger={["click"]}
-            dropdownRender={() => (
-              <div className="cnf-tracker-column-settings">
-                <Typography.Text strong>Show columns</Typography.Text>
-                <Checkbox.Group
-                  options={columnVisibilityOptions}
-                  value={CNF_TRACKER_LIST_COLUMN_KEYS.filter(
-                    (key) => key !== "cnfNo" && key !== "load" && !hiddenColumns.has(key),
-                  )}
-                  onChange={(checked) => {
-                    const visible = new Set(checked as CnfTrackerListColumnKey[]);
-                    const nextHidden = new Set<CnfTrackerListColumnKey>();
-                    for (const key of CNF_TRACKER_LIST_COLUMN_KEYS) {
-                      if (key === "cnfNo" || key === "load") continue;
-                      if (!visible.has(key)) nextHidden.add(key);
-                    }
-                    setHiddenColumns(nextHidden);
-                  }}
-                />
-              </div>
-            )}
-          >
-            <Button icon={<SettingOutlined />} aria-label="Column visibility settings">
-              Columns
-            </Button>
-          </Dropdown>
+          {!isNonProcess ? (
+            <Dropdown
+              trigger={["click"]}
+              dropdownRender={() => (
+                <div className="cnf-tracker-column-settings">
+                  <Typography.Text strong>Show columns</Typography.Text>
+                  <Checkbox.Group
+                    options={columnVisibilityOptions}
+                    value={CNF_TRACKER_LIST_COLUMN_KEYS.filter(
+                      (key) => key !== "cnfNo" && key !== "load" && !hiddenColumns.has(key),
+                    )}
+                    onChange={(checked) => {
+                      const visible = new Set(checked as CnfTrackerListColumnKey[]);
+                      const nextHidden = new Set<CnfTrackerListColumnKey>();
+                      for (const key of CNF_TRACKER_LIST_COLUMN_KEYS) {
+                        if (key === "cnfNo" || key === "load") continue;
+                        if (!visible.has(key)) nextHidden.add(key);
+                      }
+                      setHiddenColumns(nextHidden);
+                    }}
+                  />
+                </div>
+              )}
+            >
+              <Button icon={<SettingOutlined />} aria-label="Column visibility settings">
+                Columns
+              </Button>
+            </Dropdown>
+          ) : null}
           <Button icon={<ReloadOutlined />} onClick={onRetry} loading={loading} aria-label="Retry loading CNF list">
             Retry
           </Button>
@@ -614,10 +755,12 @@ export function CnfTrackerListTable({
       ) : null}
 
       <div
+        id="cnf-list-panel-table"
         ref={tableWrapRef}
         className="cnf-tracker-list-table-wrap"
         tabIndex={0}
-        role="region"
+        role="tabpanel"
+        aria-labelledby={listTab === "non_process" ? "cnf-list-tab-non-process" : "cnf-list-tab-process"}
         aria-label="CNF tracker table. Use left and right arrow keys to scroll columns when focused."
         onKeyDown={handleTableKeyDown}
         onWheel={handleTableWheel}

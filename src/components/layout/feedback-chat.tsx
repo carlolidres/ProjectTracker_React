@@ -2,10 +2,10 @@ import { CopyOutlined, MessageOutlined, ReloadOutlined, SendOutlined } from "@an
 import {
   App as AntApp,
   Button,
+  Drawer,
   Empty,
   Form,
   Input,
-  Modal,
   Radio,
   Select,
   Space,
@@ -38,7 +38,7 @@ function feedbackTypeLabel(type: FeedbackType) {
   return type === "bug" ? "Bug report" : "Improvement idea";
 }
 
-function FeedbackSubmitModal({
+function FeedbackSubmitPanel({
   open,
   onClose,
 }: {
@@ -81,14 +81,14 @@ function FeedbackSubmitModal({
   }
 
   return (
-    <Modal
+    <Drawer
       title="Share Feedback"
-      open={open}
-      onCancel={handleClose}
-      footer={null}
-      destroyOnHidden
+      placement="right"
       width={480}
-      className="feedback-chat-modal"
+      open={open}
+      onClose={handleClose}
+      destroyOnHidden
+      className="feedback-chat-drawer"
     >
       <div className="feedback-chat-window">
         <div className="feedback-chat-bubble feedback-chat-bubble-system">
@@ -140,7 +140,7 @@ function FeedbackSubmitModal({
           </div>
         </Form>
       </div>
-    </Modal>
+    </Drawer>
   );
 }
 
@@ -193,7 +193,7 @@ function hasUnreadFeedback(items: AppFeedback[]): boolean {
   );
 }
 
-function FeedbackInboxModal({
+function FeedbackInboxPanel({
   open,
   onClose,
   onSendTestFeedback,
@@ -265,14 +265,24 @@ function FeedbackInboxModal({
   }
 
   return (
-    <Modal
+    <Drawer
       title="User Feedback"
-      open={open}
-      onCancel={onClose}
-      footer={<Button onClick={onClose}>Close</Button>}
-      destroyOnHidden
+      placement="right"
       width={560}
-      className="feedback-chat-modal"
+      open={open}
+      onClose={onClose}
+      destroyOnHidden
+      className="feedback-chat-drawer"
+      extra={
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
+            Refresh
+          </Button>
+          <Button type="primary" onClick={onSendTestFeedback}>
+            Send test feedback
+          </Button>
+        </Space>
+      }
     >
       <div className="feedback-chat-window">
         <div className="feedback-chat-bubble feedback-chat-bubble-system">
@@ -280,15 +290,6 @@ function FeedbackInboxModal({
             User feedback inbox, including administrator test messages. Addressed and Not Accepted items are
             automatically removed after 3 days.
           </Typography.Text>
-        </div>
-
-        <div className="feedback-inbox-toolbar">
-          <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
-            Refresh
-          </Button>
-          <Button type="primary" onClick={onSendTestFeedback}>
-            Send test feedback
-          </Button>
         </div>
 
         {error ? (
@@ -358,7 +359,7 @@ function FeedbackInboxModal({
           <Empty description="No user feedback yet" />
         )}
       </div>
-    </Modal>
+    </Drawer>
   );
 }
 
@@ -420,7 +421,7 @@ export function FeedbackChat() {
 
       {isAdmin ? (
         <>
-          <FeedbackInboxModal
+          <FeedbackInboxPanel
             open={open}
             onClose={handleClose}
             onSendTestFeedback={() => {
@@ -428,7 +429,7 @@ export function FeedbackChat() {
               setSubmitOpen(true);
             }}
           />
-          <FeedbackSubmitModal
+          <FeedbackSubmitPanel
             open={submitOpen}
             onClose={() => {
               setSubmitOpen(false);
@@ -437,7 +438,7 @@ export function FeedbackChat() {
           />
         </>
       ) : (
-        <FeedbackSubmitModal open={open} onClose={handleClose} />
+        <FeedbackSubmitPanel open={open} onClose={handleClose} />
       )}
     </>
   );

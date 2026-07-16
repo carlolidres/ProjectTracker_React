@@ -11,7 +11,7 @@ import type { ButtonProps } from "antd";
 import type { HookAPI } from "antd/es/modal/useModal";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   clearProjectEntryDraft,
   loadProjectEntryDraft,
@@ -73,6 +73,7 @@ import {
   tabToFieldGroup,
 } from "@/lib/projectFormFields";
 import { ROLE_LABELS } from "@/lib/constants";
+import { shouldOpenEndorsementTrackerFromProjectStatus } from "@/lib/endorsementSync";
 import { collectProjectDateChanges } from "@/lib/dateAdjustmentReview";
 import { canArchiveRecords, canCopyCnfFromProject, canEditCnfTracker, canEditProjectFields, isAdminRole, isViewerRole } from "@/lib/roleAccess";
 import { projectBmrLockStatusLabel } from "@/lib/bmrLock";
@@ -297,6 +298,7 @@ export function ProjectEntryPage() {
   const { user, profile } = useAuth();
   useDiagLifecycle("ProjectEntryPage");
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const projectIdParam = searchParams.get("projectId");
   const { registry } = useRegistry();
   const { promptBatchDateAdjustment } = useDateAdjustment();
@@ -868,6 +870,7 @@ export function ProjectEntryPage() {
       const isNew = !projectIdParam;
       const payload = applyProjectOwnerSavePolicy(project, profile, isNew, baselineProjectRef.current);
       let savedProjectId = payload.project_id;
+      let endorsementTrackerId: string | undefined;
 
       messageApi.open({
         type: "loading",
@@ -883,10 +886,12 @@ export function ProjectEntryPage() {
       if (isNew) {
         const result = await saveProject(payload, user.email);
         savedProjectId = result.project_id;
+        endorsementTrackerId = result.endorsement_tracker_id;
       } else {
-        await updateProject(payload.project_id, payload, user.email, {
+        const result = await updateProject(payload.project_id, payload, user.email, {
           dateAdjustmentsConfirmed: dateChanges.length > 0,
         });
+        endorsementTrackerId = result.endorsement_tracker_id;
       }
 
       const trackerRecordId =
@@ -941,6 +946,24 @@ export function ProjectEntryPage() {
         key: PROJECT_SAVE_MESSAGE_KEY,
         duration: 5,
       });
+
+      if (endorsementTrackerId) {
+        navigate(`/endorsement-tracker?id=${encodeURIComponent(endorsementTrackerId)}`);
+      } else {
+        const endorsementStatus =
+          payload.batches[0]?.mo_controls[0]?.po_controls[0]?.endorsement_report_status;
+        if (
+          shouldOpenEndorsementTrackerFromProjectStatus(endorsementStatus)
+          && savedProjectId
+          && savedProjectId !== "N/A"
+        ) {
+          const params = new URLSearchParams({
+            new: "1",
+            projectId: savedProjectId,
+          });
+          navigate(`/endorsement-tracker?${params.toString()}`);
+        }
+      }
     } catch (err) {
       messageApi.destroy(PROJECT_SAVE_MESSAGE_KEY);
       const errorMessage = formatServiceError(err, "Failed to save project.");

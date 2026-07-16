@@ -5,6 +5,7 @@ import {
   CloseOutlined,
   DashboardOutlined,
   DatabaseOutlined,
+  FileProtectOutlined,
   FileTextOutlined,
   InboxOutlined,
   LogoutOutlined,
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { label: "Projects Database", href: "/projects/database", icon: DatabaseOutlined },
   { label: "Support Activities", href: "/support-activities", icon: ToolOutlined },
   { label: "CNF Tracker", href: "/cnf-tracker", icon: BookOutlined },
+  { label: "Endorsement Tracker", href: "/endorsement-tracker", icon: FileProtectOutlined },
   { label: "Lessons Learned", href: "/lessons-learned", icon: ReadOutlined },
   { label: "Audit Trail", href: "/audit-trail", icon: AuditOutlined },
 ];
@@ -55,6 +57,7 @@ interface SidebarProps {
   state: SidebarState;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
+  onExpandSidebar?: () => void;
 }
 
 function filterNavItems(items: NavItem[], role: UserRole | undefined) {
@@ -64,7 +67,7 @@ function filterNavItems(items: NavItem[], role: UserRole | undefined) {
   });
 }
 
-export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
+export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }: SidebarProps) {
   const { profile, user } = useAuth();
   const { appTheme, toggleTheme } = useAppTheme();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -109,9 +112,21 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
   const content = (
     <div className="sidebar-inner">
       <div className="sidebar-brand">
-        <Link to="/dashboard" className="sidebar-logo" onClick={onCloseMobile} aria-label="Go to dashboard">
-          PT
-        </Link>
+        {isCollapsed && onExpandSidebar ? (
+          <button
+            type="button"
+            className="sidebar-logo sidebar-logo-button"
+            onClick={onExpandSidebar}
+            aria-label="Expand sidebar and top bar"
+            title="Expand sidebar"
+          >
+            PT
+          </button>
+        ) : (
+          <Link to="/dashboard" className="sidebar-logo" onClick={onCloseMobile} aria-label="Go to dashboard">
+            PT
+          </Link>
+        )}
         <div className="sidebar-label sidebar-brand-text">
           <Typography.Text className="sidebar-brand-title">Project Tracker</Typography.Text>
         </div>
@@ -153,7 +168,6 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile }: SidebarProps) {
             </button>
           </Tooltip>
         </Dropdown>
-        <p className="sidebar-credit sidebar-label">Created by: Carlo M. Lidres</p>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 export type CnfTrackerStatus = "Open" | "Closed";
 
+export type CnfClassification = "process" | "non_process";
+
 export interface CnfTrackerRecord {
   record_id?: string;
   cnf_tracker_id: string;
@@ -11,6 +13,8 @@ export interface CnfTrackerRecord {
   qrmr_no?: string;
   unique_batch_no?: string;
   change_description?: string;
+  /** Process vs Non-Process list/detail mode. Existing records default to process. */
+  cnf_classification?: CnfClassification | string;
   tracker_status: CnfTrackerStatus | string;
   closed_date?: string;
   created_by?: string;

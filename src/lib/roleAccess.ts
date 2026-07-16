@@ -11,6 +11,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/projects/database", roles: "all" },
   { path: "/support-activities", roles: "all" },
   { path: "/cnf-tracker", roles: "all" },
+  { path: "/endorsement-tracker", roles: "all" },
   { path: "/lessons-learned", roles: "all" },
   { path: "/audit-trail", roles: ["admin", "view"] },
   { path: "/archived", roles: ["admin"] },
@@ -49,6 +50,25 @@ export function canCopyCnfFromProject(role: UserRole | undefined): boolean {
 
 export function canEditCnfTracker(role: UserRole | undefined): boolean {
   return role === "admin" || role === "qa" || role === "val";
+}
+
+/** Admin and VAL manage endorsement records. */
+export function canManageEndorsementTracker(role: UserRole | undefined): boolean {
+  return role === "admin" || role === "val";
+}
+
+/** QA may update QA verification fields only. */
+export function canEditEndorsementQaFields(role: UserRole | undefined): boolean {
+  return role === "admin" || role === "qa" || role === "val";
+}
+
+export function canEditEndorsementQaOnly(role: UserRole | undefined): boolean {
+  return role === "qa";
+}
+
+/** Only admin may remove reusable dropdown options. */
+export function canRemoveReusableOptions(role: UserRole | undefined): boolean {
+  return isAdminRole(role);
 }
 
 export function canEditProjectFields(role: UserRole, fieldGroup: "am" | "qa" | "pp" | "tsd" | "val" | "qc"): boolean {

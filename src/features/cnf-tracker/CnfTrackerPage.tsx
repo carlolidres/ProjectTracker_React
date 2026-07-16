@@ -31,7 +31,7 @@ import {
   validateCnfTrackerClosure,
 } from "@/lib/cnfClosureValidation";
 import { getNextCnfTrackerId } from "@/lib/idGeneration";
-import { canEditCnfTracker } from "@/lib/roleAccess";
+import { canEditCnfTracker, canRemoveReusableOptions } from "@/lib/roleAccess";
 import { isMissingValue, valueOrNA } from "@/lib/utils";
 import {
   getCnfTrackerById,
@@ -40,10 +40,24 @@ import {
 } from "@/services/cnfTrackerService";
 import { listProjectIdsForTrackerRecord } from "@/services/cnfTrackerLinkService";
 import { listActiveProjects } from "@/services/projectService";
+import {
+  buildSupportTitleLookupByCnfRecordId,
+  findNonProcessByCnfTrackerRecordId,
+  getSupportActivityById,
+  listNonProcessByCnfTrackerRecordId,
+  syncNonProcessFieldsFromCnf,
+} from "@/services/supportActivityService";
+import {
+  createReusableOption,
+  listReusableOptions,
+  softRemoveReusableOption,
+} from "@/services/reusableOptionService";
+import type { ReusableOption } from "@/types/endorsementTracker";
 import { buildCnfTrackerListRows } from "@/lib/cnfTrackerList";
 import type { CnfTrackerListRow } from "@/lib/cnfTrackerList";
 import { subscribeProjectDataChanged } from "@/lib/projectDataEvents";
 import { CnfDuplicateError, type CnfTrackerRecord, type CnfTrackerStatus } from "@/types/cnfTracker";
+import type { SupportActivity } from "@/types";
 import type { ProjectRow } from "@/types";
 import "@/styles/cnf-tracker.css";
 
@@ -60,13 +74,26 @@ function emptyForm(): CnfTrackerDetailFormState {
     change_description: "",
     tracker_status: "Open",
     record_id: "",
+    title_activity_name: "",
+    activity_type: "",
+    details_tab: "process",
   };
 }
 
+function editableCnfReference(value: unknown): string {
+  const text = String(value ?? "").trim();
+  if (!text || text.toUpperCase() === "N/A" || text.toUpperCase() === "NA") return "";
+  return text;
+}
+
 function formFromRecord(record: CnfTrackerRecord): CnfTrackerDetailFormState {
+  const classification =
+    String(record.cnf_classification ?? "process").trim().toLowerCase() === "non_process"
+      ? "non_process"
+      : "process";
   return {
     cnf_tracker_id: record.cnf_tracker_id,
-    cnf_reference: record.cnf_reference,
+    cnf_reference: editableCnfReference(record.cnf_reference),
     cnf_initiator: record.cnf_initiator,
     cnf_details: String(record.cnf_details ?? ""),
     product_name: String(record.product_name ?? ""),
@@ -76,6 +103,9 @@ function formFromRecord(record: CnfTrackerRecord): CnfTrackerDetailFormState {
     change_description: String(record.change_description ?? ""),
     tracker_status: record.tracker_status === "Closed" ? "Closed" : "Open",
     record_id: record.record_id,
+    title_activity_name: "",
+    activity_type: "",
+    details_tab: classification,
   };
 }
 
@@ -103,9 +133,13 @@ export function CnfTrackerPage() {
   const { registry, refreshRegistry } = useRegistry();
   const meetingViewReadOnly = useMeetingViewReadOnly();
   const canEdit = canEditCnfTracker(profile?.role);
+  const canManageOptions = canRemoveReusableOptions(profile?.role);
   const viewOnly = !canEdit || meetingViewReadOnly;
   const [searchParams, setSearchParams] = useSearchParams();
   const trackerIdParam = searchParams.get("id");
+  const createNewParam = searchParams.get("new");
+  const createRefParam = searchParams.get("ref");
+  const createSupportActivityIdParam = searchParams.get("supportActivityId");
 
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [trackerRecords, setTrackerRecords] = useState<CnfTrackerRecord[]>([]);
@@ -121,8 +155,15 @@ export function CnfTrackerPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [linkedProjectIds, setLinkedProjectIds] = useState<string[]>([]);
+  const [linkedSupportActivityId, setLinkedSupportActivityId] = useState<string | null>(null);
+  const [activityTypeOptions, setActivityTypeOptions] = useState<ReusableOption[]>([]);
   const [highlightedTrackerId, setHighlightedTrackerId] = useState<string | null>(null);
   const [registryEntries, setRegistryEntries] = useState<RegistryEntry[]>([]);
+  const [supportTitleLookup, setSupportTitleLookup] = useState<
+    Map<string, { titleActivityName: string; activityType: string }>
+  >(new Map());
+  const [linkedSupportRows, setLinkedSupportRows] = useState<SupportActivity[]>([]);
+  const [listTab, setListTab] = useState<"process" | "non_process">("process");
   const draftFlushEnabledRef = useRef(true);
 
   const productOptions = useMemo(() => {
@@ -154,18 +195,43 @@ export function CnfTrackerPage() {
   const loadRecord = useCallback(async (trackerId: string) => {
     const record = await getCnfTrackerById(trackerId);
     if (!record) return null;
-    setForm(formFromRecord(record));
-    setInitiatorTouched(true);
-    setIsCreateMode(false);
+    const nextForm = formFromRecord(record);
     if (record.record_id) {
+      try {
+        const linked = await findNonProcessByCnfTrackerRecordId(record.record_id);
+        if (linked) {
+          setLinkedSupportActivityId(linked.activity_id);
+          // Keep details_tab from cnf_classification; only prefill Non-Process fields on that tab.
+          if (nextForm.details_tab === "non_process") {
+            nextForm.title_activity_name = String(linked.non_process_description ?? "").slice(0, 50);
+            nextForm.activity_type = String(
+              linked.type_of_validation || linked.activity_type || "",
+            );
+          }
+        } else {
+          setLinkedSupportActivityId(null);
+        }
+      } catch {
+        setLinkedSupportActivityId(null);
+      }
+      try {
+        setLinkedSupportRows(await listNonProcessByCnfTrackerRecordId(record.record_id));
+      } catch {
+        setLinkedSupportRows([]);
+      }
       try {
         setLinkedProjectIds(await listProjectIdsForTrackerRecord(record.record_id));
       } catch {
         setLinkedProjectIds([]);
       }
     } else {
+      setLinkedSupportActivityId(null);
+      setLinkedSupportRows([]);
       setLinkedProjectIds([]);
     }
+    setForm(nextForm);
+    setInitiatorTouched(true);
+    setIsCreateMode(false);
     return record;
   }, []);
 
@@ -175,6 +241,7 @@ export function CnfTrackerPage() {
     setInitiatorTouched(false);
     setIsCreateMode(true);
     setLinkedProjectIds([]);
+    setLinkedSupportActivityId(null);
     setDuplicateHint(null);
     setDuplicateTrackerId(null);
     setSearchParams({});
@@ -202,14 +269,20 @@ export function CnfTrackerPage() {
     setLoading(true);
     setListError(null);
     try {
-      const [rows, records, entries] = await Promise.all([
+      const [rows, records, entries, activityTypes, supportLookup] = await Promise.all([
         loadProjects(),
         listActiveCnfTrackerRecords(),
         listRegistryEntries().catch(() => [] as RegistryEntry[]),
+        listReusableOptions("type_of_validation").catch(() => [] as ReusableOption[]),
+        buildSupportTitleLookupByCnfRecordId().catch(
+          () => new Map<string, { titleActivityName: string; activityType: string }>(),
+        ),
       ]);
       setProjects(rows);
       setTrackerRecords(records);
       setRegistryEntries(entries);
+      setActivityTypeOptions(activityTypes);
+      setSupportTitleLookup(supportLookup);
       return { rows, records };
     } catch (err) {
       setListError(err instanceof Error ? err.message : "Failed to load CNF Tracker list");
@@ -257,25 +330,68 @@ export function CnfTrackerPage() {
         if (cancelled) return;
 
         const draft = user?.id ? loadCnfTrackerDraft(user.id) : null;
+        const wantsCreate = createNewParam === "1" || createNewParam === "true";
 
         if (trackerIdParam) {
-          if (draft?.trackerIdParam === trackerIdParam && draft.form) {
-            setForm({ ...emptyForm(), ...draft.form });
+          // Always load DB first so CNF Reference is not blanked by a partial draft.
+          const record = await loadRecord(trackerIdParam);
+          if (!record && !cancelled) {
+            setFormError(`CNF Tracker record ${trackerIdParam} not found.`);
+          } else if (!cancelled && draft?.trackerIdParam === trackerIdParam && draft.form) {
+            setForm((current) => ({
+              ...current,
+              cnf_tracker_id: draft.form.cnf_tracker_id || current.cnf_tracker_id,
+              cnf_reference: !isMissingValue(draft.form.cnf_reference)
+                ? draft.form.cnf_reference
+                : current.cnf_reference,
+              cnf_initiator: draft.form.cnf_initiator || current.cnf_initiator,
+              tracker_status: draft.form.tracker_status ?? current.tracker_status,
+            }));
             setInitiatorTouched(draft.initiatorTouched);
-            setIsCreateMode(false);
-            resumeDraftFlush();
-          } else {
-            const record = await loadRecord(trackerIdParam);
-            if (!record && !cancelled) {
-              setFormError(`CNF Tracker record ${trackerIdParam} not found.`);
-            }
-            resumeDraftFlush();
           }
           if (!cancelled) {
+            setIsCreateMode(false);
+            resumeDraftFlush();
             setDetailModalOpen(true);
             setHighlightedTrackerId(trackerIdParam);
             setSearchParams({});
           }
+        } else if (wantsCreate) {
+          const nextId = await getNextCnfTrackerId();
+          if (cancelled) return;
+          const supportActivityId = (createSupportActivityIdParam ?? "").trim() || null;
+          let titlePrefill = "";
+          let activityTypePrefill = "";
+          if (supportActivityId) {
+            try {
+              const linkedSupport = await getSupportActivityById(supportActivityId);
+              titlePrefill = String(linkedSupport?.non_process_description ?? "").slice(0, 50);
+              activityTypePrefill = String(
+                linkedSupport?.type_of_validation || linkedSupport?.activity_type || "",
+              );
+            } catch {
+              // keep empty prefills
+            }
+          }
+          setForm({
+            ...emptyForm(),
+            cnf_tracker_id: nextId,
+            cnf_reference: (createRefParam ?? "").trim(),
+            title_activity_name: titlePrefill,
+            activity_type: activityTypePrefill,
+            details_tab: supportActivityId ? "non_process" : "process",
+          });
+          setInitiatorTouched(false);
+          setIsCreateMode(true);
+          setLinkedProjectIds([]);
+          setLinkedSupportActivityId(supportActivityId);
+          setDuplicateHint(null);
+          setDuplicateTrackerId(null);
+          setDetailModalOpen(true);
+          setHighlightedTrackerId(null);
+          setSearchParams({});
+          if (user?.id) clearCnfTrackerDraft(user.id);
+          suspendDraftFlush();
         } else if (draft?.form) {
           setForm({ ...emptyForm(), ...draft.form });
           setInitiatorTouched(draft.initiatorTouched);
@@ -290,11 +406,22 @@ export function CnfTrackerPage() {
     return () => {
       cancelled = true;
     };
-  }, [trackerIdParam, loadData, loadRecord, resumeDraftFlush, user?.id, setSearchParams]);
+  }, [
+    trackerIdParam,
+    createNewParam,
+    createRefParam,
+    createSupportActivityIdParam,
+    loadData,
+    loadRecord,
+    resumeDraftFlush,
+    suspendDraftFlush,
+    user?.id,
+    setSearchParams,
+  ]);
 
   const listRows = useMemo(
-    () => buildCnfTrackerListRows(projects, trackerRecords),
-    [projects, trackerRecords],
+    () => buildCnfTrackerListRows(projects, trackerRecords, supportTitleLookup),
+    [projects, trackerRecords, supportTitleLookup],
   );
 
   useEffect(() => subscribeProjectDataChanged(() => {
@@ -349,26 +476,57 @@ export function CnfTrackerPage() {
     setFormError(null);
     setDuplicateHint(null);
     setIsCreateMode(false);
+    setDetailModalOpen(true);
+    const listReference = editableCnfReference(row.cnfNo);
+
     if (row.trackerId) {
-      setSearchParams({ id: row.trackerId });
-      void loadRecord(row.trackerId);
+      // Load directly — do not set ?id= (avoids draft/searchParam race that cleared CNF Reference).
       setHighlightedTrackerId(row.trackerId);
+      void (async () => {
+        const record = await loadRecord(row.trackerId);
+        if (!record) {
+          setFormError(`CNF Tracker record ${row.trackerId} not found.`);
+          return;
+        }
+        setForm((current) => ({
+          ...current,
+          cnf_reference: isMissingValue(current.cnf_reference)
+            ? listReference
+            : current.cnf_reference,
+          details_tab:
+            row.cnfClassification === "non_process" ? "non_process" : current.details_tab,
+        }));
+        if (row.trackerRecordId) {
+          try {
+            setLinkedSupportRows(await listNonProcessByCnfTrackerRecordId(row.trackerRecordId));
+          } catch {
+            setLinkedSupportRows([]);
+          }
+        } else {
+          setLinkedSupportRows([]);
+        }
+      })();
     } else {
-      setSearchParams({});
-      setForm((current) => ({
+      setLinkedSupportRows([]);
+      setForm({
         ...emptyForm(),
-        ...current,
         cnf_tracker_id: "N/A",
         record_id: "",
-        cnf_reference: row.cnfNo,
-      }));
+        cnf_reference: listReference,
+        details_tab: row.cnfClassification === "non_process" ? "non_process" : "process",
+      });
       setLinkedProjectIds(row.projectId && row.projectId !== "N/A" ? [row.projectId] : []);
+      setHighlightedTrackerId(null);
     }
-    setDetailModalOpen(true);
   }
 
   async function handleNew() {
     await prepareNew();
+    setLinkedSupportRows([]);
+    setForm((current) => ({
+      ...current,
+      details_tab: listTab,
+    }));
     setFormError(null);
     setDetailModalOpen(true);
   }
@@ -407,12 +565,64 @@ export function CnfTrackerPage() {
           unique_batch_no: normalizeOptionalToNa(form.unique_batch_no),
           change_description: normalizeOptionalToNa(form.change_description),
           cnf_details: normalizeOptionalToNa(form.cnf_details),
+          cnf_classification: form.details_tab === "non_process" ? "non_process" : "process",
           allowProbableDuplicate,
         },
         user.email,
       );
       message.success(`CNF ${saved.cnf_tracker_id} saved`);
-      setForm(formFromRecord(saved));
+      const titleToSync = String(form.title_activity_name ?? "").trim();
+      const activityTypeToSync = String(form.activity_type ?? "").trim();
+      const detailsTab = form.details_tab === "non_process" ? "non_process" : "process";
+      // Only sync support fields when saving as Non-Process — never from Process tab.
+      if (
+        detailsTab === "non_process"
+        && user.email
+        && (titleToSync || activityTypeToSync || linkedSupportActivityId || isCreateMode)
+      ) {
+        try {
+          const synced = await syncNonProcessFieldsFromCnf({
+            activityId: linkedSupportActivityId,
+            cnfTrackerRecordId: saved.record_id ?? null,
+            cnfReference: saved.cnf_reference,
+            titleActivityName: titleToSync,
+            activityType: activityTypeToSync,
+            userEmail: user.email,
+          });
+          if (synced) {
+            setLinkedSupportActivityId(synced.activity_id);
+            setForm({
+              ...formFromRecord(saved),
+              title_activity_name: String(synced.non_process_description ?? titleToSync).slice(0, 50),
+              activity_type: String(
+                synced.type_of_validation || synced.activity_type || activityTypeToSync,
+              ),
+              details_tab: detailsTab,
+            });
+          } else {
+            setForm({
+              ...formFromRecord(saved),
+              title_activity_name: titleToSync,
+              activity_type: activityTypeToSync,
+              details_tab: detailsTab,
+            });
+          }
+        } catch {
+          setForm({
+            ...formFromRecord(saved),
+            title_activity_name: titleToSync,
+            activity_type: activityTypeToSync,
+            details_tab: detailsTab,
+          });
+        }
+      } else {
+        setForm({
+          ...formFromRecord(saved),
+          title_activity_name: titleToSync,
+          activity_type: activityTypeToSync,
+          details_tab: detailsTab,
+        });
+      }
       setIsCreateMode(false);
       setHighlightedTrackerId(saved.cnf_tracker_id);
       setTrackerRecords((current) => {
@@ -429,6 +639,13 @@ export function CnfTrackerPage() {
         } catch {
           setLinkedProjectIds([]);
         }
+        try {
+          setLinkedSupportRows(await listNonProcessByCnfTrackerRecordId(saved.record_id));
+        } catch {
+          setLinkedSupportRows([]);
+        }
+      } else {
+        setLinkedSupportRows([]);
       }
     } catch (err) {
       if (err instanceof CnfDuplicateError) {
@@ -550,6 +767,8 @@ export function CnfTrackerPage() {
           error={listError}
           canCreate={canEdit && !meetingViewReadOnly}
           highlightedTrackerId={highlightedTrackerId}
+          listTab={listTab}
+          onListTabChange={setListTab}
           onRetry={() => void loadData()}
           onLoad={handleLoadFromList}
           onNew={() => void handleNew()}
@@ -560,6 +779,7 @@ export function CnfTrackerPage() {
           form={form}
           aggregation={aggregation}
           poTableColumns={poTableColumns}
+          supportActivities={linkedSupportRows}
           linkedProjectIds={linkedProjectIds}
           isCreateMode={isCreateMode}
           projectLinked={projectLinked}
@@ -570,7 +790,11 @@ export function CnfTrackerPage() {
           formError={formError}
           productOptions={productOptions}
           clientOptions={clientOptions}
-          canManageOptions={canEdit && !meetingViewReadOnly}
+          activityTypeOptions={activityTypeOptions.map((item) => ({
+            id: item.option_id,
+            value: item.option_value,
+          }))}
+          canManageOptions={canManageOptions && !meetingViewReadOnly}
           duplicateHint={duplicateHint}
           onOpenDuplicate={
             duplicateTrackerId
@@ -596,6 +820,19 @@ export function CnfTrackerPage() {
           onCreateClient={(value) => createRegistryOption("cnf_client", value)}
           onRemoveProduct={(option) => removeRegistryOption("cnf_product", option)}
           onRemoveClient={(option) => removeRegistryOption("cnf_client", option)}
+          onCreateActivityType={async (value) => {
+            if (!user?.email) return;
+            const created = await createReusableOption("type_of_validation", value, user.email);
+            setActivityTypeOptions((current) => [
+              ...current.filter((item) => item.option_id !== created.option_id),
+              created,
+            ]);
+          }}
+          onRemoveActivityType={async (option) => {
+            if (!user?.email || !option.id) return;
+            await softRemoveReusableOption(option.id, user.email);
+            setActivityTypeOptions((current) => current.filter((item) => item.option_id !== option.id));
+          }}
           blockViewOnlyInteraction={blockViewOnlyInteraction}
         />
 

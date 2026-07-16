@@ -1,5 +1,4 @@
 import type { ProjectRow } from "@/types/project";
-import type { SupportActivity } from "@/types/supportActivity";
 
 export function mapProjectToDb(row: Record<string, unknown>) {
   return {
@@ -135,54 +134,8 @@ export function mapDbToProject(row: Record<string, unknown>): ProjectRow {
   };
 }
 
-export function mapSupportToDb(row: Record<string, unknown>) {
-  return {
-    activity_id: row.activity_id,
-    project_id: row.project_id,
-    activity_kind: row.activity_kind,
-    department: row.Department,
-    material: row.Material,
-    line: row.Line,
-    bulk: row.Bulk,
-    machinability_protocol: row.Machinability_Protocol,
-    machinability_protocol_status: row.Machinability_Protocol_Status,
-    machinability_report: row.Machinability_Report,
-    machinability_report_status: row.Machinability_Report_Status,
-    product_user: row.Product_User,
-    principal: row.Principal,
-    product: row.Product,
-    target_date: row.Target_Date,
-    planning_schedule: row.Planning_Schedule,
-    created_by: row.created_by,
-    created_at: row.created_at,
-    updated_by: row.updated_by,
-    updated_at: row.updated_at,
-    is_active: row.is_active,
-  };
-}
+export {
+  mapDbToSupport,
+  mapSupportToDb,
+} from "@/lib/endorsementMappers";
 
-export function mapDbToSupport(row: Record<string, unknown>): SupportActivity {
-  return {
-    activity_id: String(row.activity_id ?? ""),
-    project_id: String(row.project_id ?? ""),
-    activity_kind: String(row.activity_kind ?? ""),
-    Department: String(row.department ?? ""),
-    Material: String(row.material ?? ""),
-    Line: String(row.line ?? ""),
-    Bulk: String(row.bulk ?? ""),
-    Machinability_Protocol: String(row.machinability_protocol ?? ""),
-    Machinability_Protocol_Status: String(row.machinability_protocol_status ?? ""),
-    Machinability_Report: String(row.machinability_report ?? ""),
-    Machinability_Report_Status: String(row.machinability_report_status ?? ""),
-    Product_User: String(row.product_user ?? ""),
-    Principal: String(row.principal ?? ""),
-    Product: String(row.product ?? ""),
-    Target_Date: String(row.target_date ?? ""),
-    Planning_Schedule: String(row.planning_schedule ?? ""),
-    created_by: String(row.created_by ?? ""),
-    created_at: String(row.created_at ?? ""),
-    updated_by: String(row.updated_by ?? ""),
-    updated_at: String(row.updated_at ?? ""),
-    is_active: Boolean(row.is_active),
-  };
-}

@@ -1,6 +1,6 @@
 # Data Map
 
-Last Updated: `2026-06-22`
+Last Updated: `2026-07-16`
 
 ## Purpose
 
@@ -54,7 +54,9 @@ A schema task is incomplete while code, types, migration records, and verificati
 | Project record | `cnf_projects` | Core Project Tracker PO-line records and project lifecycle fields | Preserves migration-friendly field structure and hierarchy IDs. |
 | CNF tracker record | `cnf_tracker_records` | CNF tracker workflow records | Added after original migration phases; verify v61 behavior before changing. |
 | Project/CNF link | `project_cnf_links` | Relationship between project and CNF tracker records | v64 noted delete permissions issue during seed cleanup. |
-| Support activity | `support_activities` | Separate smaller operational activity tracking | TSD/RnD and department support workflows. |
+| Support activity | `support_activities` | Separate smaller operational activity tracking | TSD/RnD/Non-Process; optional CNF + endorsement links by record ID. |
+| Endorsement tracker | `endorsement_tracker_records` / `endorsement_tracker_items` | Endorsement workflow header + implementation item rows | Source-linked by unique `(source_type, source_record_id)`; sync_version concurrency. |
+| Reusable options | `reusable_options` | Editable dropdown suggestions | Non-view create; admin soft-remove; does not rewrite historical values. |
 | Registry item | `registry` | Dropdown and lookup values | Admin-managed; used across forms. |
 | Notification | `notifications` / `pt_notifications` | System reminders and alerts | FG Month and project status driven. |
 | Audit log | `audit_logs` | Immutable critical activity history | Must remain readable and protected. |
@@ -73,11 +75,48 @@ Supabase Auth user
         -> mo_instance_id
         -> po_instance_id
         -> project_cnf_links -> cnf_tracker_records
+        -> endorsement_tracker_records (source process_validation_project)
         -> audit_logs
         -> notifications
      -> support_activities
+        -> optional cnf_tracker_records (cnf_tracker_record_id)
+        -> endorsement_tracker_records (source non_process_support_activity)
         -> audit_logs
+     -> endorsement_tracker_records
+        -> endorsement_tracker_items
+        -> mapped sync to project/support
 ```
+
+## Endorsement sync ownership
+
+Mapped bidirectional fields only:
+
+- endorsement number/status
+- CNF relation + display
+- project relation
+- product name / product code
+- non-process description
+
+Loop prevention uses `last_sync_source` echo suppression plus `sync_version` stale rejection.
+No automatic backfill of historical In-process project endorsements; create/link on next qualifying save.
+
+Blank or N/A endorsement number does **not** stub-create a tracker row; reopen an existing source-linked tracker when present, otherwise open New.
+
+## Optional text N/A convention
+
+Optional free-text and select fields use:
+
+| Layer | Behavior |
+|---|---|
+| Form state | Empty / missing stored as `""` |
+| UI guide | Gray italic `N/A` via `NaClearingInput` / `NaClearingSelect` / `CreatableNaSelect` (`.na-guide`) |
+| Focus | Clears the guide so the user types a real value |
+| Persist | `normalizeOptionalNaForSubmit` writes `N/A` when still empty (`src/lib/naField.ts`) |
+| Load | `toEditableNaField` maps DB `N/A` / `NA` back to `""` for editing |
+
+Do not treat filter/search boxes, Kind, or date pickers as N/A sentinels.
+
+Helpers: `src/lib/naField.ts`, `src/lib/utils.ts` (`isMissingValue`), `src/components/common/na-clearing-input.tsx`.
 
 ## Key Tables
 
@@ -111,6 +150,7 @@ Key rules:
 
 - Preserve v61 draft persistence and navigation behavior.
 - Header fields include `cnf_details`, `product_name`, `client_name`, `qrmr_no`, `unique_batch_no`, `change_description` (migrations `033`/`034`).
+- `cnf_classification` distinguishes process vs non-process CNF work (migration `20260714194000_cnf_tracker_classification`).
 - Active `cnf_reference` uniqueness is enforced with normalized whitespace (DB unique index + service checks).
 - Link to projects through `project_cnf_tracker_links` by `record_id` (stable IDs); project CNF text remains a historical snapshot.
 - When linked, Project form is source of truth for Product/Client/QRMR/Description; save syncs tracker (Project → Tracker only).
@@ -128,13 +168,40 @@ Key rules:
 
 ### `support_activities`
 
-Purpose: Tracks smaller operational activities outside the full CNF lifecycle.
+Purpose: Tracks smaller operational activities outside the full CNF lifecycle, including TSD, RnD, and Non-Process validation support work.
 
 Key rules:
 
-- Support TSD/RnD-specific field sets.
+- Support TSD/RnD/Non-Process field sets; preserve hidden values when Activity Type changes.
+- Optional CNF linkage uses `cnf_tracker_record_id` (stable ID) or explicit `not_applicable` state — never a fake CNF row.
+- Non-Process document fields (protocol/report/endorsement number+status, type of validation) and shared title use the optional N/A convention above.
+- Qualifying endorsement status opens/links Endorsement Tracker; blank/N/A number does not stub-create.
 - Support search/filter/export workflows.
 - Write audit entries for create/update/archive/status changes.
+- Schema additions: migrations `20260714110110_*`, `20260714123000_support_activity_type`, `20260714216000_*`, `20260714220000_*`, `20260714221000_*`.
+
+### `endorsement_tracker_records` / `endorsement_tracker_items`
+
+Purpose: Dedicated endorsement workflow with implementation item rows.
+
+Key rules:
+
+- Source types: `process_validation_project`, `non_process_support_activity`, `independent`.
+- Unique active source link prevents duplicate trackers on repeated saves.
+- Ensure-by-number and ensure-by-source RPCs skip stub creation when the endorsement number is blank/N/A.
+- Item soft-delete never archives the header.
+- Bidirectional sync limited to approved mapped fields; `sync_version` rejects stale writes.
+- Schema: migration `20260714110110_endorsement_tracker_and_support_enhancements` (+ follow-ups `20260714220000_*`, `20260714221000_*`).
+
+### `reusable_options`
+
+Purpose: User-managed dropdown suggestions for Support/Endorsement creatable fields.
+
+Key rules:
+
+- Categories such as `type_of_validation`, `protocol_status`, `report_status`, `endorsement_status`.
+- Soft-remove hides the option; historical record values are not rewritten.
+- Non-view roles may create; admin/manager soft-remove per role helpers.
 
 ### `registry`
 

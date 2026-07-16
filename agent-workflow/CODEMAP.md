@@ -33,7 +33,8 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Spreadsheet save | `src/services/projectsDatabaseService.ts` | Patch edits → `updateProject` + emit sync. |
 | CNF Tracker | `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF tracker list, New CNF, detail modal, Unique Batch navigation. |
 | CNF create/select modals | `src/features/cnf-tracker/CnfCreateModal.tsx`, `CnfTrackerSelectModal.tsx` | Shared New CNF form and Insert CNF picker for Projects. |
-| Support Activities | `src/features/support-activities/SupportActivitiesPage.tsx` | Support activity form and database view. |
+| Endorsement Tracker | `src/features/endorsement-tracker/EndorsementTrackerPage.tsx` | Endorsement list, detail modal, independent create, item rows, QA-only edit. |
+| Support Activities | `src/features/support-activities/SupportActivitiesPage.tsx` | Support activity form and database view. Styles: `src/styles/support-activities.css`. Icons: `src/components/common/lucide-icon.tsx`. |
 | Audit Trail | `src/features/audit-trail/AuditTrailPage.tsx` | Audit log browsing and filters. |
 | Lessons Learned | `src/features/lessons-learned/LessonsLearnedPage.tsx` | Lessons learned workflow. |
 | Archived | `src/features/archived/ArchivedPage.tsx` | Admin archive view. |
@@ -57,6 +58,9 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/components/common/protected-route.tsx` | Route guard and allowed-role enforcement. |
 | `src/components/common/app-date-picker.tsx` | Shared date picker wrapper. |
 | `src/components/common/na-clearing-input.tsx` | Shared input behavior for `N/A` handling. |
+| `src/components/common/creatable-na-select.tsx` | Searchable/editable dropdown with create + confirmed admin remove. |
+| `src/lib/naField.ts` | Optional-field NA normalize/display helpers. |
+| `src/lib/endorsementSync.ts` | Endorsement status canon, sync mapping, echo-loop prevention. |
 | `src/components/common/project-id-link.tsx` | Project record linking. |
 
 ## Services and Data Access
@@ -71,7 +75,9 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/services/cnfTrackerLinkService.ts` | `project_cnf_tracker_links` CRUD. |
 | `src/lib/cnfProjectIntegration.ts` | CNF↔Project apply/prefill, New Product carry-over, duplicate helpers. |
 | `src/services/cnfLinkService.ts` | Project/CNF relationship operations. |
-| `src/services/supportActivityService.ts` | Support activity data access. |
+| `src/services/supportActivityService.ts` | Support activity data access + CNF/endorsement linked saves. |
+| `src/services/endorsementTrackerService.ts` | Endorsement tracker CRUD, items, ensure/sync RPCs. |
+| `src/services/reusableOptionService.ts` | Reusable editable-dropdown options. |
 | `src/services/dashboardService.ts` | Dashboard metrics and worklist data. |
 | `src/services/auditService.ts` | Audit log inserts and reads. |
 | `src/services/notificationService.ts` | Notification operations. |
@@ -106,6 +112,7 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/styles/project-form.css` | Project form layout/styling. |
 | `src/styles/dashboard.css` | Dashboard styling. |
 | `src/styles/cnf-tracker.css` | CNF tracker styling. |
+| `src/styles/endorsement-tracker.css` | Endorsement tracker styling. |
 | `src/styles/data-map.css` | Data map/integrity page styling. |
 
 ## Configuration and Scripts

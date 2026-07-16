@@ -11,6 +11,7 @@ import { ArchivedPage } from "@/features/archived/ArchivedPage";
 import { RegistryPage } from "@/features/registry/RegistryPage";
 import { AdminUsersPage } from "@/features/admin/AdminUsersPage";
 import { CnfTrackerPage } from "@/features/cnf-tracker/CnfTrackerPage";
+import { EndorsementTrackerPage } from "@/features/endorsement-tracker/EndorsementTrackerPage";
 import { DataMapPage } from "@/features/admin/DataMapPage";
 
 export function AppRouter() {
@@ -23,6 +24,7 @@ export function AppRouter() {
       <Route path="/projects/database" element={<ProtectedRoute><ProjectsDatabasePage /></ProtectedRoute>} />
       <Route path="/support-activities" element={<ProtectedRoute><SupportActivitiesPage /></ProtectedRoute>} />
       <Route path="/cnf-tracker" element={<ProtectedRoute><CnfTrackerPage /></ProtectedRoute>} />
+      <Route path="/endorsement-tracker" element={<ProtectedRoute><EndorsementTrackerPage /></ProtectedRoute>} />
       <Route path="/lessons-learned" element={<ProtectedRoute><LessonsLearnedPage /></ProtectedRoute>} />
       <Route path="/audit-trail" element={<ProtectedRoute><AuditTrailPage /></ProtectedRoute>} />
       <Route

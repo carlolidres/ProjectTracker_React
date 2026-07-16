@@ -1,0 +1,19 @@
+.endorsement-tracker-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.endorsement-tracker-filters {
+  border-radius: 12px;
+}
+
+.endorsement-tracker-table .endorsement-tracker-row-highlight > td {
+  background: color-mix(in srgb, var(--primary, #1677ff) 8%, transparent);
+}
+
+.endorsement-tracker-page .ant-card-head-title {
+  font-weight: 600;
+}

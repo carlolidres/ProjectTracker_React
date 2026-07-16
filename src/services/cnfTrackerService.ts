@@ -12,6 +12,7 @@ import { logAuditDiff, logAuditEntries, logAuditTrail } from "@/services/auditSe
 import { CnfDuplicateError, type CnfTrackerRecord, type CnfTrackerStatus } from "@/types/cnfTracker";
 
 function mapRow(row: Record<string, unknown>): CnfTrackerRecord {
+  const classification = String(row.cnf_classification ?? "process").trim().toLowerCase();
   return {
     record_id: String(row.record_id ?? ""),
     cnf_tracker_id: String(row.cnf_tracker_id ?? ""),
@@ -23,6 +24,7 @@ function mapRow(row: Record<string, unknown>): CnfTrackerRecord {
     qrmr_no: String(row.qrmr_no ?? "N/A"),
     unique_batch_no: String(row.unique_batch_no ?? "N/A"),
     change_description: String(row.change_description ?? "N/A"),
+    cnf_classification: classification === "non_process" ? "non_process" : "process",
     tracker_status: (String(row.tracker_status ?? "Open") as CnfTrackerStatus),
     closed_date: row.closed_date ? String(row.closed_date) : undefined,
     created_by: String(row.created_by ?? "N/A"),
@@ -89,6 +91,7 @@ export interface CnfTrackerSavePayload {
   qrmr_no?: string;
   unique_batch_no?: string;
   change_description?: string;
+  cnf_classification?: "process" | "non_process" | string;
   tracker_status: CnfTrackerStatus;
   /** When true, skip soft probable-duplicate check (caller already confirmed). */
   allowProbableDuplicate?: boolean;
@@ -158,6 +161,11 @@ export async function saveCnfTrackerRecord(
 
   const status = payload.tracker_status;
   const closedDate = status === "Closed" ? (existing?.closed_date ?? today) : null;
+  const classification =
+    String(payload.cnf_classification ?? existing?.cnf_classification ?? "process").trim().toLowerCase()
+    === "non_process"
+      ? "non_process"
+      : "process";
 
   const row = {
     cnf_tracker_id: trackerId,
@@ -169,6 +177,7 @@ export async function saveCnfTrackerRecord(
     qrmr_no: valueOrEmpty(payload.qrmr_no) || "N/A",
     unique_batch_no: valueOrEmpty(payload.unique_batch_no) || "N/A",
     change_description: valueOrEmpty(payload.change_description) || "N/A",
+    cnf_classification: classification,
     tracker_status: status,
     closed_date: closedDate,
     created_by: existing?.created_by ?? userEmail,

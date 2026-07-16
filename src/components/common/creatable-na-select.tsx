@@ -1,5 +1,5 @@
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Divider, Select, Space, Typography } from "antd";
+import { Button, Divider, Modal, Select, Space, Typography, message } from "antd";
 import { useMemo, useState } from "react";
 import { NA_VALUE } from "@/lib/constants";
 import { normalizeCnfTextKey } from "@/lib/cnfTrackerAggregation";
@@ -20,6 +20,10 @@ interface CreatableNaSelectProps {
   canManageOptions?: boolean;
   className?: string;
   placeholder?: string;
+  allowClear?: boolean;
+  /** When false, omit the built-in N/A option (fixed-status fields). */
+  includeNaOption?: boolean;
+  sanitize?: (value: string) => string;
   onChange: (value: string) => void;
   onCreateOption?: (value: string) => Promise<void> | void;
   onRemoveOption?: (option: CreatableOption) => Promise<void> | void;
@@ -43,7 +47,7 @@ function dedupeOptions(options: CreatableOption[], currentValue: string): Creata
 
 /**
  * Searchable Select with NA guide styling and explicit new-option creation.
- * Scoped class `.cnf-creatable-select` owns alignment for Ant Design 5/6 Select DOM.
+ * Failed option saves must not clear the current form input.
  */
 export function CreatableNaSelect({
   id,
@@ -54,6 +58,9 @@ export function CreatableNaSelect({
   canManageOptions,
   className,
   placeholder = "Select or type to search",
+  allowClear = true,
+  includeNaOption = true,
+  sanitize = sanitizeAlphanumericInput,
   onChange,
   onCreateOption,
   onRemoveOption,
@@ -69,25 +76,52 @@ export function CreatableNaSelect({
   const searchKey = normalizeCnfTextKey(search);
   const hasExact = merged.some((option) => normalizeCnfTextKey(option.value) === searchKey);
   const canOfferCreate =
-    Boolean(onCreateOption) &&
-    !readOnly &&
-    !disabled &&
-    Boolean(searchKey) &&
-    searchKey !== "n/a" &&
-    !hasExact;
+    Boolean(onCreateOption)
+    && !readOnly
+    && !disabled
+    && !busy
+    && Boolean(searchKey)
+    && searchKey !== "n/a"
+    && !hasExact;
 
   async function handleCreate() {
     if (!onCreateOption || !canOfferCreate || busy) return;
-    const next = sanitizeAlphanumericInput(search).trim().replace(/\s+/g, " ");
+    const next = sanitize(search).trim().replace(/\s+/g, " ");
     if (!next) return;
+    const previousSearch = search;
     setBusy(true);
     try {
       await onCreateOption(next);
       onChange(next);
       setSearch("");
+    } catch (error) {
+      setSearch(previousSearch);
+      message.error(error instanceof Error ? error.message : "Failed to save option.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function confirmRemove(option: CreatableOption) {
+    if (!onRemoveOption || busy) return;
+    Modal.confirm({
+      title: "Remove saved option?",
+      content: `"${option.value}" will no longer appear as a suggestion. Existing records that use this value are not changed.`,
+      okText: "Remove",
+      okButtonProps: { danger: true },
+      cancelText: "Cancel",
+      onOk: async () => {
+        setBusy(true);
+        try {
+          await onRemoveOption(option);
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : "Failed to remove option.");
+          throw error;
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
   }
 
   return (
@@ -101,17 +135,17 @@ export function CreatableNaSelect({
       )}
       style={{ width: "100%" }}
       showSearch
-      allowClear={!readOnly && !disabled}
-      disabled={disabled || readOnly}
+      allowClear={allowClear && !readOnly && !disabled}
+      disabled={disabled || readOnly || busy}
       placeholder={placeholder}
-      value={isNa ? NA_VALUE : value}
+      value={isNa ? (includeNaOption ? NA_VALUE : undefined) : value}
       searchValue={search}
       filterOption={(input, option) => {
         const label = String(option?.label ?? option?.value ?? "").toLowerCase();
         return label.includes(input.trim().toLowerCase());
       }}
       options={[
-        { label: NA_VALUE, value: NA_VALUE },
+        ...(includeNaOption ? [{ label: NA_VALUE, value: NA_VALUE }] : []),
         ...merged.map((option) => ({
           label: option.label ?? option.value,
           value: option.value,
@@ -134,10 +168,11 @@ export function CreatableNaSelect({
                 danger
                 icon={<DeleteOutlined />}
                 aria-label={`Remove ${item.value}`}
+                disabled={busy}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
-                  void onRemoveOption(item);
+                  confirmRemove(item);
                 }}
               />
             ) : null}
@@ -155,10 +190,11 @@ export function CreatableNaSelect({
                   type="link"
                   icon={<PlusOutlined />}
                   loading={busy}
+                  disabled={busy}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => void handleCreate()}
                 >
-                  Add &quot;{sanitizeAlphanumericInput(search).trim()}&quot;
+                  Add &quot;{sanitize(search).trim()}&quot;
                 </Button>
               </Space>
             </>
@@ -174,11 +210,10 @@ export function CreatableNaSelect({
       onFocus={() => setFocused(true)}
       onBlur={() => {
         setFocused(false);
-        setSearch("");
       }}
       onClear={() => onChange("")}
       onChange={(next) => {
-        if (readOnly) return;
+        if (readOnly || busy) return;
         onChange(next === NA_VALUE ? "" : String(next ?? ""));
         setSearch("");
       }}

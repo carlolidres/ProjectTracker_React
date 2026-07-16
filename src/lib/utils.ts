@@ -96,8 +96,9 @@ export function isApprovedOrNotApplicableStatus(status: string): boolean {
 }
 
 export function isMissingValue(value: unknown): boolean {
-  const normalized = valueOrNA(value);
-  return normalized === "N/A" || normalized === "";
+  if (value === null || value === undefined) return true;
+  const normalized = String(value).trim().toUpperCase();
+  return !normalized || normalized === "N/A" || normalized === "NA";
 }
 
 /** Capitalize the first letter of each word (e.g. "kenvue" → "Kenvue"). */
