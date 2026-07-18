@@ -3,7 +3,7 @@ import {
   CompressOutlined,
   DownloadOutlined,
   ExpandOutlined,
-  FilterOutlined,
+  PlusOutlined,
   RedoOutlined,
   ReloadOutlined,
   SaveOutlined,
@@ -11,13 +11,14 @@ import {
   UndoOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
-import { Alert, Button, Card, Col, Input, Row, Select, Space, Tooltip, Typography, message } from "antd";
+import { Alert, App as AntApp, Button, Card, Col, Input, Row, Select, Space, Tooltip, Typography, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { useDateAdjustment } from "@/app/date-adjustment-provider";
 import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { useRegistry } from "@/app/registry-provider";
+import { AppMonthPicker } from "@/components/common/app-date-picker";
 import { DashboardFilterBanner } from "@/components/common/dashboard-filter-banner";
 import { AppShell } from "@/components/layout/app-shell";
 import { readReturnToPath } from "@/lib/dashboardReturnTo";
@@ -28,9 +29,15 @@ import {
 } from "@/features/projects/components/ProjectsDatabaseGrid";
 import { DUE_WINDOW_FILTER_OPTIONS, PENDING_ROLE_FILTER_OPTIONS } from "@/lib/fgUrgency";
 import { ROLE_LABELS } from "@/lib/constants";
-import { PROJECTS_DB_ROW_HEIGHT_OPTIONS } from "@/lib/projectsDatabaseColumns";
+import { getProfileFirstName } from "@/lib/profileName";
+import {
+  PROJECTS_DB_ROW_HEIGHT_OPTIONS,
+  spreadsheetFieldGroupForPendingRole,
+  type SpreadsheetColumnFocus,
+} from "@/lib/projectsDatabaseColumns";
 import { subscribeProjectDataChanged } from "@/lib/projectDataEvents";
 import { ROLE_COLORS, ROLE_LEGEND_ITEMS } from "@/lib/roleColors";
+import { canFocusProjectsDbRoleColumns, isAdminRole } from "@/lib/roleAccess";
 import {
   clearProjectUrlFilterParams,
   projectFilterBannerLabels,
@@ -38,7 +45,12 @@ import {
 } from "@/lib/urlDerivedFilters";
 import { valueOrNA } from "@/lib/utils";
 import { exportProjectsToExcel } from "@/services/exportService";
-import { filterProjectRows, getProjectById, listActiveProjects } from "@/services/projectService";
+import {
+  createBlankProject,
+  filterProjectRows,
+  getProjectById,
+  listActiveProjects,
+} from "@/services/projectService";
 import {
   applyLocalRowEdits,
   patchProjectFromSpreadsheetEdits,
@@ -48,37 +60,20 @@ import {
 import type { ProjectFilters, ProjectRow } from "@/types";
 
 const FULL_VIEW_STORAGE_KEY = "project-tracker:projects-db:full-view";
-const COLUMN_FILTERS_STORAGE_KEY = "project-tracker:projects-db:column-filters";
 
 function loadFullView(): boolean {
   try {
-    return localStorage.getItem(FULL_VIEW_STORAGE_KEY) === "1";
+    const stored = localStorage.getItem(FULL_VIEW_STORAGE_KEY);
+    if (stored === null) return true;
+    return stored === "1";
   } catch {
-    return false;
+    return true;
   }
 }
 
 function saveFullView(value: boolean) {
   try {
     localStorage.setItem(FULL_VIEW_STORAGE_KEY, value ? "1" : "0");
-  } catch {
-    // ignore
-  }
-}
-
-function loadShowColumnFilters(): boolean {
-  try {
-    const raw = localStorage.getItem(COLUMN_FILTERS_STORAGE_KEY);
-    if (raw === null) return true;
-    return raw === "1";
-  } catch {
-    return true;
-  }
-}
-
-function saveShowColumnFilters(value: boolean) {
-  try {
-    localStorage.setItem(COLUMN_FILTERS_STORAGE_KEY, value ? "1" : "0");
   } catch {
     // ignore
   }
@@ -106,6 +101,7 @@ function mergeEdits(existing: SpreadsheetCellEdit[], next: SpreadsheetCellEdit):
 
 export function ProjectsDatabasePage() {
   const navigate = useNavigate();
+  const { modal } = AntApp.useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const returnToPath = readReturnToPath(searchParams);
   const { registry } = useRegistry();
@@ -113,35 +109,45 @@ export function ProjectsDatabasePage() {
   const { can: canMenuAction } = useMenuPermissions();
   const canEditDatabase = canMenuAction("projects_database", "edit");
   const canExportDatabase = canMenuAction("projects_database", "export");
+  const canCreateProject = canMenuAction("projects_entry", "create");
   const gridRole = canEditDatabase ? profile?.role : "view";
   const { promptBatchDateAdjustment } = useDateAdjustment();
   const [rows, setRows] = useState<ProjectRow[]>([]);
   const [filters, setFilters] = useState<ProjectFilters>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [dirtyEdits, setDirtyEdits] = useState<SpreadsheetCellEdit[]>([]);
+  const [cellErrors, setCellErrors] = useState<Record<string, string>>({});
   const [rowHeight, setRowHeight] = useState(loadStoredRowHeight);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [undoRequestToken, setUndoRequestToken] = useState(0);
   const [redoRequestToken, setRedoRequestToken] = useState(0);
   const [fullView, setFullView] = useState(loadFullView);
-  const [showColumnFilters, setShowColumnFilters] = useState(loadShowColumnFilters);
+  /** Column visibility only — independent of row filters and edit rights. */
+  const [columnFocus, setColumnFocus] = useState<SpreadsheetColumnFocus>({ mode: "all" });
+
+  const authorizedLegendItems = useMemo(
+    () =>
+      ROLE_LEGEND_ITEMS.filter((item) =>
+        canFocusProjectsDbRoleColumns(profile?.role, item.fieldGroup),
+      ),
+    [profile?.role],
+  );
+
+  useEffect(() => {
+    const group = spreadsheetFieldGroupForPendingRole(filters.pending_role);
+    if (!group) return;
+    setColumnFocus({ mode: "fieldGroup", group });
+  }, [filters.pending_role]);
 
   const toggleFullView = useCallback(() => {
     setFullView((current) => {
       const next = !current;
       saveFullView(next);
-      return next;
-    });
-  }, []);
-
-  const toggleColumnFilters = useCallback(() => {
-    setShowColumnFilters((current) => {
-      const next = !current;
-      saveShowColumnFilters(next);
       return next;
     });
   }, []);
@@ -152,6 +158,7 @@ export function ProjectsDatabasePage() {
     try {
       setRows(await listActiveProjects());
       setDirtyEdits([]);
+      setCellErrors({});
       setSaveStatus("idle");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load projects");
@@ -177,8 +184,19 @@ export function ProjectsDatabasePage() {
     setFilters((current) => projectFiltersFromSearchParams(searchParams, current));
   }, [searchParams]);
 
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!dirtyEdits.length) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirtyEdits.length]);
+
   const displayRows = useMemo(() => applyLocalRowEdits(rows, dirtyEdits), [rows, dirtyEdits]);
   const filtered = useMemo(() => filterProjectRows(displayRows, filters), [displayRows, filters]);
+  const cellErrorCount = Object.keys(cellErrors).length;
 
   const ownerOptions = useMemo(() => {
     const owners = new Set<string>();
@@ -200,6 +218,22 @@ export function ProjectsDatabasePage() {
       return;
     }
     if (!dirtyEdits.length) return;
+    if (cellErrorCount > 0) {
+      message.error(`Fix ${cellErrorCount} invalid cell${cellErrorCount === 1 ? "" : "s"} before saving.`);
+      return;
+    }
+
+    const confirmed = await new Promise<boolean>((resolve) => {
+      modal.confirm({
+        title: "Save spreadsheet changes?",
+        content: `Save ${dirtyEdits.length} unsaved change${dirtyEdits.length === 1 ? "" : "s"}? Valid cells will be written; role and field rules still apply on the server.`,
+        okText: "Save",
+        cancelText: "Cancel",
+        onOk: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+    if (!confirmed) return;
 
     setSaving(true);
     setError(null);
@@ -229,9 +263,12 @@ export function ProjectsDatabasePage() {
 
       await patchProjectFromSpreadsheetEdits(dirtyEdits, user.email, {
         dateAdjustmentsConfirmed: true,
+        role: gridRole,
+        registry,
       });
 
       setDirtyEdits([]);
+      setCellErrors({});
       setSaveStatus("saved");
       message.success("Changes saved");
       setRows(await listActiveProjects());
@@ -243,9 +280,40 @@ export function ProjectsDatabasePage() {
     } finally {
       setSaving(false);
     }
-  }, [dirtyEdits, profile?.role, promptBatchDateAdjustment, user?.email]);
+  }, [
+    cellErrorCount,
+    dirtyEdits,
+    gridRole,
+    modal,
+    profile?.role,
+    promptBatchDateAdjustment,
+    registry,
+    user?.email,
+  ]);
 
   const unsavedCount = dirtyEdits.length;
+
+  const handleAddProjectRow = useCallback(async () => {
+    if (!user?.email) {
+      message.error("Sign in again to create a project.");
+      return;
+    }
+    if (unsavedCount > 0) {
+      message.warning("Save or discard unsaved edits before adding a project.");
+      return;
+    }
+    setCreating(true);
+    try {
+      const owner = isAdminRole(profile?.role) ? "" : getProfileFirstName(profile);
+      const result = await createBlankProject(user.email, owner);
+      message.success(`Project ${result.project_id} created`);
+      await load();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Failed to create project");
+    } finally {
+      setCreating(false);
+    }
+  }, [load, profile, unsavedCount, user?.email]);
 
   const discardSaveButtons = (
     <Space size={4}>
@@ -264,7 +332,7 @@ export function ProjectsDatabasePage() {
           type="primary"
           icon={<SaveOutlined />}
           loading={saving}
-          disabled={!unsavedCount}
+          disabled={!unsavedCount || cellErrorCount > 0}
           aria-label="Save Changes"
           onClick={() => void handleSave()}
         />
@@ -274,39 +342,41 @@ export function ProjectsDatabasePage() {
 
   const actionButtons = (
     <Space wrap>
-      <Button
-        icon={<ReloadOutlined />}
-        onClick={() => void load()}
-        loading={loading}
-        disabled={unsavedCount > 0}
-      >
-        Refresh
-      </Button>
-      {canExportDatabase ? (
+      <Tooltip title={fullView ? "Refresh" : undefined}>
         <Button
-          icon={<DownloadOutlined />}
-          onClick={() => {
-            exportProjectsToExcel(filtered);
-            message.success("Export started");
-          }}
-          disabled={!filtered.length}
+          icon={<ReloadOutlined />}
+          onClick={() => void load()}
+          loading={loading}
+          disabled={unsavedCount > 0}
+          aria-label="Refresh"
         >
-          Export to Excel
+          {fullView ? null : "Refresh"}
         </Button>
+      </Tooltip>
+      {canExportDatabase ? (
+        <Tooltip title={fullView ? "Export to Excel" : undefined}>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={() => {
+              exportProjectsToExcel(filtered);
+              message.success("Export started");
+            }}
+            disabled={!filtered.length}
+            aria-label="Export to Excel"
+          >
+            {fullView ? null : "Export to Excel"}
+          </Button>
+        </Tooltip>
       ) : null}
-      <Button
-        icon={<FilterOutlined />}
-        type={showColumnFilters ? "default" : "primary"}
-        onClick={toggleColumnFilters}
-      >
-        {showColumnFilters ? "Hide Filters" : "Show Filters"}
-      </Button>
-      <Button
-        icon={fullView ? <CompressOutlined /> : <ExpandOutlined />}
-        onClick={toggleFullView}
-      >
-        {fullView ? "Exit Full View" : "Full View"}
-      </Button>
+      <Tooltip title={fullView ? "Exit Full View" : undefined}>
+        <Button
+          icon={fullView ? <CompressOutlined /> : <ExpandOutlined />}
+          onClick={toggleFullView}
+          aria-label={fullView ? "Exit Full View" : "Full View"}
+        >
+          {fullView ? null : "Full View"}
+        </Button>
+      </Tooltip>
     </Space>
   );
 
@@ -378,6 +448,14 @@ export function ProjectsDatabasePage() {
         )}
 
         {error ? <Alert type="error" showIcon message={error} /> : null}
+        {cellErrorCount > 0 ? (
+          <Alert
+            type="warning"
+            showIcon
+            message={`${cellErrorCount} invalid cell${cellErrorCount === 1 ? "" : "s"} — hover red cells for details. Valid edits are kept.`}
+            style={{ marginBottom: 12 }}
+          />
+        ) : null}
 
         <DashboardFilterBanner
           labels={projectFilterBannerLabels(filters)}
@@ -407,13 +485,55 @@ export function ProjectsDatabasePage() {
 
         {!fullView ? (
           <>
-            <div className="projects-db-legend">
+            <div className="projects-db-legend" role="toolbar" aria-label="Column role focus">
               <span className="projects-db-legend-label">Role legend</span>
-              {ROLE_LEGEND_ITEMS.map((item, index) => (
-                <span key={`${item.label}-${index}`} className="projects-db-legend-item">
+              <button
+                type="button"
+                className={`projects-db-legend-chip${columnFocus.mode === "all" ? " is-active" : ""}`}
+                aria-pressed={columnFocus.mode === "all"}
+                onClick={() => setColumnFocus({ mode: "all" })}
+              >
+                All Permitted Columns
+              </button>
+              {authorizedLegendItems.map((item) => {
+                const labelKey = item.columnLabels.join("|");
+                const active =
+                  (columnFocus.mode === "roleLabels"
+                    && columnFocus.labels.join("|") === labelKey)
+                  || (columnFocus.mode === "fieldGroup"
+                    && columnFocus.group === item.fieldGroup);
+                return (
+                  <button
+                    type="button"
+                    key={item.label}
+                    className={`projects-db-legend-chip${active ? " is-active" : ""}`}
+                    aria-pressed={active}
+                    title={`Show ${item.label} columns only`}
+                    onClick={() => {
+                      setColumnFocus({ mode: "roleLabels", labels: item.columnLabels });
+                    }}
+                  >
+                    <span
+                      className="projects-db-legend-swatch"
+                      style={{ background: ROLE_COLORS[item.key].accent }}
+                      aria-hidden
+                    />
+                    {item.label}
+                  </button>
+                );
+              })}
+              {ROLE_LEGEND_ITEMS.filter(
+                (item) => !canFocusProjectsDbRoleColumns(profile?.role, item.fieldGroup),
+              ).map((item) => (
+                <span
+                  key={`locked-${item.label}`}
+                  className="projects-db-legend-item is-locked"
+                  title="Not authorized for this role’s column focus"
+                >
                   <span
                     className="projects-db-legend-swatch"
-                    style={{ background: ROLE_COLORS[item.key].accent }}
+                    style={{ background: ROLE_COLORS[item.key].accent, opacity: 0.45 }}
+                    aria-hidden
                   />
                   {item.label}
                 </span>
@@ -442,13 +562,17 @@ export function ProjectsDatabasePage() {
                   />
                 </Col>
                 <Col xs={24} md={4}>
-                  <Select
-                    allowClear
-                    placeholder="Activity Type"
-                    style={{ width: "100%" }}
-                    value={filters.activity_type}
-                    options={(registry.activity_type ?? []).map((v) => ({ label: v, value: v }))}
-                    onChange={(activity_type) => setFilters((f) => ({ ...f, activity_type }))}
+                  <AppMonthPicker
+                    placeholder="FG Month"
+                    value={filters.fg_month ?? ""}
+                    onChange={(fg_month) =>
+                      setFilters((f) => ({
+                        ...f,
+                        fg_month: fg_month || undefined,
+                        // Month picker is the full filter; clear year-only drill remnant
+                        fg_year: fg_month ? undefined : f.fg_year,
+                      }))
+                    }
                   />
                 </Col>
                 <Col xs={24} md={4}>
@@ -527,9 +651,6 @@ export function ProjectsDatabasePage() {
                     >
                       Redo
                     </Button>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      Shift+click select · Ctrl+C/V · Del clear
-                    </Typography.Text>
                   </Space>
                 </Col>
               </Row>
@@ -544,8 +665,10 @@ export function ProjectsDatabasePage() {
           dirtyEdits={dirtyEdits}
           onCellEdited={handleCellEdited}
           rowHeight={rowHeight}
-          showColumnFilters={showColumnFilters}
+          showColumnFilters={false}
+          columnFocus={columnFocus}
           loading={loading}
+          onCellErrorsChange={setCellErrors}
           onUndoRedoAvailabilityChange={({ canUndo: nextUndo, canRedo: nextRedo }) => {
             setCanUndo(nextUndo);
             setCanRedo(nextRedo);
@@ -553,6 +676,19 @@ export function ProjectsDatabasePage() {
           undoRequestToken={undoRequestToken}
           redoRequestToken={redoRequestToken}
         />
+        {canCreateProject ? (
+          <div className="projects-db-add-row-bar">
+            <Button
+              type="dashed"
+              icon={<PlusOutlined />}
+              loading={creating}
+              disabled={loading || creating || unsavedCount > 0}
+              onClick={() => void handleAddProjectRow()}
+            >
+              Add project
+            </Button>
+          </div>
+        ) : null}
       </div>
     </AppShell>
   );

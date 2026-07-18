@@ -39,8 +39,11 @@ export function DashboardActionStrip({
 
   return (
     <div className="dashboard-action-strip" style={{ marginBottom: 16 }}>
-      <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
+      <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
         Do next
+      </Typography.Text>
+      <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8, fontSize: 12 }}>
+        Create records or open your work. Use Browse cards above for filtered lists.
       </Typography.Text>
       <Space wrap size={[8, 8]}>
         {canCreateProject ? (

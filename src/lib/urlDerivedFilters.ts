@@ -1,3 +1,4 @@
+import { formatAppMonth, parseFgMonthValue } from "@/lib/date";
 import type { ProjectFilters } from "@/types/project";
 import type { SupportActivityFilters } from "@/types/supportActivity";
 import type { AuditFilters } from "@/types";
@@ -104,7 +105,12 @@ export function projectFilterBannerLabels(filters: ProjectFilters): string[] {
   if (filters.due_window) labels.push(`Due: ${filters.due_window}`);
   if (filters.pending_role) labels.push(`Pending: ${filters.pending_role}`);
   if (filters.drill) labels.push(`Drill: ${filters.drill}`);
-  if (filters.fg_month) labels.push(`FG Month: ${filters.fg_month}`);
+  if (filters.fg_month) {
+    const monthLabel = parseFgMonthValue(filters.fg_month)
+      ? formatAppMonth(filters.fg_month)
+      : filters.fg_month;
+    labels.push(`FG Month: ${monthLabel}`);
+  }
   if (filters.fg_year) labels.push(`FG Year: ${filters.fg_year}`);
   if (filters.delivery_status) labels.push(`Delivery: ${filters.delivery_status}`);
   if (filters.sort) labels.push(`Sort: ${filters.sort}${filters.order ? ` ${filters.order}` : ""}`);

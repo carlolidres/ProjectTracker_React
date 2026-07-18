@@ -5,6 +5,13 @@ import {
   supportActivitiesRoute,
 } from "../src/lib/dashboardDrilldown";
 import {
+  ROLE_FOCUS_CONTEXT_FIELDS,
+  resolveSpreadsheetColumnFocus,
+  spreadsheetColumnsForPendingRole,
+  spreadsheetColumnsForRoleGroupLabels,
+  spreadsheetFieldGroupForPendingRole,
+} from "../src/lib/projectsDatabaseColumns";
+import {
   auditFiltersFromSearchParams,
   cnfFiltersFromSearchParams,
   projectFilterBannerLabels,
@@ -55,5 +62,29 @@ assert.equal(audit.search, "carlo");
 const cnf = cnfFiltersFromSearchParams(new URLSearchParams("classification=non_process&status=Approved"), {});
 assert.equal(cnf.classification, "non_process");
 assert.equal(cnf.status, "Approved");
+
+assert.equal(spreadsheetFieldGroupForPendingRole("QA"), "qa");
+assert.equal(spreadsheetFieldGroupForPendingRole("TSD"), "tsd");
+assert.equal(spreadsheetFieldGroupForPendingRole(undefined), null);
+const qaColumns = spreadsheetColumnsForPendingRole("QA");
+assert.ok(qaColumns && qaColumns.every((column) => column.fieldGroup === "qa"));
+assert.ok(qaColumns && qaColumns.some((column) => column.field === "qrmr_status"));
+const amColumns = spreadsheetColumnsForPendingRole("AM/BM/PL");
+assert.ok(amColumns && amColumns.every((column) => column.fieldGroup === "am"));
+const ppColumns = spreadsheetColumnsForRoleGroupLabels(["PP"]);
+assert.ok(ppColumns && ppColumns.every((column) => column.roleGroupLabel === "PP"));
+assert.ok(ppColumns && ppColumns.some((column) => column.field === "packaging_schedule"));
+const allColumns = resolveSpreadsheetColumnFocus({ mode: "all" });
+assert.ok(allColumns.length > (ppColumns?.length ?? 0));
+const ppFocus = resolveSpreadsheetColumnFocus({ mode: "roleLabels", labels: ["PP"] });
+assert.ok(ppFocus.length > (ppColumns?.length ?? 0));
+for (const field of ROLE_FOCUS_CONTEXT_FIELDS) {
+  assert.ok(ppFocus.some((column) => column.field === field), `context column missing: ${field}`);
+}
+assert.ok(ROLE_FOCUS_CONTEXT_FIELDS.includes("so_no"));
+const qcFocus = resolveSpreadsheetColumnFocus({ mode: "fieldGroup", group: "qc" });
+for (const field of ROLE_FOCUS_CONTEXT_FIELDS) {
+  assert.ok(qcFocus.some((column) => column.field === field), `QC focus missing context: ${field}`);
+}
 
 console.log("verify-dashboard-drilldown: PASS");

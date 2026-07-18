@@ -1,6 +1,6 @@
 # Data Map
 
-Last Updated: `2026-07-18` (v0.89.0 release documentation)
+Last Updated: `2026-07-18` (v0.91.0 release documentation)
 
 ## Purpose
 
@@ -163,6 +163,9 @@ Key rules:
 - Preserve draft persistence behavior restored in v61/v64.
 - Archive rather than destructive-delete where historical traceability matters.
 - Write audit entries for meaningful create/update/archive/status changes.
+- `tsd_remarks` is TSD long-text remarks (separate from AM CNF `remarks`); migration `20260718140000_cnf_projects_tsd_remarks`.
+- `qc_remarks` is QC long-text remarks (separate from AM/TSD remarks); migration `20260718141000_cnf_projects_qc_remarks`.
+- Projects Database spreadsheet omits `textarea` long-text columns (`change_description`, `remarks`, `risk_control`, `tsd_remarks`, `qc_remarks`); edit those on Project Entry.
 
 ### `cnf_tracker_records`
 
@@ -327,21 +330,24 @@ Deploy identity: GitHub Actions `.github/workflows/deploy.yml` sets `VITE_APP_GI
 | Artifact | Path |
 |---|---|
 | Release checklist | `agent-workflow/RELEASE_CHECKLIST.md` |
-| Release notes (current) | `agent-workflow/releases/v0.89.0-RELEASE_NOTES.md` |
-| Versioned AVD / handoff | `agent-history/version-89-handoff.md` |
+| Release notes (current) | `agent-workflow/releases/v0.91.0-RELEASE_NOTES.md` |
+| Versioned AVD / handoff | `agent-history/version-91-handoff.md` |
+| About version history | `src/lib/appVersionHistory.ts` |
 | Menu matrix rollback | `agent-workflow/MENU_MATRIX_ROLLBACK.md` |
+| Dashboard workspace rollback | `agent-workflow/DASHBOARD_WORKSPACE_ROLLBACK.md` |
 
 ### Current release baseline
 
 | Field | Value |
 |---|---|
-| Version | `0.89.0` (tag `v0.89.0`) |
-| Deploy SHA | `82bc127` |
-| Deployed | 2026-07-18 — Actions [29638972620](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29638972620) success |
-| Prior production | `0.88.0` @ `9e87130` |
-| Change class | Minor (security/config-relevant: menu overrides + RLS migration) |
+| Version | `0.91.0` (tag `v0.91.0`) |
+| Deploy SHA | _(fill after Actions)_ |
+| Deployed | 2026-07-18 — pending Actions |
+| Prior production | `0.90.0` @ `de385ef` |
+| Change class | Minor (Projects Database UX, remarks columns, workspace Phase B/C partial, About history) |
 | Environment | GitHub Pages |
-| Rollback | Redeploy `9e87130` / `0.88.0`, or `VITE_FEATURE_MENU_MATRIX=false`, or migration down per `MENU_MATRIX_ROLLBACK.md` |
+| Migrations | `20260718140000_cnf_projects_tsd_remarks`, `20260718141000_cnf_projects_qc_remarks` (apply on target if not yet) |
+| Rollback | Redeploy `de385ef` / `0.90.0`; workspace flag `VITE_FEATURE_DASHBOARD_WORKSPACE=false`; remarks downs if schema must reverse |
 
 Do not treat a local About label as released until Actions succeeds and package+SHA match the GitHub Release.
 

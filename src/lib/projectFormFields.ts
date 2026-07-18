@@ -1,4 +1,5 @@
 import { AM_CNF_ENTRY_KEYS, CNF_ENTRY_KEYS } from "@/lib/constants";
+import type { UserRole } from "@/types";
 
 export type ProjectTab = "AM/BM/PL" | "QA" | "PP" | "TSD" | "VAL" | "QC";
 
@@ -105,6 +106,14 @@ export const PO_FIELDS: ProjectFieldDef[] = [
   { key: "mo_bmr_po_target_date", label: "MO/BMR/PO Target Date", type: "date", role: "TSD", tooltip: "Target date for MO/BMR/PO submission." },
   { key: "mo_bmr_po_activation_status", label: "MO/BMR/PO Activation", type: "select", role: "TSD", registry: "yn_status", tooltip: "Activation status (Y/N)." },
   { key: "mo_bmr_po_activation_date", label: "MO/BMR/PO Activation Date", type: "date", role: "TSD", tooltip: "Activation date for MO/BMR/PO." },
+  {
+    key: "tsd_remarks",
+    label: "Remarks",
+    type: "textarea",
+    role: "TSD",
+    span: 3,
+    tooltip: "Long-text remarks for MO/BMR/PO.",
+  },
   { key: "protocol_no", label: "Protocol No.", type: "alphanumeric", role: "VAL", projectLevelVal: true, tooltip: "Validation protocol number. One value per project." },
   { key: "protocol_Status", label: "Protocol Status", type: "select", role: "VAL", registry: "doc_status", projectLevelVal: true, tooltip: "Protocol document status." },
   { key: "protocol_target_date", label: "Protocol Target Date", type: "date", role: "VAL", projectLevelVal: true, tooltip: "Protocol target completion date." },
@@ -123,9 +132,24 @@ export const PO_FIELDS: ProjectFieldDef[] = [
   { key: "endorsement_report_status", label: "Endorsement Report Status", type: "select", role: "VAL", registry: "endorsement_report_status", projectLevelVal: true, tooltip: "Endorsement report workflow status. BMR unlock requires Approved or Not Applicable." },
   { key: "endorsement_acceptance_target_date", label: "Endorsement Target Date", type: "date", role: "VAL", projectLevelVal: true, tooltip: "Target endorsement acceptance date. Defaults to one month after Report Target Date. Not required when Endorsement Report Status is Approved or Not Applicable." },
   { key: "ar_availability_date", label: "AR Availability Date", type: "date", role: "QC", tooltip: "Analytical report availability date." },
+  {
+    key: "qc_remarks",
+    label: "Remarks",
+    type: "textarea",
+    role: "QC",
+    span: 3,
+    tooltip: "Long-text remarks for QC / AR availability.",
+  },
   { key: "packaging_schedule", label: "Packaging Schedule", type: "date", role: "PP", tooltip: "Planned packaging schedule." },
   { key: "final_status", label: "Final Status", type: "select", role: "PP", registry: "final_status", tooltip: "OPEN, CLOSED, CANCELLED, or Others." },
-  { key: "final_status_other", label: "Final Status (Others)", type: "text", role: "PP", tooltip: "Required when Final Status is Others or CANCELLED." },
+  {
+    key: "final_status_other",
+    label: "Remarks",
+    type: "textarea",
+    role: "PP",
+    span: 3,
+    tooltip: "Long-text remarks. Required when Final Status is Others or CANCELLED.",
+  },
 ];
 
 export const VAL_TAB_HEADER_FIELD_KEYS = [
@@ -236,4 +260,25 @@ export function tabToFieldGroup(tab: ProjectTab): "am" | "qa" | "pp" | "tsd" | "
     QC: "qc",
   };
   return map[tab];
+}
+
+/** Default Project Entry role tab for the signed-in user (admin/view → AM/BM/PL). */
+export function defaultProjectTabForRole(role: UserRole | null | undefined): ProjectTab {
+  switch (role) {
+    case "qa":
+      return "QA";
+    case "pp":
+      return "PP";
+    case "tsd":
+      return "TSD";
+    case "val":
+      return "VAL";
+    case "qc":
+      return "QC";
+    case "admin":
+    case "am_bm_pl":
+    case "view":
+    default:
+      return "AM/BM/PL";
+  }
 }

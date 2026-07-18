@@ -128,11 +128,15 @@ const PO_FIELD_META: PoFieldMeta[] = [
 
   { key: "ar_availability_date", label: "AR Availability Date", role: "QC" },
 
+  { key: "qc_remarks", label: "Remarks", role: "QC" },
+
   { key: "packaging_schedule", label: "Packaging Schedule", role: "PP" },
 
   { key: "final_status", label: "Final Status", role: "PP" },
 
-  { key: "final_status_other", label: "Final Status (Others)", role: "PP" },
+  { key: "final_status_other", label: "Remarks", role: "PP" },
+
+  { key: "tsd_remarks", label: "Remarks", role: "TSD" },
 
   ...CNF_FIELD_KEYS.map((key) => ({
 

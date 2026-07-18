@@ -70,11 +70,19 @@ export const ROLE_COLORS: Record<RoleColorKey, RoleColorTokens> = {
   },
 };
 
-export const ROLE_LEGEND_ITEMS: { key: RoleColorKey; label: string }[] = [
-  { key: "am", label: "AM/BM/PL" },
-  { key: "pp", label: "PP" },
-  { key: "tsd", label: "TSD" },
-  { key: "val", label: "VALDN" },
-  { key: "qc", label: "QC" },
-  { key: "pp", label: "PLANNING (PP)" },
+/** Legend chips for Projects Database column focus (display label → sheet group header). */
+export const ROLE_LEGEND_ITEMS: {
+  key: RoleColorKey;
+  label: string;
+  /** Authorization field group (`canEditProjectFields`). */
+  fieldGroup: Exclude<RoleColorKey, "id">;
+  /** `roleGroupLabel` values on spreadsheet columns to show when this chip is active. */
+  columnLabels: string[];
+}[] = [
+  { key: "am", label: "AM/BM/PL", fieldGroup: "am", columnLabels: ["AM/BM/PL"] },
+  { key: "qa", label: "QA", fieldGroup: "qa", columnLabels: ["QA"] },
+  { key: "pp", label: "PP", fieldGroup: "pp", columnLabels: ["PP"] },
+  { key: "tsd", label: "TSD", fieldGroup: "tsd", columnLabels: ["TSD"] },
+  { key: "val", label: "VALDN", fieldGroup: "val", columnLabels: ["VALDN"] },
+  { key: "qc", label: "QC", fieldGroup: "qc", columnLabels: ["QC"] },
 ];

@@ -5,6 +5,8 @@ import { projectRowFgDeliveryStatus } from "@/lib/fgDeliveryMetrics";
 import { projectRowFgDays, rowMatchesDueWindow } from "@/lib/fgUrgency";
 import { compareProjectPriority, hasMissingFieldsForGroup, type FocusGroup } from "@/lib/projectPriority";
 import { mapDbToProject, mapProjectToDb } from "@/lib/mappers";
+import { emptyProjectHierarchy } from "@/lib/projectHierarchy";
+import { emitProjectDataChanged } from "@/lib/projectDataEvents";
 import { findDuplicateSoNumbers } from "@/lib/soNoValidation";
 import { getNextProjectId } from "@/lib/idGeneration";
 import { formatServiceError } from "@/lib/utils";
@@ -149,6 +151,7 @@ function extractPoFields(row: ProjectRow): PoControl {
     mo_bmr_po_target_date: row.mo_bmr_po_target_date,
     mo_bmr_po_activation_status: row.mo_bmr_po_activation_status,
     mo_bmr_po_activation_date: row.mo_bmr_po_activation_date,
+    tsd_remarks: row.tsd_remarks,
     protocol_no: row.protocol_no,
     protocol_Status: row.protocol_Status,
     protocol_target_date: row.protocol_target_date,
@@ -167,6 +170,7 @@ function extractPoFields(row: ProjectRow): PoControl {
     endorsement_report_status: row.endorsement_report_status,
     endorsement_acceptance_target_date: row.endorsement_acceptance_target_date,
     ar_availability_date: row.ar_availability_date,
+    qc_remarks: row.qc_remarks,
     packaging_schedule: row.packaging_schedule,
     final_status: row.final_status,
     final_status_other: row.final_status_other,
@@ -278,6 +282,7 @@ function toDbRow(line: Record<string, unknown>, meta: { userEmail: string; now: 
     mo_bmr_po_target_date: normalizeProjectValue(line.mo_bmr_po_target_date),
     mo_bmr_po_activation_status: normalizeProjectValue(line.mo_bmr_po_activation_status),
     mo_bmr_po_activation_date: normalizeProjectValue(line.mo_bmr_po_activation_date),
+    tsd_remarks: normalizeProjectValue(line.tsd_remarks),
     protocol_no: normalizeProjectValue(line.protocol_no),
     protocol_Status: normalizeProjectValue(line.protocol_Status),
     protocol_target_date: normalizeProjectValue(line.protocol_target_date),
@@ -299,6 +304,7 @@ function toDbRow(line: Record<string, unknown>, meta: { userEmail: string; now: 
     report_sub_status: normalizeProjectValue(line.validation_report_status),
     report_target_date: normalizeProjectValue(line.validation_report_target_date),
     ar_availability_date: normalizeProjectValue(line.ar_availability_date),
+    qc_remarks: normalizeProjectValue(line.qc_remarks),
     packaging_schedule: normalizeProjectValue(line.packaging_schedule),
     final_status: normalizeProjectValue(line.final_status),
     final_status_other: normalizeProjectValue(line.final_status_other),
@@ -490,6 +496,13 @@ export async function saveProject(payload: ProjectHierarchy, userEmail: string) 
   );
 
   return { project_id: projectId, records: dbRows, ...endorsement };
+}
+
+/** Creates an OPEN project with one blank PO line (spreadsheet “Add row”). */
+export async function createBlankProject(userEmail: string, projectOwner = "") {
+  const result = await saveProject(emptyProjectHierarchy(projectOwner), userEmail);
+  emitProjectDataChanged({ projectId: result.project_id, action: "create" });
+  return result;
 }
 
 export async function updateProject(

@@ -1,7 +1,7 @@
 {
   "name": "project-tracker-react",
   "private": true,
-  "version": "0.90.0",
+  "version": "0.91.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -26,7 +26,8 @@
     "test:endorsement-support": "tsx --tsconfig tsconfig.app.json scripts/verify-endorsement-support.ts",
     "test:menu-permissions": "tsx --tsconfig tsconfig.app.json scripts/verify-menu-permissions.ts",
     "test:dashboard-drilldown": "tsx --tsconfig tsconfig.app.json scripts/verify-dashboard-drilldown.ts",
-    "test:fixes": "npm run test:project-save && npm run test:cnf-closure && npm run test:cnf-tracker-table && npm run test:cnf-project-integration && npm run test:cnf-tracker-detail-ux && npm run test:notification-db && npm run test:notifications && npm run test:bmr-lock && npm run test:endorsement-support && npm run test:menu-permissions && npm run test:dashboard-drilldown"
+    "test:projects-db-validation": "tsx --tsconfig tsconfig.app.json scripts/verify-projects-database-validation.ts",
+    "test:fixes": "npm run test:project-save && npm run test:cnf-closure && npm run test:cnf-tracker-table && npm run test:cnf-project-integration && npm run test:cnf-tracker-detail-ux && npm run test:notification-db && npm run test:notifications && npm run test:bmr-lock && npm run test:endorsement-support && npm run test:menu-permissions && npm run test:dashboard-drilldown && npm run test:projects-db-validation"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",

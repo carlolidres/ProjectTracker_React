@@ -149,8 +149,8 @@ export function CnfTrackerDetailModal({
       <div className="cnf-tracker-sticky-header-actions project-sticky-header-actions" role="toolbar" aria-label="CNF actions">
         <Button
           className="project-sticky-action-btn"
-          title="New CNF Tracker"
-          aria-label="New CNF Tracker"
+          title="New CNF"
+          aria-label="New CNF"
           icon={<PlusOutlined />}
           disabled={viewOnly}
           onClick={onNew}

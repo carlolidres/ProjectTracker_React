@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
+import { readReturnToPath } from "@/lib/dashboardReturnTo";
 import {
   clearCnfTrackerDraft,
   loadCnfTrackerDraft,
@@ -141,6 +142,7 @@ export function CnfTrackerPage() {
   const createRefParam = searchParams.get("ref");
   const createSupportActivityIdParam = searchParams.get("supportActivityId");
   const returnProjectIdParam = searchParams.get("returnProjectId");
+  const returnToPathParam = readReturnToPath(searchParams);
 
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [trackerRecords, setTrackerRecords] = useState<CnfTrackerRecord[]>([]);
@@ -156,6 +158,7 @@ export function CnfTrackerPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [returnProjectId, setReturnProjectId] = useState<string | null>(null);
+  const [returnToPath, setReturnToPath] = useState<string | null>(null);
   const [linkedProjectIds, setLinkedProjectIds] = useState<string[]>([]);
   const [linkedSupportActivityId, setLinkedSupportActivityId] = useState<string | null>(null);
   const [activityTypeOptions, setActivityTypeOptions] = useState<ReusableOption[]>([]);
@@ -340,6 +343,7 @@ export function CnfTrackerPage() {
           setInitiatorTouched(false);
           setIsCreateMode(true);
           setReturnProjectId((returnProjectIdParam ?? "").trim() || null);
+          setReturnToPath(returnToPathParam);
           setLinkedProjectIds([]);
           setLinkedSupportActivityId(supportActivityId);
           setDuplicateHint(null);
@@ -369,6 +373,7 @@ export function CnfTrackerPage() {
     createRefParam,
     createSupportActivityIdParam,
     returnProjectIdParam,
+    returnToPathParam,
     loadData,
     loadRecord,
     resumeDraftFlush,
@@ -604,9 +609,19 @@ export function CnfTrackerPage() {
           cnfTrackerId: saved.cnf_tracker_id,
         });
         setReturnProjectId(null);
+        setReturnToPath(null);
         setDetailModalOpen(false);
         setIsCreateMode(false);
         navigate(`/projects?${params.toString()}`);
+        return;
+      }
+
+      if (returnToPath) {
+        const destination = returnToPath;
+        setReturnToPath(null);
+        setDetailModalOpen(false);
+        setIsCreateMode(false);
+        navigate(destination);
         return;
       }
 

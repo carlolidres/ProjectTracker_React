@@ -1,37 +1,40 @@
 # Current Handoff
 
 Last Updated: `2026-07-18`
-Version: `v90 Dashboard workspace Phase A + collapsed shell hover rail`
+Version: `v0.91.0`
 Branch: `main`
-Commit: `de385ef`
-App version: `0.90.0`
+Commit: _(fill after push)_
+App version: `0.91.0`
 
 ## Current Status
 
-**Deployed** to GitHub Pages. Actions run [29643088651](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29643088651) success. Release: https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.90.0. About drawer should show `v0.90.0 (de385ef)`. Owner browser-smoke for workspace strip/drawer and hover rail still outstanding.
+**v0.91.0 release in progress.** Includes Projects Database UX, TSD/QC remarks, Project Entry role defaults, dashboard Phase B create-return, sticky Dashboard context on DB drills, About version history, and retired dead `CnfCreateModal`.
 
 ## Recently Completed
 
-- Dashboard workspace Phase A behind `VITE_FEATURE_DASHBOARD_WORKSPACE` (default ON)
-- Rollback: `agent-workflow/DASHBOARD_WORKSPACE_ROLLBACK.md`
-- Collapsed chrome persists across routes; hover FAB → icon rail; click → full expand
-- Project sticky header + role tabs single stack
-- Released `v0.90.0` @ `de385ef`
+- v0.91.0 packaging: DATA_MAP, `appVersionHistory`, release notes, version-91 handoff
+- R8: Removed unused Project Entry `CnfCreateModal` / `CnfCreateFormFields`; New CNF → `/cnf-tracker?new=1` + detail modal
+- R7: Sticky Dashboard context banner on Projects Database when `return_to` present
+- Projects Database: Full View default, FG Month, hide long-text columns, Esc clear selection, PP header
+- Project Entry: `defaultProjectTabForRole`; expand hierarchy from `from=database`
+- Migrations: `tsd_remarks`, `qc_remarks`
+
+## Deferred
+
+- Phase C R9 Support CNF/Endorsement handoff overlays
 
 ## Verification
 
 | Check | Status | Result |
 |---|---|---|
-| `npm run typecheck` | PASSED | clean |
-| `npm run build` | PASSED | Vite OK |
-| `npm run test:dashboard-drilldown` | PASSED | clean |
-| Browser smoke | NOT_RUN | workspace + hover rail |
-| GitHub Pages deploy | PASSED | run 29643088651 |
-| GitHub Release | PASSED | [v0.90.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.90.0) |
+| `npm run typecheck` | PENDING | |
+| `npm run build` | PENDING | |
+| GitHub Pages deploy | PENDING | |
+| GitHub Release | PENDING | `v0.91.0` |
 
 ## Next Action
 
-Owner browser-smoke dashboard workspace + collapsed hover rail. Optional Phase B later. Menu-matrix migration `20260716140000` still apply if not yet on target.
+Confirm Actions green; fill deploy SHA in DATA_MAP / version-91 handoff / appVersionHistory; apply remarks migrations on target if needed.
 
 ## Dumb-Zone Recovery
 

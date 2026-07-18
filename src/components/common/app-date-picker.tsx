@@ -18,6 +18,7 @@ interface AppDatePickerProps {
   readOnly?: boolean;
   onChange: (value: string) => void;
   className?: string;
+  placeholder?: string;
 }
 
 export function AppDatePicker({
@@ -64,6 +65,7 @@ export function AppMonthPicker({
   readOnly = false,
   onChange,
   className,
+  placeholder,
 }: AppDatePickerProps) {
   if (readOnly) {
     return (
@@ -90,6 +92,7 @@ export function AppMonthPicker({
       disabled={disabled}
       allowClear
       inputReadOnly={false}
+      placeholder={placeholder}
       onChange={(next: Dayjs | null) => onChange(serializeFgMonth(next))}
     />
   );

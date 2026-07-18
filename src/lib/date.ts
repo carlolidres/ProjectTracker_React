@@ -38,6 +38,30 @@ export function formatAppMonth(value?: string | null): string {
   return parsed ? parsed.format(APP_MONTH_DISPLAY_FORMAT) : "-";
 }
 
+/** Chronological compare by MMM YYYY (month precision). Empty/N/A sort after valued months. */
+export function compareAppMonthYear(valueA: unknown, valueB: unknown): number {
+  const a = parseFgMonthValue(valueA == null ? null : String(valueA));
+  const b = parseFgMonthValue(valueB == null ? null : String(valueB));
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  const diff = a.valueOf() - b.valueOf();
+  return diff < 0 ? -1 : diff > 0 ? 1 : 0;
+}
+
+/**
+ * AG Grid date-filter comparator at month precision (MMM YYYY).
+ * Returns -1 / 0 / 1 for cell before / same / after the filter month.
+ */
+export function compareMonthFilterDate(filterLocalDateAtMidnight: Date, cellValue: unknown): number {
+  const cell = parseFgMonthValue(cellValue == null ? null : String(cellValue));
+  if (!cell) return -1;
+  const filter = dayjs(filterLocalDateAtMidnight).startOf("month");
+  if (cell.isBefore(filter, "month")) return -1;
+  if (cell.isAfter(filter, "month")) return 1;
+  return 0;
+}
+
 export function formatAppDateTime(value?: string | null): string {
   if (!value) return "-";
   const parsed = dayjs(value);
@@ -108,7 +132,19 @@ export function monthYearMatches(
 ): boolean {
   const parsed = parseFgMonthValue(fgMonth);
   if (!parsed) return false;
-  if (filterMonth && parsed.format("MM") !== filterMonth.padStart(2, "0")) return false;
+
+  if (filterMonth) {
+    const trimmed = String(filterMonth).trim();
+    // Bare month number ("6" / "06") — legacy MM filter
+    if (/^\d{1,2}$/.test(trimmed)) {
+      if (parsed.format("MM") !== trimmed.padStart(2, "0")) return false;
+    } else {
+      // YYYY-MM, MMM YYYY, or ISO date from month picker / dashboard drills
+      const filterParsed = parseFgMonthValue(trimmed);
+      if (!filterParsed || !parsed.isSame(filterParsed, "month")) return false;
+    }
+  }
+
   if (filterYear && parsed.format("YYYY") !== filterYear) return false;
   return true;
 }

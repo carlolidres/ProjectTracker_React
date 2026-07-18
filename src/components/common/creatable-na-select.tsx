@@ -19,6 +19,7 @@ interface CreatableNaSelectProps {
   readOnly?: boolean;
   canManageOptions?: boolean;
   className?: string;
+  popupClassName?: string;
   placeholder?: string;
   allowClear?: boolean;
   /** When false, omit the built-in N/A option (fixed-status fields). */
@@ -57,6 +58,7 @@ export function CreatableNaSelect({
   readOnly,
   canManageOptions,
   className,
+  popupClassName,
   placeholder = "Select or type a new value",
   allowClear = true,
   includeNaOption = true,
@@ -225,6 +227,7 @@ export function CreatableNaSelect({
         onChange(next === NA_VALUE ? "" : String(next ?? ""));
         setSearch("");
       }}
+      popupClassName={popupClassName}
       getPopupContainer={() => document.body}
       listHeight={220}
     />

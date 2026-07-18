@@ -34,6 +34,7 @@ export const PP_FIELDS = ["manufacturing_start_week", "packaging_schedule", "fin
 export const TSD_FIELDS = [
   "mo_bmr_po_submission_status", "mo_bmr_po_target_date",
   "mo_bmr_po_activation_status", "mo_bmr_po_activation_date",
+  "tsd_remarks",
 ];
 
 export const VAL_FIELDS = [
@@ -44,7 +45,7 @@ export const VAL_FIELDS = [
   "endorsement_report_no", "endorsement_report_status", "endorsement_acceptance_target_date",
 ];
 
-export const QC_FIELDS = ["ar_availability_date"];
+export const QC_FIELDS = ["ar_availability_date", "qc_remarks"];
 
 export const QA_FIELDS = ["qrmr_ref_no", "qrmr_status", "qrmr_target_date"];
 

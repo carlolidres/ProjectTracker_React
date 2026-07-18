@@ -1,18 +1,28 @@
 import {
   CNF_SPREADSHEET_FIELDS,
   PROJECT_HEADER_FIELDS,
+  PROJECTS_DB_DATA_COLUMNS,
+  PROJECTS_DB_PROJECT_ID_COLUMN,
+  canEditSpreadsheetColumn,
   isProjectLevelValField,
 } from "@/lib/projectsDatabaseColumns";
 import { emptyCnfEntry } from "@/lib/projectHierarchy";
 import { emitProjectDataChanged } from "@/lib/projectDataEvents";
 import { collectProjectDateChanges } from "@/lib/dateAdjustmentReview";
 import type { DateFieldChange } from "@/lib/dateAdjustmentReview";
-import type { PoControl, ProjectHierarchy, ProjectRow } from "@/types";
+import { canAdjustSavedFgMonth, canEditProjectFields } from "@/lib/roleAccess";
+import { validateSpreadsheetCellValue } from "@/lib/projectsDatabaseValidation";
+import { valueOrNA } from "@/lib/utils";
+import type { PoControl, ProjectHierarchy, ProjectRow, UserRole } from "@/types";
 import {
   getProjectById,
   updateProject,
   type ProjectSaveOptions,
 } from "@/services/projectService";
+
+const COLUMN_BY_FIELD = new Map(
+  [PROJECTS_DB_PROJECT_ID_COLUMN, ...PROJECTS_DB_DATA_COLUMNS].map((column) => [column.field, column]),
+);
 
 export interface SpreadsheetCellEdit {
   recordId: string;
@@ -110,12 +120,53 @@ export function previewSpreadsheetDateChanges(
   return collectProjectDateChanges(baseline, draft);
 }
 
+export interface SpreadsheetPatchOptions extends ProjectSaveOptions {
+  /** Caller role — re-checked so UI gates cannot be bypassed. */
+  role?: UserRole;
+  /** Registry lists for select validation. */
+  registry?: Record<string, string[]>;
+}
+
+function assertSpreadsheetEditAllowed(
+  edit: SpreadsheetCellEdit,
+  role: UserRole | undefined,
+  registry: Record<string, string[]>,
+  hierarchy: ProjectHierarchy,
+): SpreadsheetCellEdit {
+  const column = COLUMN_BY_FIELD.get(edit.field);
+  if (!column) {
+    throw new Error(`Unknown spreadsheet field: ${edit.field}`);
+  }
+  if (!canEditSpreadsheetColumn(role, column, canEditProjectFields)) {
+    throw new Error(`You do not have permission to edit ${column.headerName}.`);
+  }
+  if (column.field === "project_owner" && role !== "admin") {
+    throw new Error("Only admins can change Project Owner.");
+  }
+  if (column.field === "fg_month") {
+    const located = findPoByRecordId(hierarchy, edit.recordId);
+    const current = String(located?.po.fg_month ?? hierarchy.batches[0]?.mo_controls[0]?.po_controls[0]?.fg_month ?? "").trim();
+    if (current && valueOrNA(current) !== "N/A" && !canAdjustSavedFgMonth(role)) {
+      throw new Error("Saved FG Month can only be changed by Admin or AM/BM/PL.");
+    }
+  }
+
+  const validated = validateSpreadsheetCellValue(column, edit.newValue, registry);
+  if (!validated.ok) {
+    throw new Error(validated.message ?? `Invalid value for ${column.headerName}.`);
+  }
+  return { ...edit, newValue: validated.normalized };
+}
+
 export async function patchProjectFromSpreadsheetEdits(
   edits: SpreadsheetCellEdit[],
   userEmail: string,
-  options?: ProjectSaveOptions,
+  options?: SpreadsheetPatchOptions,
 ): Promise<{ projectIds: string[]; dateChanges: DateFieldChange[] }> {
   if (!edits.length) return { projectIds: [], dateChanges: [] };
+
+  const role = options?.role;
+  const registry = options?.registry ?? {};
 
   const byProject = new Map<string, SpreadsheetCellEdit[]>();
   for (const edit of edits) {
@@ -133,14 +184,18 @@ export async function patchProjectFromSpreadsheetEdits(
       throw new Error(`Project ${projectId} not found.`);
     }
 
-    const dateChanges = previewSpreadsheetDateChanges(hierarchy, projectEdits);
+    const authorizedEdits = projectEdits.map((edit) =>
+      assertSpreadsheetEditAllowed(edit, role, registry, hierarchy),
+    );
+
+    const dateChanges = previewSpreadsheetDateChanges(hierarchy, authorizedEdits);
     allDateChanges.push(...dateChanges);
 
     if (dateChanges.length && !options?.dateAdjustmentsConfirmed) {
       throw new Error("Date adjustments require a documented reason before saving.");
     }
 
-    const patched = applyEditsToHierarchy(hierarchy, projectEdits);
+    const patched = applyEditsToHierarchy(hierarchy, authorizedEdits);
     await updateProject(projectId, patched, userEmail, {
       dateAdjustmentsConfirmed: options?.dateAdjustmentsConfirmed || !dateChanges.length,
     });

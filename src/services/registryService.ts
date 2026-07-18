@@ -97,6 +97,17 @@ export async function saveRegistryValue(
   });
 }
 
+/** Soft-remove an Active registry suggestion (does not change existing project rows). */
+export async function removeRegistryValue(type: string, value: string, userEmail: string) {
+  const existing = await findRegistryDuplicate(type, value);
+  if (!existing) {
+    throw new Error(`"${normalizeRegistryValue(value)}" was not found in ${type}.`);
+  }
+  if (existing.status === "Active") {
+    await setRegistryStatus(existing, "Inactive", userEmail);
+  }
+}
+
 export async function setRegistryStatus(
   entry: RegistryEntry,
   status: "Active" | "Inactive",

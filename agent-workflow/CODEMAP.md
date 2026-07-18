@@ -23,10 +23,12 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Module | Path | Responsibility |
 |---|---|---|
 | Auth | `src/features/auth/LoginPage.tsx` | Login flow and public entry route. |
-| Dashboard | `src/features/dashboard/DashboardPage.tsx` | KPI, worklist, meeting view, and dashboard rendering. Phase A workspace: action strip + project quick drawer when `VITE_FEATURE_DASHBOARD_WORKSPACE` is on (default). |
-| Dashboard action strip | `src/features/dashboard/components/DashboardActionStrip.tsx` | Role/menu-gated “Do next” actions. |
+| Dashboard | `src/features/dashboard/DashboardPage.tsx` | KPI, worklist, meeting view. Workspace flag: action strip, quick drawer, Browse/My labels (Phase B). |
+| Dashboard action strip | `src/features/dashboard/components/DashboardActionStrip.tsx` | Role/menu-gated “Do next” create/browse actions. |
 | Project quick drawer | `src/features/dashboard/components/ProjectQuickDrawer.tsx` | Summary + Final Status edit from worklist/notifications. |
+| Dashboard charts block | `src/features/dashboard/components/DashboardChartsBlock.tsx` | CNF/final/department/FG/support/monthly charts. |
 | Dashboard components | `src/features/dashboard/components/` | Charts and meeting overlay pieces. |
+| Return-to helper | `src/lib/dashboardReturnTo.ts` | `return_to` append/read for dashboard create + drill loops. |
 | Project Entry | `src/features/projects/ProjectEntryPage.tsx` | Main project form page. |
 | Project form components | `src/features/projects/components/` | Hierarchy form, role tabs, field controls, CNF copy modal. |
 | Projects Database | `src/features/projects/ProjectsDatabasePage.tsx` | Role-colored AG Grid spreadsheet; search/filter/export; inline role-gated edits. |
@@ -35,7 +37,7 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Role colors | `src/lib/roleColors.ts`, `src/styles/role-colors.css` | Shared form + spreadsheet role palette. |
 | Spreadsheet save | `src/services/projectsDatabaseService.ts` | Patch edits → `updateProject` + emit sync. |
 | CNF Tracker | `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF tracker list, New CNF, detail modal, Unique Batch navigation. |
-| CNF create/select modals | `src/features/cnf-tracker/CnfCreateModal.tsx`, `CnfTrackerSelectModal.tsx` | Shared New CNF form and Insert CNF picker for Projects. |
+| CNF select modal | `src/features/cnf-tracker/CnfTrackerSelectModal.tsx` | Insert CNF picker for Projects; New CNF opens `CnfTrackerDetailModal` via `/cnf-tracker?new=1`. |
 | Endorsement Tracker | `src/features/endorsement-tracker/EndorsementTrackerPage.tsx` | Endorsement list, detail modal, independent create, item rows, QA-only edit. |
 | Support Activities | `src/features/support-activities/SupportActivitiesPage.tsx` | Support activity form and database view. Styles: `src/styles/support-activities.css`. Icons: `src/components/common/lucide-icon.tsx`. |
 | Audit Trail | `src/features/audit-trail/AuditTrailPage.tsx` | Audit log browsing and filters. |

@@ -12,6 +12,7 @@ import type { HookAPI } from "antd/es/modal/useModal";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { readReturnToPath } from "@/lib/dashboardReturnTo";
 import {
   clearProjectEntryDraft,
   loadProjectEntryDraft,
@@ -28,7 +29,6 @@ import { AppShell } from "@/components/layout/app-shell";
 import { FieldHelpIcon } from "@/components/common/field-help-icon";
 import { ProjectFieldControl } from "@/features/projects/components/ProjectFieldControl";
 import { CopyCnfFromProjectModal } from "@/features/projects/components/CopyCnfFromProjectModal";
-import { CnfCreateModal } from "@/features/cnf-tracker/CnfCreateModal";
 import { CnfTrackerSelectModal } from "@/features/cnf-tracker/CnfTrackerSelectModal";
 import {
   collectAllCollapseKeys,
@@ -39,20 +39,16 @@ import {
   applyNewProductFromCnf,
   applyTrackerToCnfEntry,
   cnfEntryHasExistingData,
-  emptyCnfTrackerHeaderFields,
-  type CnfTrackerHeaderFields,
 } from "@/lib/cnfProjectIntegration";
 import {
   getCnfTrackerById,
   listActiveCnfTrackerRecords,
-  saveCnfTrackerRecord,
 } from "@/services/cnfTrackerService";
 import {
   listProjectIdsForTrackerRecord,
   upsertProjectCnfTrackerLink,
 } from "@/services/cnfTrackerLinkService";
-import { saveRegistryValue } from "@/services/registryService";
-import { CnfDuplicateError, type CnfTrackerRecord } from "@/types/cnfTracker";
+import type { CnfTrackerRecord } from "@/types/cnfTracker";
 import { logAuditTrail } from "@/services/auditService";
 import {
   detectDuplicateValues,
@@ -69,6 +65,7 @@ import {
 import { getNextProjectId } from "@/lib/idGeneration";
 import {
   HEADER_FIELDS,
+  defaultProjectTabForRole,
   type ProjectTab,
   tabToFieldGroup,
 } from "@/lib/projectFormFields";
@@ -145,6 +142,7 @@ function emptyPo(): PoControl {
     mo_bmr_po_target_date: "",
     mo_bmr_po_activation_status: "",
     mo_bmr_po_activation_date: "",
+    tsd_remarks: "",
     protocol_no: "",
     protocol_Status: "",
     protocol_target_date: "",
@@ -163,6 +161,7 @@ function emptyPo(): PoControl {
     endorsement_report_status: "",
     endorsement_acceptance_target_date: "",
     ar_availability_date: "",
+    qc_remarks: "",
     packaging_schedule: "",
     final_status: "OPEN",
     final_status_other: "",
@@ -301,6 +300,9 @@ export function ProjectEntryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const projectIdParam = searchParams.get("projectId");
+  const createNewParam = searchParams.get("new");
+  const fromDatabase = searchParams.get("from") === "database";
+  const returnToPath = readReturnToPath(searchParams);
   const { registry } = useRegistry();
   const { promptBatchDateAdjustment } = useDateAdjustment();
   const [project, setProject] = useState<ProjectHierarchy>(emptyProject());
@@ -308,7 +310,9 @@ export function ProjectEntryPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ProjectTab>("AM/BM/PL");
+  const [activeTab, setActiveTab] = useState<ProjectTab>(() =>
+    defaultProjectTabForRole(profile?.role),
+  );
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [savedFgMonths, setSavedFgMonths] = useState<Record<string, string>>({});
   const [copyCnfModalOpen, setCopyCnfModalOpen] = useState(false);
@@ -317,11 +321,6 @@ export function ProjectEntryPage() {
   const [eligibleMotherProjects, setEligibleMotherProjects] = useState<ProjectSummaryForCnfCopy[]>([]);
   const [cnfTrackerRecords, setCnfTrackerRecords] = useState<CnfTrackerRecord[]>([]);
   const [insertCnfOpen, setInsertCnfOpen] = useState(false);
-  const [createCnfOpen, setCreateCnfOpen] = useState(false);
-  const [createCnfFields, setCreateCnfFields] = useState<CnfTrackerHeaderFields>(emptyCnfTrackerHeaderFields());
-  const [createCnfSaving, setCreateCnfSaving] = useState(false);
-  const [createCnfError, setCreateCnfError] = useState<string | null>(null);
-  const [createCnfDuplicateHint, setCreateCnfDuplicateHint] = useState<string | null>(null);
   const [pendingTrackerRecordId, setPendingTrackerRecordId] = useState<string | null>(null);
   const [siblingProjectIds, setSiblingProjectIds] = useState<string[]>([]);
   const stickyStackRef = useRef<HTMLDivElement>(null);
@@ -359,6 +358,7 @@ export function ProjectEntryPage() {
     setProject(next);
     setSavedFgMonths({});
     setOpenKeys([]);
+    setActiveTab(defaultProjectTabForRole(profile?.role));
     setPendingTrackerRecordId(null);
     setSiblingProjectIds([]);
     if (user?.id) clearProjectEntryDraft(user.id);
@@ -440,54 +440,6 @@ export function ProjectEntryPage() {
       }
     }
     message.success(`Inserted CNF ${record.cnf_reference}`);
-  }
-
-  async function handleCreateCnfFromProject(allowProbable = false) {
-    if (!user?.email || !canCreateCnfTracker) return;
-    setCreateCnfSaving(true);
-    setCreateCnfError(null);
-    setCreateCnfDuplicateHint(null);
-    try {
-      const saved = await saveCnfTrackerRecord(
-        {
-          cnf_tracker_id: "N/A",
-          cnf_reference: createCnfFields.cnf_reference,
-          cnf_initiator: createCnfFields.cnf_initiator,
-          cnf_details: createCnfFields.cnf_details,
-          product_name: createCnfFields.product_name,
-          client_name: createCnfFields.client_name,
-          qrmr_no: createCnfFields.qrmr_no,
-          unique_batch_no: createCnfFields.unique_batch_no,
-          change_description: createCnfFields.change_description,
-          tracker_status: "Open",
-          allowProbableDuplicate: allowProbable,
-        },
-        user.email,
-      );
-      setCnfTrackerRecords((current) => [saved, ...current.filter((r) => r.cnf_tracker_id !== saved.cnf_tracker_id)]);
-      applyTrackerIntoProject(saved, 0, false);
-      setCreateCnfOpen(false);
-      setCreateCnfFields(emptyCnfTrackerHeaderFields());
-      message.success(`CNF ${saved.cnf_tracker_id} created and inserted`);
-    } catch (err) {
-      if (err instanceof CnfDuplicateError) {
-        setCreateCnfDuplicateHint(err.existing.cnf_reference);
-        setCreateCnfError(err.message);
-        if (err.reason === "probable") {
-          modal.confirm({
-            title: "Related CNF found",
-            content: err.message,
-            okText: "Save anyway",
-            cancelText: "Cancel",
-            onOk: () => void handleCreateCnfFromProject(true),
-          });
-        }
-        return;
-      }
-      setCreateCnfError(err instanceof Error ? err.message : "Failed to create CNF");
-    } finally {
-      setCreateCnfSaving(false);
-    }
   }
 
   async function handleNewProduct() {
@@ -608,7 +560,8 @@ export function ProjectEntryPage() {
             baselineProjectRef.current = structuredClone(withLink);
             setProject(withLink);
             setSavedFgMonths(collectSavedFgMonths(withLink));
-            setOpenKeys([]);
+            setOpenKeys(fromDatabase ? collectAllCollapseKeys(withLink) : []);
+            setActiveTab(defaultProjectTabForRole(profile?.role));
             if (user?.id) clearProjectEntryDraft(user.id);
             const entryTrackerId = withLink.batches[0]?.mo_controls[0]?.po_controls[0]?.cnf_entries?.[0]?.cnf_tracker_record_id;
             if (entryTrackerId) {
@@ -632,6 +585,7 @@ export function ProjectEntryPage() {
             setProject(empty);
             setSavedFgMonths({});
             setOpenKeys([]);
+            setActiveTab(defaultProjectTabForRole(profile?.role));
             if (user?.id) clearProjectEntryDraft(user.id);
           }
         }
@@ -671,6 +625,17 @@ export function ProjectEntryPage() {
         } else {
           setError(`CNF Tracker "${cnfTrackerIdParam}" was not found.`);
         }
+      } else if (createNewParam === "1") {
+        await prepareNewProject();
+        setSearchParams(
+          (current) => {
+            const next = new URLSearchParams(current);
+            next.delete("new");
+            return next;
+          },
+          { replace: true },
+        );
+        focusFirstProjectField();
       } else if (draft) {
         restoreProjectDraft(draft);
       } else {
@@ -681,7 +646,7 @@ export function ProjectEntryPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectIdParam, cnfTrackerIdParam, setSearchParams, user?.id, profile]);
+  }, [projectIdParam, cnfTrackerIdParam, createNewParam, fromDatabase, setSearchParams, user?.id, profile]);
 
   const persistProjectDraft = useCallback(() => {
     if (!user?.id || loading) return;
@@ -1000,6 +965,8 @@ export function ProjectEntryPage() {
             projectId: savedProjectId,
           });
           navigate(`/endorsement-tracker?${params.toString()}`);
+        } else if (isNew && returnToPath) {
+          navigate(returnToPath);
         }
       }
     } catch (err) {
@@ -1262,28 +1229,6 @@ export function ProjectEntryPage() {
                 params.set("returnProjectId", projectId);
               }
               navigate(`/cnf-tracker?${params.toString()}`);
-            }}
-          />
-
-          <CnfCreateModal
-            open={createCnfOpen}
-            fields={createCnfFields}
-            saving={createCnfSaving}
-            error={createCnfError}
-            productOptions={(registry.cnf_product ?? []).map((value) => ({ value }))}
-            clientOptions={(registry.cnf_client ?? []).map((value) => ({ value }))}
-            canManageOptions={canCreateCnfTracker}
-            existingReferenceHint={createCnfDuplicateHint}
-            onChange={setCreateCnfFields}
-            onCancel={() => setCreateCnfOpen(false)}
-            onSave={() => void handleCreateCnfFromProject(false)}
-            onCreateProduct={async (value) => {
-              if (!user?.email) return;
-              await saveRegistryValue("cnf_product", value, value, user.email);
-            }}
-            onCreateClient={async (value) => {
-              if (!user?.email) return;
-              await saveRegistryValue("cnf_client", value, value, user.email);
             }}
           />
 

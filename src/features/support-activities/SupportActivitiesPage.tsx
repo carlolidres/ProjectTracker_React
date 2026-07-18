@@ -146,6 +146,7 @@ export function SupportActivitiesPage() {
   useDiagLifecycle("SupportActivitiesPage");
   const [searchParams, setSearchParams] = useSearchParams();
   const activityIdParam = searchParams.get("activityId");
+  const createNewParam = searchParams.get("new");
   const returnToPath = readReturnToPath(searchParams);
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -216,13 +217,32 @@ export function SupportActivitiesPage() {
   }, [load]);
 
   useEffect(() => {
-    if (!user?.id || activityIdParam) return;
+    if (!user?.id || activityIdParam || createNewParam === "1") return;
     const draft = loadSupportActivityDraft(user.id);
     if (draft) {
       baselineFormRef.current = structuredClone(draft);
       setForm(draft);
     }
-  }, [user?.id, activityIdParam]);
+  }, [user?.id, activityIdParam, createNewParam]);
+
+  useEffect(() => {
+    if (createNewParam !== "1" || activityIdParam) return;
+    clearForm();
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete("new");
+        return next;
+      },
+      { replace: true },
+    );
+    window.requestAnimationFrame(() => {
+      const first = document.querySelector<HTMLElement>(
+        ".support-form input:not([disabled]), .support-form textarea:not([disabled]), .support-form .ant-select-selector",
+      );
+      first?.focus();
+    });
+  }, [createNewParam, activityIdParam, setSearchParams, user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -358,6 +378,7 @@ export function SupportActivitiesPage() {
           ref: result.pending_cnf_reference,
         });
         if (savedActivityId) params.set("supportActivityId", savedActivityId);
+        if (returnToPath) params.set("return_to", returnToPath);
         navigate(`/cnf-tracker?${params.toString()}`);
       } else if (result.endorsement_tracker_id) {
         navigate(`/endorsement-tracker?id=${encodeURIComponent(result.endorsement_tracker_id)}`);
@@ -371,6 +392,8 @@ export function SupportActivitiesPage() {
           supportActivityId: savedActivityId,
         });
         navigate(`/endorsement-tracker?${params.toString()}`);
+      } else if (returnToPath) {
+        navigate(returnToPath);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");

@@ -1,7 +1,7 @@
 import { CNF_ENTRY_KEYS } from "@/lib/constants";
 import { COPY_FROM_FIRST_PO_AM_FIELDS, PO_FIELDS } from "@/lib/projectFormFields";
 import { generateHierarchyId } from "@/lib/utils";
-import type { BatchControl, CnfEntry, PoControl, ProjectHierarchy } from "@/types";
+import type { BatchControl, CnfEntry, MoControl, PoControl, ProjectHierarchy } from "@/types";
 
 export function emptyCnfEntry(): CnfEntry {
   return {
@@ -14,6 +14,89 @@ export function emptyCnfEntry(): CnfEntry {
     cnf_status: "",
     client_approval_target_date: "",
     remarks: "",
+  };
+}
+
+function emptyPoControl(): PoControl {
+  return {
+    po_instance_id: generateHierarchyId("PO"),
+    so_no: "",
+    po_control_no: "",
+    fg_month: "",
+    business_unit: "",
+    updatedDocsVer: "",
+    order_quantity: "",
+    uom: "",
+    prod_ver: "",
+    cnf_reference: "",
+    qrmr_ref_no: "",
+    qrmr_status: "",
+    qrmr_target_date: "",
+    risk_control: "",
+    change_description: "",
+    cnf_status: "",
+    client_approval_target_date: "",
+    remarks: "",
+    cnf_entries: [emptyCnfEntry()],
+    manufacturing_start_week: "",
+    mo_bmr_po_submission_status: "",
+    mo_bmr_po_target_date: "",
+    mo_bmr_po_activation_status: "",
+    mo_bmr_po_activation_date: "",
+    tsd_remarks: "",
+    protocol_no: "",
+    protocol_Status: "",
+    protocol_target_date: "",
+    Val_Activity: "",
+    Val_Stability: "",
+    Val_Batch_Seq_No: "",
+    Val_Strategy: "",
+    Val_Strategy_remarks: "",
+    val_interim_report_no: "",
+    val_interim_report_status: "",
+    val_interim_report_target_date: "",
+    validation_report_no: "",
+    validation_report_status: "",
+    validation_report_target_date: "",
+    endorsement_report_no: "",
+    endorsement_report_status: "",
+    endorsement_acceptance_target_date: "",
+    ar_availability_date: "",
+    qc_remarks: "",
+    packaging_schedule: "",
+    final_status: "OPEN",
+    final_status_other: "",
+  };
+}
+
+function emptyMoControl(): MoControl {
+  return {
+    mo_instance_id: generateHierarchyId("MO"),
+    mo_control_no: "",
+    po_controls: [emptyPoControl()],
+  };
+}
+
+/** Blank Project → Batch → MO → PO hierarchy for create flows. */
+export function emptyProjectHierarchy(projectOwner = ""): ProjectHierarchy {
+  return {
+    project_id: "N/A",
+    project_owner: projectOwner,
+    activity_type: "",
+    client_name: "",
+    so_no: "",
+    fg_code: "",
+    product_name: "",
+    validation_report_no: "",
+    validation_report_status: "",
+    validation_report_target_date: "",
+    batches: [
+      {
+        batch_instance_id: generateHierarchyId("BAT"),
+        unique_batch: "",
+        mo_controls: [emptyMoControl()],
+      },
+    ],
   };
 }
 

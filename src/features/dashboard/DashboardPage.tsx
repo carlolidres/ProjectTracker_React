@@ -12,19 +12,15 @@ import {
   QuestionCircleOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
-import { Alert, App as AntApp, Button, Card, Empty, Progress, Space, Spin, Table, Tag, Tooltip } from "antd";
+import { Alert, App as AntApp, Button, Card, Empty, Space, Spin, Table, Tag, Tooltip, Typography } from "antd";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { useMeetingView } from "@/app/meeting-view-provider";
 import { ProjectIdLink } from "@/components/common/project-id-link";
 import { AppShell } from "@/components/layout/app-shell";
-import {
-  FgDeliveryMetricsPanel,
-  MonthlyTrendChart,
-  SegmentedChart,
-} from "@/features/dashboard/components/dashboard-charts";
 import { DashboardActionStrip } from "@/features/dashboard/components/DashboardActionStrip";
+import { DashboardChartsBlock } from "@/features/dashboard/components/DashboardChartsBlock";
 import { ProjectQuickDrawer } from "@/features/dashboard/components/ProjectQuickDrawer";
 import { getSandboxDashboardData, getSandboxNotifications } from "@/lib/dashboardSandbox";
 import {
@@ -184,14 +180,14 @@ export function DashboardPage() {
     if (!data) return [];
     const { cards } = data;
     return [
-      { label: "Projects", value: cards.totalProjects, icon: <FolderOpenOutlined />, color: "#2563eb", route: dbRoute() },
-      { label: "PO Lines", value: cards.totalRecords, icon: <DatabaseOutlined />, color: "#0891b2", route: dbRoute() },
-      { label: "Open", value: cards.totalOpen, icon: <ClockCircleOutlined />, color: "#2563eb", route: dbRoute({ final_status: "OPEN" }) },
-      { label: "Closed", value: cards.totalClosed, icon: <CheckCircleOutlined />, color: "#16a34a", route: dbRoute({ final_status: "CLOSED" }) },
-      { label: "Overdue", value: cards.overdue, icon: <ExclamationCircleOutlined />, color: "#dc2626", route: dbRoute({ final_status: "OPEN", due_window: "overdue" }) },
-      { label: "Pending CNF", value: cards.pendingCnf, icon: <FileTextOutlined />, color: "#d97706", route: pendingCnfDatabaseRoute() },
-      { label: "Pending Protocol", value: cards.pendingProtocol, icon: <AlertOutlined />, color: "#7c3aed", route: pendingProtocolDatabaseRoute() },
-      { label: "Pending Report", value: cards.pendingReport, icon: <BarChartOutlined />, color: "#0d9488", route: pendingReportDatabaseRoute() },
+      { label: "Projects", browseLabel: "Browse all projects", value: cards.totalProjects, icon: <FolderOpenOutlined />, color: "#2563eb", route: dbRoute() },
+      { label: "PO Lines", browseLabel: "Browse all PO lines", value: cards.totalRecords, icon: <DatabaseOutlined />, color: "#0891b2", route: dbRoute() },
+      { label: "Open", browseLabel: "Browse open projects", value: cards.totalOpen, icon: <ClockCircleOutlined />, color: "#2563eb", route: dbRoute({ final_status: "OPEN" }) },
+      { label: "Closed", browseLabel: "Browse closed projects", value: cards.totalClosed, icon: <CheckCircleOutlined />, color: "#16a34a", route: dbRoute({ final_status: "CLOSED" }) },
+      { label: "Overdue", browseLabel: "Browse overdue open projects", value: cards.overdue, icon: <ExclamationCircleOutlined />, color: "#dc2626", route: dbRoute({ final_status: "OPEN", due_window: "overdue" }) },
+      { label: "Pending CNF", browseLabel: "Browse pending CNF", value: cards.pendingCnf, icon: <FileTextOutlined />, color: "#d97706", route: pendingCnfDatabaseRoute() },
+      { label: "Pending Protocol", browseLabel: "Browse pending protocol", value: cards.pendingProtocol, icon: <AlertOutlined />, color: "#7c3aed", route: pendingProtocolDatabaseRoute() },
+      { label: "Pending Report", browseLabel: "Browse pending report", value: cards.pendingReport, icon: <BarChartOutlined />, color: "#0d9488", route: pendingReportDatabaseRoute() },
     ];
   }, [data]);
 
@@ -319,9 +315,9 @@ export function DashboardPage() {
       {workspaceEnabled && data ? (
         <DashboardActionStrip
           sandboxMode={sandboxMode}
-          onNewProject={() => navigate("/projects")}
+          onNewProject={() => navigate(appendReturnToDashboard("/projects?new=1"))}
           onBrowseOverdue={() => drillToDatabase({ final_status: "OPEN", due_window: "overdue" })}
-          onNewSupport={() => navigate(supportActivitiesRoute())}
+          onNewSupport={() => navigate(appendReturnToDashboard("/support-activities?new=1"))}
           onNewCnf={() => navigate(appendReturnToDashboard("/cnf-tracker?new=1"))}
           onOpenWorklist={scrollToWorklist}
         />
@@ -334,13 +330,18 @@ export function DashboardPage() {
           <div className="dashboard-workspace">
             <div className="dashboard-primary">
               <div className="dashboard-primary-top" ref={primaryTopRef}>
+              {workspaceEnabled ? (
+                <Typography.Text type="secondary" className="dashboard-zone-label">
+                  Browse
+                </Typography.Text>
+              ) : null}
               <div className="dashboard-kpi-grid">
                 {kpiCards.map((metric) => (
                   <button
                     type="button"
                     key={metric.label}
                     className="dashboard-kpi-card"
-                    title={`View ${metric.label.toLowerCase()}`}
+                    title={workspaceEnabled ? metric.browseLabel : `View ${metric.label.toLowerCase()}`}
                     onClick={() => {
                       if (sandboxMode) {
                         message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
@@ -361,7 +362,9 @@ export function DashboardPage() {
               </div>
 
               <div className="dashboard-panel">
-                <div className="dashboard-panel-header">Due Date Overview</div>
+                <div className="dashboard-panel-header">
+                  {workspaceEnabled ? "Browse by due window" : "Due Date Overview"}
+                </div>
                 <div className="dashboard-panel-body">
                   <div className="due-date-overview">
                     {dueDateOverviewCards.map((metric) => (
@@ -380,140 +383,52 @@ export function DashboardPage() {
               </div>
               </div>
 
-              <div className="dashboard-two-col">
-                <div className="dashboard-panel">
-                  <div className="dashboard-panel-header">CNF Status Distribution</div>
-                  <div className="dashboard-panel-body">
-                    <SegmentedChart
-                      entries={Object.entries(data.cnfStatusCounts)}
-                      centerLabel="records"
-                      onEntryClick={(status) => drillToDatabase({ cnf_status: status })}
-                    />
-                  </div>
-                </div>
-                <div className="dashboard-panel" ref={finalStatusPanelRef}>
-                  <div className="dashboard-panel-header">Final Status Distribution</div>
-                  <div className="dashboard-panel-body">
-                    <SegmentedChart
-                      entries={Object.entries(data.finalStatusCounts).filter(([, count]) => count > 0)}
-                      centerLabel="records"
-                      onEntryClick={(status) => drillToDatabase({ final_status: status })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="dashboard-two-col dashboard-two-col-balanced">
-                <div
-                  className="dashboard-panel dashboard-panel-department"
-                  style={pairedMetricsHeight ? { height: pairedMetricsHeight } : undefined}
-                >
-                  <div className="dashboard-panel-header">Department Pending Actions</div>
-                  <div className="dashboard-panel-body department-pending-panel department-pending-panel-balanced">
-                    {departmentRoles.map(([role, count]) => {
-                      const percent = data.cards.totalOpen
-                        ? Math.round((count / data.cards.totalOpen) * 100)
-                        : 0;
-                      const pendingRole = role.replace("AM / BM / PL", "AM/BM/PL");
-                      return (
-                        <button
-                          type="button"
-                          key={role}
-                          className="department-action-button"
-                          onClick={() => drillToDatabase({ final_status: "OPEN", pending_role: pendingRole })}
-                        >
-                          <span>{role}</span>
-                          <Progress percent={percent} showInfo={false} size="small" />
-                          <strong>{count}</strong>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="dashboard-metrics-stack" ref={metricsStackRef}>
-                  <div className="dashboard-panel dashboard-panel-compact" ref={fgDeliveryPanelRef}>
-                    <div className="dashboard-panel-header">FG Delivery Performance</div>
-                    <div className="dashboard-panel-body">
-                      <FgDeliveryMetricsPanel
-                        onTime={data.fgDeliveryMetrics.onTime}
-                        late={data.fgDeliveryMetrics.late}
-                        total={data.fgDeliveryMetrics.total}
-                        onSelectDelivery={(delivery_status) => {
-                          if (sandboxMode) {
-                            message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
-                            return;
-                          }
-                          navigate(dbRoute({
-                            final_status: "CLOSED",
-                            delivery_status,
-                            sort: "fg_month",
-                            order: "asc",
-                          }));
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="dashboard-panel dashboard-panel-compact" ref={supportActivitiesPanelRef}>
-                    <div className="dashboard-panel-header">Support Activities</div>
-                    <div className="dashboard-panel-body dashboard-support-summary">
-                      <button type="button" className="due-date-action" onClick={() => navigate(supportActivitiesRoute())}>
-                        <span>Total Activities</span>
-                        <strong>{data.supportSummary.total}</strong>
-                      </button>
-                      <button
-                        type="button"
-                        className="due-date-action due-date-action--overdue"
-                        onClick={() => navigate(supportActivitiesRoute({ due_window: "overdue" }))}
-                      >
-                        <span>Overdue</span>
-                        <strong className="danger-text">{data.supportSummary.overdue}</strong>
-                      </button>
-                      <button
-                        type="button"
-                        className="due-date-action due-date-action--soon"
-                        onClick={() => navigate(supportActivitiesRoute({ due_window: "within7" }))}
-                      >
-                        <span>Within 7 Days</span>
-                        <strong>{data.supportSummary.dueSoon}</strong>
-                      </button>
-                      <Button
-                        block
-                        type="link"
-                        className="dashboard-support-link"
-                        onClick={() => {
-                          if (sandboxMode) {
-                            message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
-                            return;
-                          }
-                          navigate(supportActivitiesRoute());
-                        }}
-                      >
-                        View Support Activities
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="dashboard-panel dashboard-panel-monthly-trend" ref={monthlyTrendPanelRef}>
-                <div className="dashboard-panel-body">
-                  <MonthlyTrendChart
-                    values={data.monthlyTrend}
-                    onMonthClick={(monthKey) => {
-                      if (sandboxMode) {
-                        message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
-                        return;
-                      }
-                      navigate(dbRoute({
-                        fg_month: monthKey,
-                        final_status: "CLOSED",
-                        sort: "fg_month",
-                        order: "asc",
-                      }));
-                    }}
-                  />
-                </div>
-              </div>
+              <DashboardChartsBlock
+                data={data}
+                pairedMetricsHeight={pairedMetricsHeight}
+                departmentRoles={departmentRoles}
+                finalStatusPanelRef={finalStatusPanelRef}
+                metricsStackRef={metricsStackRef}
+                fgDeliveryPanelRef={fgDeliveryPanelRef}
+                supportActivitiesPanelRef={supportActivitiesPanelRef}
+                monthlyTrendPanelRef={monthlyTrendPanelRef}
+                onDrillCnf={(status) => drillToDatabase({ cnf_status: status })}
+                onDrillFinal={(status) => drillToDatabase({ final_status: status })}
+                onDrillPending={(pendingRole) =>
+                  drillToDatabase({ final_status: "OPEN", pending_role: pendingRole })
+                }
+                onSelectDelivery={(delivery_status) => {
+                  if (sandboxMode) {
+                    message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
+                    return;
+                  }
+                  navigate(dbRoute({
+                    final_status: "CLOSED",
+                    delivery_status,
+                    sort: "fg_month",
+                    order: "asc",
+                  }));
+                }}
+                onSupportNavigate={(params) => {
+                  if (sandboxMode) {
+                    message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
+                    return;
+                  }
+                  navigate(supportActivitiesRoute(params));
+                }}
+                onMonthClick={(monthKey) => {
+                  if (sandboxMode) {
+                    message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
+                    return;
+                  }
+                  navigate(dbRoute({
+                    fg_month: monthKey,
+                    final_status: "CLOSED",
+                    sort: "fg_month",
+                    order: "asc",
+                  }));
+                }}
+              />
             </div>
 
             <aside className="dashboard-side-panel">
@@ -545,7 +460,9 @@ export function DashboardPage() {
                 className="dashboard-panel dashboard-panel-notifications"
                 style={notificationsPanelHeight ? { height: notificationsPanelHeight } : undefined}
               >
-                <div className="dashboard-panel-header">Open Notifications</div>
+                <div className="dashboard-panel-header">
+                  {workspaceEnabled ? "My notifications" : "Open Notifications"}
+                </div>
                 <div className="dashboard-panel-body dashboard-notifications-body">
                   <div className="notification-feed dashboard-notifications-feed">
                     {notifications.length ? notifications.map((item) => (
@@ -571,7 +488,9 @@ export function DashboardPage() {
                 className="dashboard-panel dashboard-panel-due-soon"
                 style={dueSoonPanelHeight ? { height: dueSoonPanelHeight } : undefined}
               >
-                <div className="dashboard-panel-header">Due Soon</div>
+                <div className="dashboard-panel-header">
+                  {workspaceEnabled ? "My due soon" : "Due Soon"}
+                </div>
                 <div className="dashboard-panel-body dashboard-due-soon-body">
                   <div className="urgent-record-list dashboard-due-soon-list">
                     {urgentRecords.length ? urgentRecords.map((item) => (
@@ -595,13 +514,23 @@ export function DashboardPage() {
           </div>
 
           <div ref={worklistCardRef}>
-            <Card title="Priority Worklist" className="dashboard-section" style={{ marginTop: 16 }}>
+            <Card
+              title={workspaceEnabled ? "My worklist" : "Priority Worklist"}
+              className="dashboard-section"
+              style={{ marginTop: 16 }}
+            >
               <Table
                 className="dashboard-recent-table"
                 rowKey="recordId"
                 dataSource={data.worklist}
                 pagination={{ pageSize: 10, showSizeChanger: true }}
-                locale={{ emptyText: <Empty description="No open worklist items" /> }}
+                locale={{
+                  emptyText: (
+                    <Empty
+                      description={workspaceEnabled ? "No items in my worklist" : "No open worklist items"}
+                    />
+                  ),
+                }}
                 onRow={(record) => ({
                   onClick: () => openProject(record.project_id),
                   style: { cursor: "pointer" },

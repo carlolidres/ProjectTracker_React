@@ -1,6 +1,7 @@
 import { QuestionCircleOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 import { useMemo, useState } from "react";
+import { LucideIcon } from "@/components/common/lucide-icon";
 
 const FG_DELIVERED_TREND_HELP = "Counts PO lines marked Closed by PP, grouped by FG Month";
 
@@ -386,42 +387,57 @@ export function FgDeliveryMetricsPanel({
   total: number;
   onSelectDelivery?: (status: "on_time" | "late") => void;
 }>) {
-  const onTimePercent = total > 0 ? (onTime / total) * 100 : 0;
-  const latePercent = total > 0 ? (late / total) * 100 : 0;
+  const onTimePercent = total > 0 ? Math.round((onTime / total) * 100) : 0;
+  const latePercent = total > 0 ? Math.round((late / total) * 100) : 0;
+  const interactive = Boolean(onSelectDelivery);
 
   return (
     <div className="completion-metrics-card">
-      <div className="completion-metrics-legend">
+      <div className="completion-metrics-legend" role="group" aria-label="FG delivery breakdown">
         <button
           type="button"
-          className="completion-metrics-legend-button"
-          style={onSelectDelivery ? { cursor: "pointer", background: "none", border: 0, padding: 0, textAlign: "left" } : undefined}
+          className={`completion-metrics-legend-button completion-metrics-legend-button--on-time${interactive ? " is-interactive" : ""}`}
           onClick={() => onSelectDelivery?.("on_time")}
-          disabled={!onSelectDelivery}
+          disabled={!interactive}
+          aria-label={`FG delivered on time: ${onTime} (${onTimePercent} percent). ${interactive ? "Open filtered list." : ""}`}
         >
-          <span>FG Delivered On Time</span>
-          <strong className="completion-metrics-value">
-            {onTime} ({onTimePercent.toFixed(0)}%)
-          </strong>
+          <span className="completion-metrics-icon" aria-hidden>
+            <LucideIcon name="check-circle" size={16} />
+          </span>
+          <span className="completion-metrics-copy">
+            <span className="completion-metrics-label">On time</span>
+            <span className="completion-metrics-hint">FG delivered</span>
+          </span>
+          <span className="completion-metrics-stats">
+            <strong className="completion-metrics-value">{onTime}</strong>
+            <span className="completion-metrics-percent">{onTimePercent}%</span>
+          </span>
         </button>
         <button
           type="button"
-          className="completion-metrics-legend-button"
-          style={onSelectDelivery ? { cursor: "pointer", background: "none", border: 0, padding: 0, textAlign: "left" } : undefined}
+          className={`completion-metrics-legend-button completion-metrics-legend-button--late${interactive ? " is-interactive" : ""}`}
           onClick={() => onSelectDelivery?.("late")}
-          disabled={!onSelectDelivery}
+          disabled={!interactive}
+          aria-label={`FG delivered late: ${late} (${latePercent} percent). ${interactive ? "Open filtered list." : ""}`}
         >
-          <span>FG Delivered Late</span>
-          <strong className="completion-metrics-value danger-text">
-            {late} ({latePercent.toFixed(0)}%)
-          </strong>
+          <span className="completion-metrics-icon" aria-hidden>
+            <LucideIcon name="clock" size={16} />
+          </span>
+          <span className="completion-metrics-copy">
+            <span className="completion-metrics-label">Late</span>
+            <span className="completion-metrics-hint">FG delivered</span>
+          </span>
+          <span className="completion-metrics-stats">
+            <strong className="completion-metrics-value">{late}</strong>
+            <span className="completion-metrics-percent">{latePercent}%</span>
+          </span>
         </button>
       </div>
       <div
         className={`completion-metrics-bar${total === 0 ? " completion-metrics-bar--empty" : ""}`}
         role="img"
-        aria-label={`${onTimePercent.toFixed(0)} percent FG delivered on time and ${latePercent.toFixed(0)} percent FG delivered late`}
-        title={`${onTime} FG delivered on time; ${late} FG delivered late`}
+        aria-label={`${onTimePercent} percent FG delivered on time and ${latePercent} percent FG delivered late of ${total} total`}
+        title={`${onTime} on time · ${late} late · ${total} total`}
       >
         <span
           className="completion-metrics-segment completion-metrics-segment--on-time"

@@ -57,6 +57,14 @@
   min-width: 0;
 }
 
+.dashboard-zone-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 .dashboard-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
@@ -657,20 +665,19 @@
 }
 
 .dashboard-metrics-stack .completion-metrics-card {
-  gap: 10px;
+  gap: 12px;
 }
 
 .dashboard-metrics-stack .completion-metrics-legend {
   gap: 8px;
 }
 
-.dashboard-metrics-stack .completion-metrics-legend > div {
-  padding: 8px 10px;
-  font-size: 12px;
+.dashboard-metrics-stack .completion-metrics-legend-button {
+  padding: 10px 12px;
 }
 
 .dashboard-metrics-stack .completion-metrics-value {
-  font-size: 14px;
+  font-size: 18px;
 }
 
 .dashboard-metrics-stack .completion-metrics-bar {
@@ -981,33 +988,132 @@
 .completion-metrics-card {
   display: grid;
   gap: 14px;
+  min-width: 0;
 }
 
 .completion-metrics-legend {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.completion-metrics-legend > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  font-size: 13px;
+@media (max-width: 560px) {
+  .completion-metrics-legend {
+    grid-template-columns: 1fr;
+  }
 }
 
-.completion-metrics-legend span {
-  color: var(--muted);
+.completion-metrics-legend-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--elevated) 70%, var(--surface));
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.completion-metrics-legend-button.is-interactive {
+  cursor: pointer;
+}
+
+.completion-metrics-legend-button.is-interactive:hover {
+  border-color: color-mix(in srgb, var(--border) 40%, currentColor);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.completion-metrics-legend-button.is-interactive:active {
+  transform: translateY(1px);
+}
+
+.completion-metrics-legend-button.is-interactive:focus-visible {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
+}
+
+.completion-metrics-legend-button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.completion-metrics-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.completion-metrics-legend-button--on-time .completion-metrics-icon {
+  color: #15803d;
+  background: color-mix(in srgb, #22c55e 16%, transparent);
+}
+
+.completion-metrics-legend-button--late .completion-metrics-icon {
+  color: #b91c1c;
+  background: color-mix(in srgb, #ef4444 14%, transparent);
+}
+
+.completion-metrics-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.completion-metrics-label {
+  font-size: 13px;
   font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.completion-metrics-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.completion-metrics-stats {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 .completion-metrics-value {
-  font-size: 15px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
   color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.completion-metrics-legend-button--late .completion-metrics-value,
+.completion-metrics-legend-button--late .completion-metrics-percent {
+  color: #dc2626;
+}
+
+.completion-metrics-percent {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .completion-metrics-bar {
@@ -1032,11 +1138,11 @@
 }
 
 .completion-metrics-segment--on-time {
-  background: linear-gradient(90deg, #22c55e, #4ade80);
+  background: linear-gradient(90deg, #16a34a, #4ade80);
 }
 
 .completion-metrics-segment--late {
-  background: linear-gradient(90deg, #ef4444, #f87171);
+  background: linear-gradient(90deg, #dc2626, #f87171);
 }
 
 .dashboard-side-panel {

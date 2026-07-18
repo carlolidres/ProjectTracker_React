@@ -42,6 +42,7 @@ export interface PoControl {
   mo_bmr_po_target_date: string;
   mo_bmr_po_activation_status: string;
   mo_bmr_po_activation_date: string;
+  tsd_remarks: string;
   protocol_no: string;
   protocol_Status: string;
   protocol_target_date: string;
@@ -60,6 +61,7 @@ export interface PoControl {
   endorsement_report_status: string;
   endorsement_acceptance_target_date: string;
   ar_availability_date: string;
+  qc_remarks: string;
   packaging_schedule: string;
   final_status: string;
   final_status_other: string;
@@ -152,6 +154,7 @@ export interface ProjectRow {
   mo_bmr_po_target_date: string;
   mo_bmr_po_activation_status: string;
   mo_bmr_po_activation_date: string;
+  tsd_remarks: string;
   protocol_no: string;
   protocol_Status: string;
   protocol_target_date: string;
@@ -170,6 +173,7 @@ export interface ProjectRow {
   endorsement_report_status: string;
   endorsement_acceptance_target_date: string;
   ar_availability_date: string;
+  qc_remarks: string;
   packaging_schedule: string;
   final_status: string;
   final_status_other: string;

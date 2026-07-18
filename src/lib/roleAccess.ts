@@ -102,6 +102,18 @@ export function canEditProjectFields(role: UserRole, fieldGroup: "am" | "qa" | "
   return map[fieldGroup]?.includes(role) ?? false;
 }
 
+/**
+ * Whether the user may select a Projects Database role-legend chip to focus columns.
+ * View-only: does not grant edit rights — only column visibility for roles they own (none) or admin (all).
+ */
+export function canFocusProjectsDbRoleColumns(
+  role: UserRole | undefined,
+  fieldGroup: "am" | "qa" | "pp" | "tsd" | "val" | "qc",
+): boolean {
+  if (!role) return false;
+  return canEditProjectFields(role, fieldGroup);
+}
+
 /** Admin and AM/BM/PL may change a saved FG Month (reason logged to Lessons Learned on save). */
 export function canAdjustSavedFgMonth(role: UserRole | undefined): boolean {
   return role === "admin" || role === "am_bm_pl";

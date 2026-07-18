@@ -11,7 +11,9 @@ type LucideIconName =
   | "save"
   | "search"
   | "refresh-cw"
-  | "download";
+  | "download"
+  | "check-circle"
+  | "clock";
 
 interface LucideIconProps {
   name: LucideIconName;
@@ -88,6 +90,18 @@ const PATHS: Record<LucideIconName, ReactNode> = {
       <path d="M12 15V3" />
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <path d="m7 10 5 5 5-5" />
+    </>
+  ),
+  "check-circle": (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
     </>
   ),
 };
