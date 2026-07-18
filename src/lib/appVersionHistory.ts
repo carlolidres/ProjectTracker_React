@@ -13,6 +13,7 @@ export const APP_VERSION_HISTORY: AppVersionHistoryEntry[] = [
     version: "0.91.0",
     title: "Projects Database UX + remarks columns + About history",
     date: "2026-07-18",
+    sha: "c264715",
     changes: [
       "Projects Database: Full View default, FG Month filters, Activity Type creatable cells, Esc clears selection",
       "Hide long-text columns from spreadsheet; TSD/QC Remarks on Project Entry (migrations)",

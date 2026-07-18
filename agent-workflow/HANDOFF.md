@@ -3,21 +3,20 @@
 Last Updated: `2026-07-18`
 Version: `v0.91.0`
 Branch: `main`
-Commit: _(fill after push)_
+Commit: `c264715`
 App version: `0.91.0`
 
 ## Current Status
 
-**v0.91.0 release in progress.** Includes Projects Database UX, TSD/QC remarks, Project Entry role defaults, dashboard Phase B create-return, sticky Dashboard context on DB drills, About version history, and retired dead `CnfCreateModal`.
+**v0.91.0 deployed.** GitHub Pages Actions [29648385082](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29648385082) success. Release: https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.91.0
 
 ## Recently Completed
 
-- v0.91.0 packaging: DATA_MAP, `appVersionHistory`, release notes, version-91 handoff
-- R8: Removed unused Project Entry `CnfCreateModal` / `CnfCreateFormFields`; New CNF → `/cnf-tracker?new=1` + detail modal
-- R7: Sticky Dashboard context banner on Projects Database when `return_to` present
-- Projects Database: Full View default, FG Month, hide long-text columns, Esc clear selection, PP header
-- Project Entry: `defaultProjectTabForRole`; expand hierarchy from `from=database`
-- Migrations: `tsd_remarks`, `qc_remarks`
+- Released `v0.91.0` @ `c264715`
+- Projects Database UX, TSD/QC remarks migrations, role-default tabs, expand-from-DB
+- Sticky Dashboard context banner on Projects Database drills (R7)
+- Retired dead `CnfCreateModal` (R8); About version history
+- DATA_MAP / release notes / version-91 handoff updated
 
 ## Deferred
 
@@ -27,14 +26,16 @@ App version: `0.91.0`
 
 | Check | Status | Result |
 |---|---|---|
-| `npm run typecheck` | PENDING | |
-| `npm run build` | PENDING | |
-| GitHub Pages deploy | PENDING | |
-| GitHub Release | PENDING | `v0.91.0` |
+| `npm run typecheck` | PASSED | clean |
+| `npm run build` | PASSED | Vite OK |
+| `npm run test:dashboard-drilldown` | PASSED | |
+| `npm run test:projects-db-validation` | PASSED | |
+| GitHub Pages deploy | PASSED | [29648385082](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29648385082) |
+| GitHub Release | PASSED | [v0.91.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.91.0) |
 
 ## Next Action
 
-Confirm Actions green; fill deploy SHA in DATA_MAP / version-91 handoff / appVersionHistory; apply remarks migrations on target if needed.
+Apply remarks migrations on target Supabase if not yet. Owner browser-smoke. Phase C R9 when ready.
 
 ## Dumb-Zone Recovery
 

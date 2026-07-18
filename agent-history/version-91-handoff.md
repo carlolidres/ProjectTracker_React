@@ -11,8 +11,10 @@ Document type: Configuration / release record
 | Prior production | `0.90.0` @ `de385ef` |
 | Change class | **Minor** |
 | Deployment environment | GitHub Pages (`github-pages`) via `.github/workflows/deploy.yml` |
-| Deployment status | **Pending** — fill after Actions |
-| Deploy SHA | _(fill after Actions)_ |
+| Deployment status | **Deployed** — Actions success |
+| Deploy SHA | `c264715` |
+| Actions run | https://github.com/carlolidres/ProjectTracker_React/actions/runs/29648385082 |
+| GitHub Release | https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.91.0 |
 | Rollback reference | Redeploy `de385ef` / `0.90.0` |
 
 ---
