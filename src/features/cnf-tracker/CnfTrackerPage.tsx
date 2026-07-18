@@ -1,10 +1,9 @@
 import { App, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
-import { useRegistry } from "@/app/registry-provider";
 import {
   clearCnfTrackerDraft,
   loadCnfTrackerDraft,
@@ -17,10 +16,7 @@ import { ProjectIdLink } from "@/components/common/project-id-link";
 import { CnfReferencePickerModal } from "@/features/cnf-tracker/CnfReferencePickerModal";
 import { CnfTrackerDetailModal, type CnfTrackerDetailFormState } from "@/features/cnf-tracker/CnfTrackerDetailModal";
 import { CnfTrackerListTable } from "@/features/cnf-tracker/CnfTrackerListTable";
-import { buildCreatableOptionsFromValues } from "@/lib/cnfTrackerSync";
 import { normalizeOptionalToNa } from "@/lib/cnfTrackerSync";
-import { saveRegistryValue, setRegistryStatus, listRegistryEntries } from "@/services/registryService";
-import type { RegistryEntry } from "@/types";
 import {
   aggregateCnfTrackerView,
   collectRegisteredCnfReferences,
@@ -31,6 +27,7 @@ import {
   validateCnfTrackerClosure,
 } from "@/lib/cnfClosureValidation";
 import { getNextCnfTrackerId } from "@/lib/idGeneration";
+import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { canEditCnfTracker, canRemoveReusableOptions } from "@/lib/roleAccess";
 import { isMissingValue, valueOrNA } from "@/lib/utils";
 import {
@@ -130,16 +127,20 @@ function blockViewOnlyInteraction(event: React.SyntheticEvent) {
 export function CnfTrackerPage() {
   const { modal } = App.useApp();
   const { user, profile } = useAuth();
-  const { registry, refreshRegistry } = useRegistry();
   const meetingViewReadOnly = useMeetingViewReadOnly();
-  const canEdit = canEditCnfTracker(profile?.role);
+  const { can: canMenuAction } = useMenuPermissions();
+  const canEdit =
+    canEditCnfTracker(profile?.role)
+    && (canMenuAction("cnf_tracker", "edit") || canMenuAction("cnf_tracker", "create"));
   const canManageOptions = canRemoveReusableOptions(profile?.role);
   const viewOnly = !canEdit || meetingViewReadOnly;
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const trackerIdParam = searchParams.get("id");
   const createNewParam = searchParams.get("new");
   const createRefParam = searchParams.get("ref");
   const createSupportActivityIdParam = searchParams.get("supportActivityId");
+  const returnProjectIdParam = searchParams.get("returnProjectId");
 
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [trackerRecords, setTrackerRecords] = useState<CnfTrackerRecord[]>([]);
@@ -154,31 +155,17 @@ export function CnfTrackerPage() {
   const [referencePickerOpen, setReferencePickerOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
+  const [returnProjectId, setReturnProjectId] = useState<string | null>(null);
   const [linkedProjectIds, setLinkedProjectIds] = useState<string[]>([]);
   const [linkedSupportActivityId, setLinkedSupportActivityId] = useState<string | null>(null);
   const [activityTypeOptions, setActivityTypeOptions] = useState<ReusableOption[]>([]);
   const [highlightedTrackerId, setHighlightedTrackerId] = useState<string | null>(null);
-  const [registryEntries, setRegistryEntries] = useState<RegistryEntry[]>([]);
   const [supportTitleLookup, setSupportTitleLookup] = useState<
     Map<string, { titleActivityName: string; activityType: string }>
   >(new Map());
   const [linkedSupportRows, setLinkedSupportRows] = useState<SupportActivity[]>([]);
   const [listTab, setListTab] = useState<"process" | "non_process">("process");
   const draftFlushEnabledRef = useRef(true);
-
-  const productOptions = useMemo(() => {
-    const fromRegistry = registry.cnf_product ?? [];
-    const fromProjects = projects.map((row) => row.product_name);
-    const fromTrackers = trackerRecords.map((row) => String(row.product_name ?? ""));
-    return buildCreatableOptionsFromValues([...fromRegistry, ...fromProjects, ...fromTrackers]);
-  }, [registry.cnf_product, projects, trackerRecords]);
-
-  const clientOptions = useMemo(() => {
-    const fromRegistry = registry.cnf_client ?? [];
-    const fromProjects = projects.map((row) => row.client_name);
-    const fromTrackers = trackerRecords.map((row) => String(row.client_name ?? ""));
-    return buildCreatableOptionsFromValues([...fromRegistry, ...fromProjects, ...fromTrackers]);
-  }, [registry.cnf_client, projects, trackerRecords]);
 
   const projectLinked = linkedProjectIds.length > 0;
 
@@ -269,10 +256,9 @@ export function CnfTrackerPage() {
     setLoading(true);
     setListError(null);
     try {
-      const [rows, records, entries, activityTypes, supportLookup] = await Promise.all([
+      const [rows, records, activityTypes, supportLookup] = await Promise.all([
         loadProjects(),
         listActiveCnfTrackerRecords(),
-        listRegistryEntries().catch(() => [] as RegistryEntry[]),
         listReusableOptions("type_of_validation").catch(() => [] as ReusableOption[]),
         buildSupportTitleLookupByCnfRecordId().catch(
           () => new Map<string, { titleActivityName: string; activityType: string }>(),
@@ -280,7 +266,6 @@ export function CnfTrackerPage() {
       ]);
       setProjects(rows);
       setTrackerRecords(records);
-      setRegistryEntries(entries);
       setActivityTypeOptions(activityTypes);
       setSupportTitleLookup(supportLookup);
       return { rows, records };
@@ -291,35 +276,6 @@ export function CnfTrackerPage() {
       setLoading(false);
     }
   }, [loadProjects]);
-
-  async function createRegistryOption(type: "cnf_product" | "cnf_client", value: string) {
-    if (!user?.email) return;
-    await saveRegistryValue(type, value, value, user.email);
-    await refreshRegistry();
-    const entries = await listRegistryEntries();
-    setRegistryEntries(entries);
-  }
-
-  async function removeRegistryOption(type: "cnf_product" | "cnf_client", option: { id?: string; value: string }) {
-    if (!user?.email) return;
-    const entry =
-      registryEntries.find(
-        (row) =>
-          row.registry_type === type &&
-          row.registry_value.trim().toLowerCase() === option.value.trim().toLowerCase(),
-      ) ??
-      (option.id
-        ? registryEntries.find((row) => String(row.id) === String(option.id))
-        : undefined);
-    if (!entry) {
-      message.warning("Option is not in the registry and cannot be removed.");
-      return;
-    }
-    await setRegistryStatus(entry, "Inactive", user.email);
-    await refreshRegistry();
-    setRegistryEntries(await listRegistryEntries());
-    message.success(`Removed ${option.value}`);
-  }
 
   useEffect(() => {
     let cancelled = false;
@@ -383,6 +339,7 @@ export function CnfTrackerPage() {
           });
           setInitiatorTouched(false);
           setIsCreateMode(true);
+          setReturnProjectId((returnProjectIdParam ?? "").trim() || null);
           setLinkedProjectIds([]);
           setLinkedSupportActivityId(supportActivityId);
           setDuplicateHint(null);
@@ -411,6 +368,7 @@ export function CnfTrackerPage() {
     createNewParam,
     createRefParam,
     createSupportActivityIdParam,
+    returnProjectIdParam,
     loadData,
     loadRecord,
     resumeDraftFlush,
@@ -533,8 +491,15 @@ export function CnfTrackerPage() {
 
   function handleCloseDetailModal() {
     setDetailModalOpen(false);
-    setIsCreateMode(false);
     setSearchParams({});
+    // ponytail: keep isCreateMode until leave animation ends so width does not jump 840→1100
+  }
+
+  function handleDetailModalAfterOpenChange(visible: boolean) {
+    if (!visible) {
+      setIsCreateMode(false);
+      setReturnProjectId(null);
+    }
   }
 
   async function persistSave(allowProbableDuplicate: boolean) {
@@ -623,7 +588,6 @@ export function CnfTrackerPage() {
           details_tab: detailsTab,
         });
       }
-      setIsCreateMode(false);
       setHighlightedTrackerId(saved.cnf_tracker_id);
       setTrackerRecords((current) => {
         const without = current.filter((record) => record.cnf_tracker_id !== saved.cnf_tracker_id);
@@ -632,6 +596,21 @@ export function CnfTrackerPage() {
       await loadData();
       if (user?.id) clearCnfTrackerDraft(user.id);
       suspendDraftFlush();
+
+      const returnToProject = returnProjectId?.trim();
+      if (returnToProject) {
+        const params = new URLSearchParams({
+          projectId: returnToProject,
+          cnfTrackerId: saved.cnf_tracker_id,
+        });
+        setReturnProjectId(null);
+        setDetailModalOpen(false);
+        setIsCreateMode(false);
+        navigate(`/projects?${params.toString()}`);
+        return;
+      }
+
+      setIsCreateMode(false);
       setDetailModalOpen(true);
       if (saved.record_id) {
         try {
@@ -780,7 +759,6 @@ export function CnfTrackerPage() {
           aggregation={aggregation}
           poTableColumns={poTableColumns}
           supportActivities={linkedSupportRows}
-          linkedProjectIds={linkedProjectIds}
           isCreateMode={isCreateMode}
           projectLinked={projectLinked}
           viewOnly={viewOnly}
@@ -788,8 +766,6 @@ export function CnfTrackerPage() {
           meetingViewReadOnly={meetingViewReadOnly}
           saving={saving}
           formError={formError}
-          productOptions={productOptions}
-          clientOptions={clientOptions}
           activityTypeOptions={activityTypeOptions.map((item) => ({
             id: item.option_id,
             value: item.option_value,
@@ -806,6 +782,7 @@ export function CnfTrackerPage() {
               : undefined
           }
           onClose={handleCloseDetailModal}
+          onAfterOpenChange={handleDetailModalAfterOpenChange}
           onNew={() => void handleNew()}
           onClear={handleClear}
           onSave={() => void handleSave()}
@@ -816,12 +793,10 @@ export function CnfTrackerPage() {
           }}
           onStatusChange={(status) => void handleStatusChange(status)}
           onOpenReferencePicker={() => setReferencePickerOpen(true)}
-          onCreateProduct={(value) => createRegistryOption("cnf_product", value)}
-          onCreateClient={(value) => createRegistryOption("cnf_client", value)}
-          onRemoveProduct={(option) => removeRegistryOption("cnf_product", option)}
-          onRemoveClient={(option) => removeRegistryOption("cnf_client", option)}
           onCreateActivityType={async (value) => {
-            if (!user?.email) return;
+            if (!user?.email) {
+              throw new Error("You must be signed in to add a new activity type.");
+            }
             const created = await createReusableOption("type_of_validation", value, user.email);
             setActivityTypeOptions((current) => [
               ...current.filter((item) => item.option_id !== created.option_id),

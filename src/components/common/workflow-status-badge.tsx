@@ -1,43 +1,69 @@
-import { Tag } from "antd";
+import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
+  MinusCircleOutlined,
+  SyncOutlined,
+} from "@ant-design/icons";
+import { Tooltip } from "antd";
+import type { ReactNode } from "react";
 import { normalizeWorkflowStatusLabel } from "@/lib/workflowStatus";
-import { isMissingValue } from "@/lib/utils";
+import { cn, isMissingValue } from "@/lib/utils";
 
 interface WorkflowStatusBadgeProps {
   status: string;
   label?: string;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  approved: "success",
-  "not applicable": "default",
-  pending: "processing",
-  "in progress": "processing",
-  submitted: "blue",
-  rejected: "error",
-  overdue: "error",
-  open: "blue",
-  closed: "success",
-};
+type StatusTone = "success" | "processing" | "error" | "warning" | "neutral" | "info";
 
-function statusColor(normalized: string): string {
+function statusTone(normalized: string): StatusTone {
   const lower = normalized.toLowerCase();
-  for (const [key, color] of Object.entries(STATUS_COLORS)) {
-    if (lower.includes(key)) return color;
+  if (lower.includes("approved") || lower.includes("closed")) return "success";
+  if (lower.includes("not applicable")) return "neutral";
+  if (lower.includes("rejected") || lower.includes("overdue")) return "error";
+  if (lower.includes("pending") || lower.includes("in progress") || lower.includes("submitted")) {
+    return "processing";
   }
-  return "default";
+  if (lower.includes("open")) return "info";
+  return "neutral";
+}
+
+function statusIcon(tone: StatusTone, normalized: string): ReactNode {
+  const lower = normalized.toLowerCase();
+  if (lower.includes("not applicable")) return <MinusCircleOutlined />;
+  if (tone === "success") return <CheckCircleOutlined />;
+  if (tone === "error") return <CloseCircleOutlined />;
+  if (tone === "warning") return <ExclamationCircleOutlined />;
+  if (tone === "processing") return <SyncOutlined spin={lower.includes("progress")} />;
+  if (tone === "info") return <ClockCircleOutlined />;
+  return <MinusCircleOutlined />;
 }
 
 export function WorkflowStatusBadge({ status, label }: WorkflowStatusBadgeProps) {
   if (isMissingValue(status)) {
-    return <Tag aria-label="Status not available">N/A</Tag>;
+    return (
+      <Tooltip title="N/A">
+        <span className="workflow-status-icon workflow-status-icon--neutral" aria-label="Status not available">
+          <MinusCircleOutlined aria-hidden />
+        </span>
+      </Tooltip>
+    );
   }
 
   const normalized = normalizeWorkflowStatusLabel(status);
-  const color = statusColor(normalized);
+  const display = label ?? normalized;
+  const tone = statusTone(normalized);
 
   return (
-    <Tag color={color} aria-label={`Status: ${normalized}`}>
-      {label ?? normalized}
-    </Tag>
+    <Tooltip title={display}>
+      <span
+        className={cn("workflow-status-icon", `workflow-status-icon--${tone}`)}
+        aria-label={`Status: ${display}`}
+      >
+        {statusIcon(tone, normalized)}
+      </span>
+    </Tooltip>
   );
 }

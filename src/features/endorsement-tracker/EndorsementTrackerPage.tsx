@@ -27,6 +27,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
+import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { AppDatePicker } from "@/components/common/app-date-picker";
 import { CreatableNaSelect } from "@/components/common/creatable-na-select";
 import { NaClearingInput, NaClearingTextArea } from "@/components/common/na-clearing-input";
@@ -142,8 +143,12 @@ export function EndorsementTrackerPage() {
   const createProjectIdParam = searchParams.get("projectId");
   const createSupportActivityIdParam = searchParams.get("supportActivityId");
 
-  const canManage = canManageEndorsementTracker(profile?.role);
-  const qaOnly = canEditEndorsementQaOnly(profile?.role);
+  const { can: canMenuAction } = useMenuPermissions();
+  const matrixEdit = canMenuAction("endorsement_tracker", "edit");
+  const matrixCreate = canMenuAction("endorsement_tracker", "create");
+  const canManage =
+    canManageEndorsementTracker(profile?.role) && (matrixEdit || matrixCreate);
+  const qaOnly = canEditEndorsementQaOnly(profile?.role) && matrixEdit;
   const canRemoveOptions = canRemoveReusableOptions(profile?.role);
   const viewOnlyBase = isViewerRole(profile?.role) || meetingViewReadOnly;
   const fullEdit = canManage && !viewOnlyBase;

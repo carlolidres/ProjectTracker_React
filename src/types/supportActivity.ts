@@ -48,4 +48,6 @@ export interface SupportActivityFilters {
   department?: string;
   due_window?: string;
   status?: string;
+  sort?: string;
+  order?: string;
 }

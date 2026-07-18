@@ -1,5 +1,26 @@
-import { CameraOutlined, UserOutlined } from "@ant-design/icons";
-import { Alert, Avatar, Button, Divider, Form, Input, Modal, Upload, message } from "antd";
+import {
+  BankOutlined,
+  CameraOutlined,
+  LockOutlined,
+  MailOutlined,
+  SaveOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Space,
+  Typography,
+  Upload,
+  message,
+} from "antd";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/auth-provider";
 import { changeOwnPassword } from "@/lib/auth";
@@ -126,133 +147,240 @@ export function ProfileSettingsModal({ open, onClose }: ProfileSettingsModalProp
 
   return (
     <Modal
-      title="Profile"
+      title={
+        <Space size={10}>
+          <UserOutlined aria-hidden />
+          <span>Profile</span>
+        </Space>
+      }
       open={open}
       onCancel={onClose}
       footer={null}
       destroyOnHidden
-      width={480}
+      width={720}
+      centered
       className="profile-settings-modal"
-      styles={{ body: { maxHeight: "72vh", overflowY: "auto", paddingTop: 16 } }}
+      styles={{
+        body: {
+          maxHeight: "min(72vh, 680px)",
+          overflowY: "auto",
+          padding: "20px 24px 24px",
+        },
+      }}
     >
-      {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
+      {error ? (
+        <Alert
+          type="error"
+          showIcon
+          message={error}
+          style={{ marginBottom: 16 }}
+          role="alert"
+        />
+      ) : null}
 
-      <div className="profile-settings-avatar-row">
-        <Upload
-          accept="image/*"
-          showUploadList={false}
-          beforeUpload={(file) => {
-            setPendingAvatarFile(file);
-            setAvatarPreview(URL.createObjectURL(file));
-            return false;
-          }}
-        >
-          <button type="button" className="profile-settings-avatar-button" aria-label="Upload profile photo">
-            <Avatar
-              size={88}
-              src={avatarPreview ?? undefined}
-              icon={<UserOutlined />}
+      <Card size="small" className="profile-settings-hero" bordered={false}>
+        <div className="profile-settings-avatar-row">
+          <Upload
+            accept="image/*"
+            showUploadList={false}
+            beforeUpload={(file) => {
+              setPendingAvatarFile(file);
+              setAvatarPreview(URL.createObjectURL(file));
+              return false;
+            }}
+          >
+            <button
+              type="button"
+              className="profile-settings-avatar-button"
+              aria-label="Upload profile photo"
             >
-              {getProfileInitials(profile)}
-            </Avatar>
-            <span className="profile-settings-avatar-overlay">
-              <CameraOutlined />
-            </span>
-          </button>
-        </Upload>
-        <div className="profile-settings-avatar-text">
-          <p className="profile-settings-avatar-name">{previewName}</p>
-          <p className="profile-settings-avatar-hint">Click photo to upload a new image</p>
+              <Avatar
+                size={96}
+                src={avatarPreview ?? undefined}
+                icon={<UserOutlined />}
+                className="profile-settings-avatar"
+              >
+                {getProfileInitials(profile)}
+              </Avatar>
+              <span className="profile-settings-avatar-overlay" aria-hidden>
+                <CameraOutlined />
+              </span>
+            </button>
+          </Upload>
+          <div className="profile-settings-avatar-text">
+            <Typography.Title level={4} className="profile-settings-avatar-name">
+              {previewName}
+            </Typography.Title>
+            {profile?.email ? (
+              <Typography.Text type="secondary" className="profile-settings-avatar-email">
+                <MailOutlined aria-hidden /> {profile.email}
+              </Typography.Text>
+            ) : null}
+            <Typography.Paragraph type="secondary" className="profile-settings-avatar-hint">
+              Click photo to upload a new image
+            </Typography.Paragraph>
+          </div>
         </div>
-      </div>
+      </Card>
 
       <Form
         form={form}
         layout="vertical"
-        requiredMark={false}
+        requiredMark="optional"
         onFinish={(values) => void handleSave(values)}
+        className="profile-settings-form"
       >
-        <Form.Item
-          label="First Name"
-          name="firstName"
-          rules={[{ required: true, message: "First name is required" }]}
+        <Card
+          size="small"
+          className="profile-settings-section-card"
+          title={
+            <Space size={8}>
+              <UserOutlined aria-hidden />
+              <span>Personal details</span>
+            </Space>
+          }
         >
-          <Input autoComplete="given-name" />
-        </Form.Item>
-        <Form.Item label="M.I." name="middleInitial">
-          <Input autoComplete="additional-name" maxLength={8} placeholder="Optional" />
-        </Form.Item>
-        <Form.Item
-          label="Last Name"
-          name="lastName"
-          rules={[{ required: true, message: "Last name is required" }]}
-        >
-          <Input autoComplete="family-name" />
-        </Form.Item>
-        <Form.Item label="Department" name="department">
-          <Input autoComplete="organization" placeholder="Optional" />
-        </Form.Item>
+          <Row gutter={[16, 0]}>
+            <Col xs={24} sm={10}>
+              <Form.Item
+                label="First Name"
+                name="firstName"
+                rules={[{ required: true, message: "First name is required" }]}
+              >
+                <Input
+                  prefix={<UserOutlined aria-hidden />}
+                  autoComplete="given-name"
+                  placeholder="First name"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={4}>
+              <Form.Item label="M.I." name="middleInitial">
+                <Input
+                  autoComplete="additional-name"
+                  maxLength={8}
+                  placeholder="MI"
+                  aria-label="Middle initial"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={10}>
+              <Form.Item
+                label="Last Name"
+                name="lastName"
+                rules={[{ required: true, message: "Last name is required" }]}
+              >
+                <Input autoComplete="family-name" placeholder="Last name" />
+              </Form.Item>
+            </Col>
+            <Col xs={24}>
+              <Form.Item label="Department" name="department">
+                <Input
+                  prefix={<BankOutlined aria-hidden />}
+                  autoComplete="organization"
+                  placeholder="Optional"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
-        <div className="profile-settings-actions">
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="primary" htmlType="submit" loading={saving}>
-            Save Profile
-          </Button>
-        </div>
-      </Form>
-
-      <Divider className="profile-settings-divider" />
-
-      <section className="profile-settings-password-section">
-        <h4 className="profile-settings-section-title">Change Password</h4>
-        {passwordError ? (
-          <Alert type="error" showIcon message={passwordError} style={{ marginBottom: 16 }} />
-        ) : null}
-        <Form
-          form={passwordForm}
-          layout="vertical"
-          requiredMark={false}
-          autoComplete="off"
-          onFinish={(values) => void handleChangePassword(values)}
-        >
-          <Form.Item
-            label="Current Password"
-            name="currentPassword"
-            rules={[{ required: true, message: "Enter your current password" }]}
-          >
-            <Input.Password autoComplete="current-password" visibilityToggle />
-          </Form.Item>
-          <Form.Item label="New Password" name="newPassword" rules={newPasswordRules()}>
-            <Input.Password autoComplete="new-password" visibilityToggle />
-          </Form.Item>
-          <Form.Item
-            label="Confirm New Password"
-            name="confirmPassword"
-            dependencies={["newPassword"]}
-            rules={[
-              { required: true, message: "Confirm your new password" },
-              ({ getFieldValue }) => ({
-                validator: async (_, value: string) => {
-                  if (!value || getFieldValue("newPassword") === value) {
-                    return;
-                  }
-                  throw new Error("Passwords do not match");
-                },
-              }),
-            ]}
-          >
-            <Input.Password autoComplete="new-password" visibilityToggle />
-          </Form.Item>
           <div className="profile-settings-actions">
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={changingPassword}
-            >
-              Change Password
+            <Button onClick={onClose}>Cancel</Button>
+            <Button type="primary" htmlType="submit" loading={saving} icon={<SaveOutlined />}>
+              Save Profile
             </Button>
           </div>
-        </Form>
+        </Card>
+      </Form>
+
+      <section className="profile-settings-password-section" aria-labelledby="profile-password-heading">
+        <Card
+          size="small"
+          className="profile-settings-section-card"
+          title={
+            <Space size={8} id="profile-password-heading">
+              <LockOutlined aria-hidden />
+              <span>Change Password</span>
+            </Space>
+          }
+        >
+          {passwordError ? (
+            <Alert
+              type="error"
+              showIcon
+              message={passwordError}
+              style={{ marginBottom: 16 }}
+              role="alert"
+            />
+          ) : null}
+          <Form
+            form={passwordForm}
+            layout="vertical"
+            requiredMark={false}
+            autoComplete="off"
+            onFinish={(values) => void handleChangePassword(values)}
+          >
+            <Row gutter={[16, 0]}>
+              <Col xs={24}>
+                <Form.Item
+                  label="Current Password"
+                  name="currentPassword"
+                  rules={[{ required: true, message: "Enter your current password" }]}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined aria-hidden />}
+                    autoComplete="current-password"
+                    visibilityToggle
+                    placeholder="Current password"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item label="New Password" name="newPassword" rules={newPasswordRules()}>
+                  <Input.Password
+                    autoComplete="new-password"
+                    visibilityToggle
+                    placeholder="New password"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Confirm New Password"
+                  name="confirmPassword"
+                  dependencies={["newPassword"]}
+                  rules={[
+                    { required: true, message: "Confirm your new password" },
+                    ({ getFieldValue }) => ({
+                      validator: async (_, value: string) => {
+                        if (!value || getFieldValue("newPassword") === value) {
+                          return;
+                        }
+                        throw new Error("Passwords do not match");
+                      },
+                    }),
+                  ]}
+                >
+                  <Input.Password
+                    autoComplete="new-password"
+                    visibilityToggle
+                    placeholder="Confirm new password"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <div className="profile-settings-actions">
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={changingPassword}
+                icon={<LockOutlined />}
+              >
+                Change Password
+              </Button>
+            </div>
+          </Form>
+        </Card>
       </section>
     </Modal>
   );

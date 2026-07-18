@@ -57,7 +57,7 @@ export function CreatableNaSelect({
   readOnly,
   canManageOptions,
   className,
-  placeholder = "Select or type to search",
+  placeholder = "Select or type a new value",
   allowClear = true,
   includeNaOption = true,
   sanitize = sanitizeAlphanumericInput,
@@ -68,6 +68,7 @@ export function CreatableNaSelect({
   const [search, setSearch] = useState("");
   const [focused, setFocused] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const isNa = isMissingValue(value);
   const showNaGuide = isNa && !focused && !readOnly;
@@ -94,6 +95,7 @@ export function CreatableNaSelect({
       await onCreateOption(next);
       onChange(next);
       setSearch("");
+      setOpen(false);
     } catch (error) {
       setSearch(previousSearch);
       message.error(error instanceof Error ? error.message : "Failed to save option.");
@@ -135,6 +137,8 @@ export function CreatableNaSelect({
       )}
       style={{ width: "100%" }}
       showSearch
+      open={open}
+      onOpenChange={setOpen}
       allowClear={allowClear && !readOnly && !disabled}
       disabled={disabled || readOnly || busy}
       placeholder={placeholder}
@@ -197,16 +201,20 @@ export function CreatableNaSelect({
                   Add &quot;{sanitize(search).trim()}&quot;
                 </Button>
               </Space>
+              <Typography.Paragraph type="secondary" style={{ margin: "0 12px 8px", fontSize: 12 }}>
+                Press Enter or click Add to save a new option.
+              </Typography.Paragraph>
             </>
-          ) : null}
-          {canManageOptions ? (
-            <Typography.Paragraph type="secondary" style={{ margin: "0 12px 8px", fontSize: 12 }}>
-              Use the delete icon to remove a saved option.
-            </Typography.Paragraph>
           ) : null}
         </>
       )}
       onSearch={setSearch}
+      onInputKeyDown={(event) => {
+        if (event.key !== "Enter" || !canOfferCreate) return;
+        event.preventDefault();
+        event.stopPropagation();
+        void handleCreate();
+      }}
       onFocus={() => setFocused(true)}
       onBlur={() => {
         setFocused(false);
@@ -217,7 +225,8 @@ export function CreatableNaSelect({
         onChange(next === NA_VALUE ? "" : String(next ?? ""));
         setSearch("");
       }}
-      getPopupContainer={(node) => node.parentElement ?? document.body}
+      getPopupContainer={() => document.body}
+      listHeight={220}
     />
   );
 }

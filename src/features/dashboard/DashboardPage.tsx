@@ -407,6 +407,18 @@ export function DashboardPage() {
                         onTime={data.fgDeliveryMetrics.onTime}
                         late={data.fgDeliveryMetrics.late}
                         total={data.fgDeliveryMetrics.total}
+                        onSelectDelivery={(delivery_status) => {
+                          if (sandboxMode) {
+                            message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
+                            return;
+                          }
+                          navigate(dbRoute({
+                            final_status: "CLOSED",
+                            delivery_status,
+                            sort: "fg_month",
+                            order: "asc",
+                          }));
+                        }}
                       />
                     </div>
                   </div>
@@ -454,7 +466,21 @@ export function DashboardPage() {
 
               <div className="dashboard-panel dashboard-panel-monthly-trend" ref={monthlyTrendPanelRef}>
                 <div className="dashboard-panel-body">
-                  <MonthlyTrendChart values={data.monthlyTrend} />
+                  <MonthlyTrendChart
+                    values={data.monthlyTrend}
+                    onMonthClick={(monthKey) => {
+                      if (sandboxMode) {
+                        message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
+                        return;
+                      }
+                      navigate(dbRoute({
+                        fg_month: monthKey,
+                        final_status: "CLOSED",
+                        sort: "fg_month",
+                        order: "asc",
+                      }));
+                    }}
+                  />
                 </div>
               </div>
             </div>

@@ -23,15 +23,17 @@ export function SidebarNavItem({ item, state, onNavigate }: SidebarNavItemProps)
         cn("sidebar-nav-item", isCollapsed && "sidebar-nav-item-collapsed", isActive && "sidebar-nav-item-active")
       }
       aria-label={item.label}
+      title={isCollapsed ? undefined : item.label}
     >
-      <Icon className="sidebar-icon" />
+      <Icon className="sidebar-icon" aria-hidden />
       <span className="sidebar-label">{item.label}</span>
     </NavLink>
   );
 
+  // Collapsed: navigate on icon click only — do not expand the sidebar.
   if (!isCollapsed) return link;
   return (
-    <Tooltip title={item.label} placement="right">
+    <Tooltip title={item.label} placement="right" mouseEnterDelay={0.35}>
       {link}
     </Tooltip>
   );

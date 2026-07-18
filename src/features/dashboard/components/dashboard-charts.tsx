@@ -201,7 +201,11 @@ function buildTrendAreaPath(points: Array<{ x: number; y: number }>, baseline: n
 
 export function MonthlyTrendChart({
   values,
-}: Readonly<{ values: Array<{ monthKey: string; label: string; count: number }> }>) {
+  onMonthClick,
+}: Readonly<{
+  values: Array<{ monthKey: string; label: string; count: number }>;
+  onMonthClick?: (monthKey: string) => void;
+}>) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const width = 720;
@@ -326,7 +330,17 @@ export function MonthlyTrendChart({
                   r="12"
                   className="trend-point-hit"
                   tabIndex={0}
-                  role="presentation"
+                  role={onMonthClick ? "button" : "presentation"}
+                  aria-label={onMonthClick ? `Open ${point.label} deliveries` : undefined}
+                  style={onMonthClick ? { cursor: "pointer" } : undefined}
+                  onClick={() => onMonthClick?.(point.monthKey)}
+                  onKeyDown={(event) => {
+                    if (!onMonthClick) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onMonthClick(point.monthKey);
+                    }
+                  }}
                 />
                 <circle
                   cx={point.x}
@@ -365,25 +379,43 @@ export function FgDeliveryMetricsPanel({
   onTime,
   late,
   total,
-}: Readonly<{ onTime: number; late: number; total: number }>) {
+  onSelectDelivery,
+}: Readonly<{
+  onTime: number;
+  late: number;
+  total: number;
+  onSelectDelivery?: (status: "on_time" | "late") => void;
+}>) {
   const onTimePercent = total > 0 ? (onTime / total) * 100 : 0;
   const latePercent = total > 0 ? (late / total) * 100 : 0;
 
   return (
     <div className="completion-metrics-card">
       <div className="completion-metrics-legend">
-        <div>
+        <button
+          type="button"
+          className="completion-metrics-legend-button"
+          style={onSelectDelivery ? { cursor: "pointer", background: "none", border: 0, padding: 0, textAlign: "left" } : undefined}
+          onClick={() => onSelectDelivery?.("on_time")}
+          disabled={!onSelectDelivery}
+        >
           <span>FG Delivered On Time</span>
           <strong className="completion-metrics-value">
             {onTime} ({onTimePercent.toFixed(0)}%)
           </strong>
-        </div>
-        <div>
+        </button>
+        <button
+          type="button"
+          className="completion-metrics-legend-button"
+          style={onSelectDelivery ? { cursor: "pointer", background: "none", border: 0, padding: 0, textAlign: "left" } : undefined}
+          onClick={() => onSelectDelivery?.("late")}
+          disabled={!onSelectDelivery}
+        >
           <span>FG Delivered Late</span>
           <strong className="completion-metrics-value danger-text">
             {late} ({latePercent.toFixed(0)}%)
           </strong>
-        </div>
+        </button>
       </div>
       <div
         className={`completion-metrics-bar${total === 0 ? " completion-metrics-bar--empty" : ""}`}

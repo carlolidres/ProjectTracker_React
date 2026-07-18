@@ -173,6 +173,14 @@ export function MeetingViewOverlay({ onExit }: MeetingViewOverlayProps) {
                       onTime={data.fgDeliveryMetrics.onTime}
                       late={data.fgDeliveryMetrics.late}
                       total={data.fgDeliveryMetrics.total}
+                      onSelectDelivery={(delivery_status) =>
+                        navigate(dbRoute({
+                          final_status: "CLOSED",
+                          delivery_status,
+                          sort: "fg_month",
+                          order: "asc",
+                        }))
+                      }
                     />
                   </div>
                 </div>
@@ -213,7 +221,17 @@ export function MeetingViewOverlay({ onExit }: MeetingViewOverlayProps) {
 
               <div className="dashboard-panel dashboard-panel-monthly-trend meeting-view-monthly-trend">
                 <div className="dashboard-panel-body">
-                  <MonthlyTrendChart values={data.monthlyTrend} />
+                  <MonthlyTrendChart
+                    values={data.monthlyTrend}
+                    onMonthClick={(monthKey) =>
+                      navigate(dbRoute({
+                        fg_month: monthKey,
+                        final_status: "CLOSED",
+                        sort: "fg_month",
+                        order: "asc",
+                      }))
+                    }
+                  />
                 </div>
               </div>
             </div>

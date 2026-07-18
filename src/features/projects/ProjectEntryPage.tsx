@@ -75,6 +75,7 @@ import {
 import { ROLE_LABELS } from "@/lib/constants";
 import { shouldOpenEndorsementTrackerFromProjectStatus } from "@/lib/endorsementSync";
 import { collectProjectDateChanges } from "@/lib/dateAdjustmentReview";
+import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { canArchiveRecords, canCopyCnfFromProject, canEditCnfTracker, canEditProjectFields, isAdminRole, isViewerRole } from "@/lib/roleAccess";
 import { projectBmrLockStatusLabel } from "@/lib/bmrLock";
 import { getProfileFirstName } from "@/lib/profileName";
@@ -327,8 +328,13 @@ export function ProjectEntryPage() {
   const skipNextLoadRef = useRef(false);
 
   const meetingViewReadOnly = useMeetingViewReadOnly();
+  const { can: canMenuAction } = useMenuPermissions();
   const canArchive = canArchiveRecords(profile?.role);
-  const viewOnly = isViewerRole(profile?.role) || meetingViewReadOnly;
+  const isNewProject = !projectIdParam;
+  const matrixAllowsWrite = isNewProject
+    ? canMenuAction("projects_entry", "create")
+    : canMenuAction("projects_entry", "edit");
+  const viewOnly = isViewerRole(profile?.role) || meetingViewReadOnly || !matrixAllowsWrite;
   const userRoleLabel = profile?.role ? (ROLE_LABELS[profile.role] ?? profile.role) : activeTab;
   const canEditActiveTab = useMemo(
     () => canEditProjectFields(profile?.role ?? "view", tabToFieldGroup(activeTab)),
@@ -587,35 +593,67 @@ export function ProjectEntryPage() {
 
       if (projectIdParam) {
         const requestedId = projectIdParam.trim();
-        const existing = await getProjectById(requestedId);
-        if (existing) {
-          syncProjectCnfEntryCounts(existing);
-          const withLink = await attachCnfLinkToProject(existing);
-          baselineProjectRef.current = structuredClone(withLink);
-          setProject(withLink);
-          setSavedFgMonths(collectSavedFgMonths(withLink));
-          setOpenKeys([]);
-          if (user?.id) clearProjectEntryDraft(user.id);
-          const entryTrackerId = withLink.batches[0]?.mo_controls[0]?.po_controls[0]?.cnf_entries?.[0]?.cnf_tracker_record_id;
-          if (entryTrackerId) {
-            try {
-              setSiblingProjectIds(await listProjectIdsForTrackerRecord(entryTrackerId));
-              setPendingTrackerRecordId(entryTrackerId);
-            } catch {
-              setSiblingProjectIds([]);
-            }
-          } else {
-            setSiblingProjectIds([]);
-            setPendingTrackerRecordId(null);
-          }
+        const insertTrackerId = cnfTrackerIdParam?.trim() || null;
+        const draftMatchesReturn =
+          Boolean(insertTrackerId)
+          && draft?.project?.project_id === requestedId;
+
+        if (draftMatchesReturn && draft) {
+          restoreProjectDraft(draft);
         } else {
-          setError(`Project "${requestedId}" was not found in the Project Database.`);
-          const empty = emptyProject();
-          baselineProjectRef.current = structuredClone(empty);
-          setProject(empty);
-          setSavedFgMonths({});
-          setOpenKeys([]);
-          if (user?.id) clearProjectEntryDraft(user.id);
+          const existing = await getProjectById(requestedId);
+          if (existing) {
+            syncProjectCnfEntryCounts(existing);
+            const withLink = await attachCnfLinkToProject(existing);
+            baselineProjectRef.current = structuredClone(withLink);
+            setProject(withLink);
+            setSavedFgMonths(collectSavedFgMonths(withLink));
+            setOpenKeys([]);
+            if (user?.id) clearProjectEntryDraft(user.id);
+            const entryTrackerId = withLink.batches[0]?.mo_controls[0]?.po_controls[0]?.cnf_entries?.[0]?.cnf_tracker_record_id;
+            if (entryTrackerId) {
+              try {
+                setSiblingProjectIds(await listProjectIdsForTrackerRecord(entryTrackerId));
+                setPendingTrackerRecordId(entryTrackerId);
+              } catch {
+                setSiblingProjectIds([]);
+              }
+            } else {
+              setSiblingProjectIds([]);
+              setPendingTrackerRecordId(null);
+            }
+          } else if (draft?.project?.project_id === requestedId) {
+            // Unsaved project draft (e.g. returned from New CNF before first project save)
+            restoreProjectDraft(draft);
+          } else {
+            setError(`Project "${requestedId}" was not found in the Project Database.`);
+            const empty = emptyProject();
+            baselineProjectRef.current = structuredClone(empty);
+            setProject(empty);
+            setSavedFgMonths({});
+            setOpenKeys([]);
+            if (user?.id) clearProjectEntryDraft(user.id);
+          }
+        }
+
+        if (insertTrackerId) {
+          const tracker = await getCnfTrackerById(insertTrackerId);
+          if (tracker) {
+            applyTrackerIntoProject(tracker, 0, false);
+            if (tracker.record_id) {
+              setPendingTrackerRecordId(tracker.record_id);
+              try {
+                setSiblingProjectIds(await listProjectIdsForTrackerRecord(tracker.record_id));
+              } catch {
+                setSiblingProjectIds([]);
+              }
+            }
+            message.success(`CNF ${tracker.cnf_tracker_id} created and inserted`);
+          } else {
+            setError(`CNF Tracker "${insertTrackerId}" was not found.`);
+          }
+          skipNextLoadRef.current = true;
+          setSearchParams({ projectId: requestedId }, { replace: true });
         }
       } else if (cnfTrackerIdParam) {
         await prepareNewProject();
@@ -1189,10 +1227,13 @@ export function ProjectEntryPage() {
             canCreateCnfTracker={canCreateCnfTracker}
             onRequestInsertCnf={() => setInsertCnfOpen(true)}
             onRequestNewCnf={() => {
-              setCreateCnfFields(emptyCnfTrackerHeaderFields());
-              setCreateCnfError(null);
-              setCreateCnfDuplicateHint(null);
-              setCreateCnfOpen(true);
+              persistProjectDraft();
+              const params = new URLSearchParams({ new: "1" });
+              const projectId = project.project_id?.trim();
+              if (projectId && projectId !== "N/A") {
+                params.set("returnProjectId", projectId);
+              }
+              navigate(`/cnf-tracker?${params.toString()}`);
             }}
             onSelectCnfTracker={(record, cnfIndex) => void handleSelectCnfTracker(record, cnfIndex)}
           />
@@ -1213,10 +1254,13 @@ export function ProjectEntryPage() {
             onSelect={(record) => void handleSelectCnfTracker(record, 0)}
             onNewCnf={() => {
               setInsertCnfOpen(false);
-              setCreateCnfFields(emptyCnfTrackerHeaderFields());
-              setCreateCnfError(null);
-              setCreateCnfDuplicateHint(null);
-              setCreateCnfOpen(true);
+              persistProjectDraft();
+              const params = new URLSearchParams({ new: "1" });
+              const projectId = project.project_id?.trim();
+              if (projectId && projectId !== "N/A") {
+                params.set("returnProjectId", projectId);
+              }
+              navigate(`/cnf-tracker?${params.toString()}`);
             }}
           />
 

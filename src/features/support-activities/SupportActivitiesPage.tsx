@@ -8,7 +8,9 @@ import { NaClearingInput, NaClearingSelect } from "@/components/common/na-cleari
 import { useAuth } from "@/app/auth-provider";
 import { useDateAdjustment } from "@/app/date-adjustment-provider";
 import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
+import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { useRegistry } from "@/app/registry-provider";
+import { DashboardFilterBanner } from "@/components/common/dashboard-filter-banner";
 import { AppShell } from "@/components/layout/app-shell";
 import { CnfTrackerSelectModal } from "@/features/cnf-tracker/CnfTrackerSelectModal";
 import { ROLE_LABELS } from "@/lib/constants";
@@ -22,7 +24,11 @@ import {
 } from "@/lib/formDraftStorage";
 import { DUE_WINDOW_FILTER_OPTIONS } from "@/lib/fgUrgency";
 import { formatAppDate } from "@/lib/date";
-import { supportFiltersFromSearchParams } from "@/lib/urlDerivedFilters";
+import {
+  clearSupportUrlFilterParams,
+  supportFilterBannerLabels,
+  supportFiltersFromSearchParams,
+} from "@/lib/urlDerivedFilters";
 import { canArchiveRecords, canRemoveReusableOptions, isViewerRole } from "@/lib/roleAccess";
 import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
 import { sanitizeAlphanumericInput, valueOrNA } from "@/lib/utils";
@@ -144,13 +150,21 @@ export function SupportActivitiesPage() {
   const { registry } = useRegistry();
   const { promptBatchDateAdjustment } = useDateAdjustment();
   const meetingViewReadOnly = useMeetingViewReadOnly();
-  const readOnly = meetingViewReadOnly || isViewerRole(profile?.role);
+  const { can: canMenuAction } = useMenuPermissions();
+  const canCreateSupport = canMenuAction("support_activities", "create");
+  const canEditSupport = canMenuAction("support_activities", "edit");
+  const canExportSupport = canMenuAction("support_activities", "export");
   const canArchive = canArchiveRecords(profile?.role);
   const canManageOptions = canRemoveReusableOptions(profile?.role);
   const [rows, setRows] = useState<SupportActivity[]>([]);
   const [filters, setFilters] = useState<SupportActivityFilters>({ activity_kind: "TSD" });
   const [form, setForm] = useState<Partial<SupportActivity>>(emptyActivity());
   const baselineFormRef = useRef<Partial<SupportActivity>>(emptyActivity());
+  const isNewSupport = !form.activity_id || form.activity_id === "N/A";
+  const readOnly =
+    meetingViewReadOnly
+    || isViewerRole(profile?.role)
+    || (isNewSupport ? !canCreateSupport : !canEditSupport);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -419,17 +433,34 @@ export function SupportActivitiesPage() {
           <Button icon={<LucideIcon name="refresh-cw" />} onClick={() => void load()} loading={loading}>
             Refresh
           </Button>
-          <Button
-            icon={<LucideIcon name="download" />}
-            onClick={() => exportSupportToExcel(filtered)}
-            disabled={!filtered.length}
-          >
-            Export Data to Excel
-          </Button>
+          {canExportSupport ? (
+            <Button
+              icon={<LucideIcon name="download" />}
+              onClick={() => exportSupportToExcel(filtered)}
+              disabled={!filtered.length}
+            >
+              Export Data to Excel
+            </Button>
+          ) : null}
         </Space>
       </div>
 
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
+
+      <DashboardFilterBanner
+        labels={supportFilterBannerLabels(filters)}
+        onClear={() => {
+          setSearchParams(clearSupportUrlFilterParams(searchParams), { replace: true });
+          setFilters((current) => {
+            const next = { ...current };
+            delete next.due_window;
+            delete next.status;
+            delete next.sort;
+            delete next.order;
+            return next;
+          });
+        }}
+      />
 
       <Card
         className="support-activity-form-card"

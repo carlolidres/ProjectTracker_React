@@ -10,6 +10,7 @@ import { LessonsLearnedPage } from "@/features/lessons-learned/LessonsLearnedPag
 import { ArchivedPage } from "@/features/archived/ArchivedPage";
 import { RegistryPage } from "@/features/registry/RegistryPage";
 import { AdminUsersPage } from "@/features/admin/AdminUsersPage";
+import { AccessMatrixPage } from "@/features/admin/AccessMatrixPage";
 import { CnfTrackerPage } from "@/features/cnf-tracker/CnfTrackerPage";
 import { EndorsementTrackerPage } from "@/features/endorsement-tracker/EndorsementTrackerPage";
 import { DataMapPage } from "@/features/admin/DataMapPage";
@@ -48,6 +49,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminUsersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/access"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AccessMatrixPage />
           </ProtectedRoute>
         }
       />

@@ -1,6 +1,6 @@
 # Code Map
 
-Last Updated: `2026-06-22`
+Last Updated: `2026-07-18`
 
 ## Purpose
 
@@ -13,8 +13,9 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Path | Responsibility |
 |---|---|
 | `src/main.tsx` | React DOM bootstrap and global style import entry. |
-| `src/app/App.tsx` | App providers, Ant Design app wrapper, HashRouter, registry/date/meeting providers. |
+| `src/app/App.tsx` | App providers, Ant Design app wrapper, HashRouter, menu-permission/registry/date/meeting providers. |
 | `src/app/router.tsx` | Route definitions and protected route wiring. |
+| `src/app/menu-permission-provider.tsx` | Loads menu permission overrides; exposes `can` / `canPath`. |
 | `vite.config.ts` | Vite config, `@` alias, GitHub Pages base path. |
 
 ## Pages and Major Modules
@@ -40,6 +41,7 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Archived | `src/features/archived/ArchivedPage.tsx` | Admin archive view. |
 | Registry | `src/features/registry/RegistryPage.tsx` | Admin registry management. |
 | Admin Users | `src/features/admin/AdminUsersPage.tsx` | Admin user/profile management and password-reset approval. |
+| Access Matrix | `src/features/admin/AccessMatrixPage.tsx` | Role × menu View/Create/Edit/Export overrides UI. |
 | Password reset service | `src/services/passwordResetService.ts` | Forgot-password request + admin approve via Edge Function. |
 | Password reset Edge Function | `supabase/functions/admin-approve-password-reset/` | Issues 16-char temp password and emails via Gmail secrets. |
 | Data Map | `src/features/admin/DataMapPage.tsx` | SQL Schema canvas (migration-derived table cards + FK edges) and integrity review. |
@@ -49,9 +51,15 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 
 | Path | Responsibility |
 |---|---|
-| `src/components/layout/app-shell.tsx` | Main authenticated shell layout. |
-| `src/components/layout/sidebar.tsx` | Navigation and role-aware menu structure. |
-| `src/components/layout/topbar.tsx` | Header controls and user-facing topbar. |
+| `src/components/layout/app-shell.tsx` | Main authenticated shell; collapse chrome + glowing expand FAB. |
+| `src/components/layout/sidebar.tsx` | Navigation and role-aware menu structure (hidden scrollbar; collapsed icon nav). |
+| `src/components/layout/topbar.tsx` | Header controls; collapses with sidebar on desktop. |
+| `src/components/common/dashboard-filter-banner.tsx` | Active dashboard/database filter chip banner. |
+| `src/components/common/workflow-status-badge.tsx` | Icon + tooltip workflow status (sort/filter labels stay text). |
+| `src/services/menuPermissionService.ts` | Load/save `menu_permission_overrides`. |
+| `src/lib/menuPermissions.ts` | Default menu matrix + resolve helpers. |
+| `agent-workflow/RELEASE_CHECKLIST.md` | ISO-aligned release pre-flight / approve / deploy checklist. |
+| `agent-workflow/releases/` | Per-version GitHub Release note drafts. |
 | `src/components/layout/notification-center.tsx` | Notification UI. |
 | `src/components/layout/profile-settings-modal.tsx` | Profile settings UI. |
 | `src/components/layout/feedback-chat.tsx` | Feedback capture UI. |
@@ -83,6 +91,7 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/services/notificationService.ts` | Notification operations. |
 | `src/services/registryService.ts` | Registry lookup and admin CRUD. |
 | `src/services/exportService.ts` | Excel/export utilities. |
+| `src/services/menuPermissionService.ts` | Load/save menu permission overrides + audit. |
 
 ## State, Utilities, and Types
 
@@ -90,7 +99,11 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 |---|---|
 | `src/types/` | Shared TypeScript types and Supabase database type definitions. |
 | `src/lib/constants.ts` | Shared constants and option sets. |
-| `src/lib/roleAccess.ts` | Role/module visibility and access helpers. |
+| `src/lib/menuPermissions.ts` | Menu View/Create/Edit/Export defaults, resolve, path mapping, feature flag. |
+| `src/lib/dashboardDrilldown.ts` | Dashboard → list/DB route builders. |
+| `src/lib/urlDerivedFilters.ts` | URL search-param merge for projects/support/audit/CNF list filters. |
+| `src/components/common/dashboard-filter-banner.tsx` | Active dashboard drill filter chips + clear. |
+| `src/lib/roleAccess.ts` | Route access (matrix-aware) and field-group `can*` helpers. |
 | `src/lib/roleMapping.ts` | Role label/key conversion helpers. |
 | `src/lib/mappers.ts` | DB-to-UI data mapping utilities. |
 | `src/lib/auditFormat.ts` | Readable audit formatting helpers. |

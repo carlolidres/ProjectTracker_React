@@ -16,6 +16,7 @@ import {
   TeamOutlined,
   UserOutlined,
   ReadOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import { Avatar, Button, Drawer, Dropdown, Tooltip, Typography } from "antd";
 import type { MenuProps } from "antd";
@@ -24,10 +25,12 @@ import { Link } from "react-router-dom";
 import { ProfileSettingsModal } from "@/components/layout/profile-settings-modal";
 import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
 import { useAuth } from "@/app/auth-provider";
+import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { useAppTheme } from "@/app/theme-provider";
 import type { SidebarState } from "@/hooks/use-sidebar-state";
 import { signOut } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
+import type { MenuPermissionOverride } from "@/lib/menuPermissions";
 import { getProfileDisplayName, getProfileInitials } from "@/lib/profileName";
 import { canAccessRoute } from "@/lib/roleAccess";
 import { cn } from "@/lib/utils";
@@ -45,10 +48,11 @@ const navItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
-  { label: "Archived", href: "/archived", icon: InboxOutlined, roles: ["admin"] },
-  { label: "Registry", href: "/registry", icon: SettingOutlined, roles: ["admin"] },
-  { label: "User Management", href: "/admin/users", icon: TeamOutlined, roles: ["admin"] },
-  { label: "Data Map", href: "/admin/data-map", icon: ApartmentOutlined, roles: ["admin"] },
+  { label: "Archived", href: "/archived", icon: InboxOutlined },
+  { label: "Registry", href: "/registry", icon: SettingOutlined },
+  { label: "User Management", href: "/admin/users", icon: TeamOutlined },
+  { label: "Access Matrix", href: "/admin/access", icon: SafetyCertificateOutlined },
+  { label: "Data Map", href: "/admin/data-map", icon: ApartmentOutlined },
 ];
 
 const allNavItems: NavItem[] = [...navItems, ...adminNavItems];
@@ -60,15 +64,20 @@ interface SidebarProps {
   onExpandSidebar?: () => void;
 }
 
-function filterNavItems(items: NavItem[], role: UserRole | undefined) {
+function filterNavItems(
+  items: NavItem[],
+  role: UserRole | undefined,
+  overrides: MenuPermissionOverride[],
+) {
   return items.filter((item) => {
     if (item.roles && (!role || !item.roles.includes(role))) return false;
-    return canAccessRoute(role, item.href);
+    return canAccessRoute(role, item.href, overrides);
   });
 }
 
 export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }: SidebarProps) {
   const { profile, user } = useAuth();
+  const { overrides } = useMenuPermissions();
   const { appTheme, toggleTheme } = useAppTheme();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const isCollapsed = state === "collapsed";
@@ -107,7 +116,7 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
     },
   ];
 
-  const visibleNavItems = filterNavItems(allNavItems, profile?.role);
+  const visibleNavItems = filterNavItems(allNavItems, profile?.role, overrides);
 
   const content = (
     <div className="sidebar-inner">

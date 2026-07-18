@@ -1,6 +1,6 @@
 # Manual Browser Verification Workflow
 
-Last Updated: `2026-06-22`
+Last Updated: `2026-07-16`
 
 ## Purpose
 
@@ -40,6 +40,17 @@ The app uses `HashRouter`.
 | Audit Trail | `/#/audit-trail` | `/ProjectTracker_React/#/audit-trail` |
 | Registry | `/#/registry` | `/ProjectTracker_React/#/registry` |
 | Admin Users | `/#/admin/users` | `/ProjectTracker_React/#/admin/users` |
+| Access Matrix | `/#/admin/access` | `/ProjectTracker_React/#/admin/access` |
+| Endorsement Tracker | `/#/endorsement-tracker` | `/ProjectTracker_React/#/endorsement-tracker` |
+
+## Access matrix + dashboard hub smoke
+
+1. Login as a newly approved non-admin role → sidebar shows exactly: Dashboard, Projects, Projects Database, Support Activities, CNF Tracker, Endorsement Tracker, Lessons Learned (no Audit/Admin unless overridden).
+2. Login as `view` → same seven menus; no Export buttons; forms read-only.
+3. Login as Admin → open `/#/admin/access`, change a role’s View for Audit Trail, save, confirm Audit appears for that role after refresh; Reset restores default; Audit Trail shows Access Matrix entries.
+4. From Dashboard: click Open / Overdue / FG On Time / Monthly Trend point → Projects Database shows filter banner and matching rows; Clear filters removes URL keys.
+5. From Dashboard: Support Overdue → Support Activities filter banner + due_window applied.
+6. Deep-link `/#/audit-trail` as `am_bm_pl` → redirect to Dashboard with access toast.
 
 ## Select the Relevant Panel
 

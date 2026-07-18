@@ -191,4 +191,8 @@ export interface ProjectFilters {
   due_window?: string;
   pending_role?: string;
   drill?: string;
+  /** on_time | late — FG delivery drill from dashboard */
+  delivery_status?: string;
+  sort?: string;
+  order?: string;
 }

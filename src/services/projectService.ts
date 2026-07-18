@@ -1,6 +1,7 @@
 import { CNF_ENTRY_KEYS, NA_VALUE } from "@/lib/constants";
 import { collectProjectDateChanges } from "@/lib/dateAdjustmentReview";
 import { monthYearMatches, normalizeStoredFgMonth } from "@/lib/date";
+import { projectRowFgDeliveryStatus } from "@/lib/fgDeliveryMetrics";
 import { projectRowFgDays, rowMatchesDueWindow } from "@/lib/fgUrgency";
 import { compareProjectPriority, hasMissingFieldsForGroup, type FocusGroup } from "@/lib/projectPriority";
 import { mapDbToProject, mapProjectToDb } from "@/lib/mappers";
@@ -375,8 +376,21 @@ export function filterProjectRows(rows: ProjectRow[], filters: ProjectFilters): 
       if (!isOpenFinalStatus(row.final_status)) return false;
       if (isApprovedOrNotApplicableStatus(row.validation_report_status)) return false;
     }
+    if (filters.delivery_status === "on_time" || filters.delivery_status === "late") {
+      if (projectRowFgDeliveryStatus(row) !== filters.delivery_status) return false;
+    }
     return true;
   });
+
+  if (filters.sort) {
+    const field = filters.sort as keyof ProjectRow;
+    const dir = filters.order === "desc" ? -1 : 1;
+    return [...filtered].sort((a, b) => {
+      const av = String(a[field] ?? "");
+      const bv = String(b[field] ?? "");
+      return av.localeCompare(bv) * dir;
+    });
+  }
 
   return [...filtered].sort(compareProjectPriority);
 }

@@ -2,6 +2,11 @@
   --sidebar-width: 280px;
   --sidebar-collapsed-width: 72px;
   --topbar-height: 72px;
+  --shell-motion-duration: 0.38s;
+  --shell-motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --shell-fab-size: 28px;
+  --shell-fab-inset: 12px;
+  --shell-collapsed-content-pad: 44px;
   --bg: #f5f7fb;
   --surface: #ffffff;
   --panel: #ffffff;
@@ -61,12 +66,139 @@ html, body, #root {
   top: 0;
   height: 100vh;
   flex-shrink: 0;
-  overflow-x: hidden;
-  transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: width;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    width var(--shell-motion-duration) var(--shell-motion-ease),
+    opacity calc(var(--shell-motion-duration) * 0.75) var(--shell-motion-ease),
+    transform var(--shell-motion-duration) var(--shell-motion-ease),
+    border-color var(--shell-motion-duration) var(--shell-motion-ease);
+  will-change: width, opacity, transform;
 }
 
-.sidebar-shell-collapsed { width: var(--sidebar-collapsed-width); }
+.sidebar-shell-collapsed {
+  width: var(--sidebar-collapsed-width);
+}
+
+/* Desktop collapsed: fully hide rail; expand via floating glowing control. */
+@media (min-width: 961px) {
+  .app-content {
+    transition: padding-left var(--shell-motion-duration) var(--shell-motion-ease);
+  }
+
+  .app-root.sidebar-collapsed .sidebar-desktop.sidebar-shell,
+  .app-root.sidebar-collapsed .sidebar-desktop.sidebar-shell-collapsed {
+    width: 0;
+    min-width: 0;
+    border-right-color: transparent;
+    opacity: 0;
+    transform: translateX(-12px);
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .app-root.sidebar-collapsed .app-content {
+    padding-left: var(--shell-collapsed-content-pad);
+  }
+
+  .app-root.sidebar-collapsed .sidebar-inner {
+    opacity: 0;
+    transition: opacity calc(var(--shell-motion-duration) * 0.45) var(--shell-motion-ease);
+  }
+
+  .app-root:not(.sidebar-collapsed) .sidebar-inner {
+    opacity: 1;
+    transition: opacity calc(var(--shell-motion-duration) * 0.55) var(--shell-motion-ease) 0.08s;
+  }
+}
+
+.sidebar-expand-fab.desktop-only {
+  position: fixed;
+  top: var(--shell-fab-inset);
+  left: var(--shell-fab-inset);
+  z-index: 1100;
+  width: var(--shell-fab-size);
+  height: var(--shell-fab-size);
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary) 55%, #fff),
+    0 0 10px color-mix(in srgb, var(--primary) 65%, transparent),
+    0 0 18px color-mix(in srgb, var(--primary) 35%, transparent);
+  animation: sidebar-logo-glow 1.6s ease-in-out infinite;
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1) translate(0, 0);
+  transition:
+    opacity 0.2s var(--shell-motion-ease),
+    transform var(--shell-motion-duration) var(--shell-motion-ease),
+    filter 0.2s ease,
+    box-shadow var(--shell-motion-duration) var(--shell-motion-ease),
+    visibility 0s linear 0s;
+}
+
+.sidebar-expand-fab-icon {
+  display: block;
+  transition: transform calc(var(--shell-motion-duration) * 0.7) var(--shell-motion-ease);
+}
+
+.sidebar-expand-fab:hover {
+  filter: brightness(1.06);
+  transform: scale(1.04);
+}
+
+.sidebar-expand-fab:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Expand: FAB fades out, then AppShell unmounts it so it cannot remain on-screen. */
+.sidebar-expand-fab--hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  animation: none !important;
+  box-shadow: none !important;
+  transform: scale(0.55) translate(6px, 10px);
+  transition:
+    opacity 0.16s var(--shell-motion-ease),
+    transform var(--shell-motion-duration) var(--shell-motion-ease),
+    box-shadow 0.16s ease,
+    visibility 0s linear 0.16s;
+}
+
+/* Hard guarantee: never show the expand FAB while chrome is open. */
+.app-root:not(.sidebar-collapsed) .sidebar-expand-fab.desktop-only {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+.sidebar-expand-fab--hidden .sidebar-expand-fab-icon {
+  transform: rotate(-90deg) scale(0.85);
+}
+
+/* Collapse: delay FAB fade-in slightly so it appears as chrome settles. */
+.app-root.sidebar-collapsed .sidebar-expand-fab:not(.sidebar-expand-fab--hidden) {
+  transition:
+    opacity 0.22s var(--shell-motion-ease) 0.12s,
+    transform var(--shell-motion-duration) var(--shell-motion-ease),
+    filter 0.2s ease,
+    box-shadow var(--shell-motion-duration) var(--shell-motion-ease) 0.12s,
+    visibility 0s linear 0.12s;
+}
 
 .sidebar-inner {
   display: flex;
@@ -118,21 +250,6 @@ html, body, #root {
   outline-offset: 2px;
 }
 
-/* Keep PT tile fixed size; glow when rail is collapsed (expand affordance). */
-.sidebar-shell-collapsed .sidebar-logo,
-.app-root.sidebar-collapsed .sidebar-desktop .sidebar-logo {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  min-height: 42px;
-  flex: 0 0 42px;
-  box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--primary) 55%, #fff),
-    0 0 14px color-mix(in srgb, var(--primary) 70%, transparent),
-    0 0 28px color-mix(in srgb, var(--primary) 40%, transparent);
-  animation: sidebar-logo-glow 1.6s ease-in-out infinite;
-}
-
 @keyframes sidebar-logo-glow {
   0%, 100% {
     box-shadow:
@@ -156,7 +273,19 @@ html, body, #root {
   flex-direction: column;
   gap: 4px;
   flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .sidebar-nav-item {
@@ -283,20 +412,73 @@ html, body, #root {
   white-space: nowrap;
 }
 
+.profile-settings-modal .ant-modal-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px;
+  margin-bottom: 0;
+}
+
+.profile-settings-modal .ant-modal-title {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.profile-settings-hero {
+  margin-bottom: 16px;
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 14%, var(--border));
+  border-radius: 12px;
+}
+
+.profile-settings-section-card {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  border-color: var(--border);
+}
+
+.profile-settings-section-card .ant-card-head {
+  min-height: 44px;
+  border-bottom-color: var(--border);
+  font-weight: 600;
+}
+
+.profile-settings-section-card .ant-card-body {
+  padding-top: 16px;
+}
+
+.profile-settings-form .ant-form-item {
+  margin-bottom: 14px;
+}
+
 .profile-settings-avatar-row {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: 18px;
 }
 
 .profile-settings-avatar-button {
   position: relative;
+  flex-shrink: 0;
   border: 0;
   background: transparent;
   padding: 0;
   cursor: pointer;
   border-radius: 50%;
+  outline: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.profile-settings-avatar-button:hover {
+  transform: translateY(-1px);
+}
+
+.profile-settings-avatar-button:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.profile-settings-avatar {
+  border: 3px solid color-mix(in srgb, var(--primary) 20%, #fff);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
 }
 
 .profile-settings-avatar-overlay {
@@ -306,7 +488,7 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.5);
   color: #fff;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -320,40 +502,61 @@ html, body, #root {
 
 .profile-settings-avatar-text {
   min-width: 0;
+  flex: 1;
 }
 
 .profile-settings-avatar-name {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
+  margin: 0 !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.02em;
+}
+
+.profile-settings-avatar-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 13px;
 }
 
 .profile-settings-avatar-hint {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 12px;
+  margin: 6px 0 0 !important;
+  font-size: 12px !important;
 }
 
 .profile-settings-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-top: 8px;
-}
-
-.profile-settings-divider {
-  margin: 20px 0;
+  margin-top: 4px;
+  padding-top: 4px;
 }
 
 .profile-settings-password-section {
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
-.profile-settings-section-title {
-  margin: 0 0 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
+.profile-settings-password-section .profile-settings-section-card {
+  margin-bottom: 0;
+}
+
+@media (max-width: 576px) {
+  .profile-settings-avatar-row {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .profile-settings-actions {
+    width: 100%;
+  }
+
+  .profile-settings-actions .ant-btn {
+    flex: 1;
+  }
 }
 
 .topbar {
@@ -371,11 +574,13 @@ html, body, #root {
   opacity: 1;
   transform: translateY(0);
   transition:
-    height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.22s ease,
-    padding 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.22s ease,
-    transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    height var(--shell-motion-duration) var(--shell-motion-ease),
+    min-height var(--shell-motion-duration) var(--shell-motion-ease),
+    opacity calc(var(--shell-motion-duration) * 0.7) var(--shell-motion-ease),
+    padding var(--shell-motion-duration) var(--shell-motion-ease),
+    border-color var(--shell-motion-duration) var(--shell-motion-ease),
+    transform var(--shell-motion-duration) var(--shell-motion-ease);
+  will-change: height, opacity, transform;
 }
 
 .topbar-sidebar-toggle-icons {
@@ -390,7 +595,9 @@ html, body, #root {
 .topbar-sidebar-toggle-icon {
   position: absolute;
   inset: 0;
-  transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    opacity calc(var(--shell-motion-duration) * 0.55) var(--shell-motion-ease),
+    transform var(--shell-motion-duration) var(--shell-motion-ease);
 }
 
 .topbar-sidebar-toggle-icon-fold {
@@ -413,16 +620,30 @@ html, body, #root {
   transform: rotate(0deg) scale(1);
 }
 
-/* Desktop: collapse topbar (animated) while rail sidebar is collapsed; expand via PT logo. */
+/* Desktop: hide topbar with sidebar; restore via glowing expand FAB. */
 @media (min-width: 961px) {
   .app-root.sidebar-collapsed .topbar.topbar-hidden-when-sidebar-collapsed {
     height: 0;
+    min-height: 0;
     opacity: 0;
     padding-top: 0;
     padding-bottom: 0;
     border-bottom-color: transparent;
-    transform: translateY(-8px);
+    transform: translateY(-10px);
     pointer-events: none;
+    overflow: hidden;
+  }
+
+  .app-root.sidebar-collapsed .topbar .topbar-title,
+  .app-root.sidebar-collapsed .topbar .topbar-actions {
+    opacity: 0;
+    transition: opacity calc(var(--shell-motion-duration) * 0.4) var(--shell-motion-ease);
+  }
+
+  .app-root:not(.sidebar-collapsed) .topbar .topbar-title,
+  .app-root:not(.sidebar-collapsed) .topbar .topbar-actions {
+    opacity: 1;
+    transition: opacity calc(var(--shell-motion-duration) * 0.55) var(--shell-motion-ease) 0.1s;
   }
 }
 
@@ -449,7 +670,24 @@ html, body, #root {
   line-height: 1.25;
   letter-spacing: 0.02em;
 }
-.topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.topbar-actions .ant-btn {
+  border: none;
+  box-shadow: none;
+}
+
+.topbar-sidebar-toggle.ant-btn {
+  border: none;
+  box-shadow: none;
+}
 
 .notification-bell-alert {
   display: inline-flex;
@@ -504,17 +742,26 @@ html, body, #root {
 
 @media (prefers-reduced-motion: reduce) {
   .sidebar-shell,
+  .sidebar-inner,
   .sidebar-nav-item,
   .sidebar-label,
   .sidebar-user-button,
   .topbar,
-  .topbar-sidebar-toggle-icon {
+  .topbar-title,
+  .topbar-actions,
+  .topbar-sidebar-toggle-icon,
+  .app-content,
+  .sidebar-expand-fab,
+  .sidebar-expand-fab-icon {
     transition: none !important;
   }
 
-  .sidebar-shell-collapsed .sidebar-logo,
-  .app-root.sidebar-collapsed .sidebar-desktop .sidebar-logo {
+  .sidebar-expand-fab {
     animation: none;
+  }
+
+  .sidebar-expand-fab--hidden {
+    transform: none;
   }
 
   .notification-bell-alert .ant-btn,
@@ -705,6 +952,29 @@ html, body, #root {
   border-bottom: 1px solid var(--border);
 }
 
+.workflow-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.workflow-status-icon--success { color: #16a34a; }
+.workflow-status-icon--processing { color: #2563eb; }
+.workflow-status-icon--error { color: #dc2626; }
+.workflow-status-icon--warning { color: #d97706; }
+.workflow-status-icon--info { color: #2563eb; }
+.workflow-status-icon--neutral { color: var(--muted); }
+
 .mobile-only { display: none; }
 .desktop-only { display: inline-flex; }
 
@@ -757,8 +1027,17 @@ html, body, #root {
   .sidebar-mobile-drawer .sidebar-nav {
     flex: 1;
     min-height: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .sidebar-mobile-drawer .sidebar-nav::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 }
 

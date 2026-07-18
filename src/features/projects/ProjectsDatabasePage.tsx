@@ -16,7 +16,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { useDateAdjustment } from "@/app/date-adjustment-provider";
+import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { useRegistry } from "@/app/registry-provider";
+import { DashboardFilterBanner } from "@/components/common/dashboard-filter-banner";
 import { AppShell } from "@/components/layout/app-shell";
 import {
   ProjectsDatabaseGrid,
@@ -28,7 +30,11 @@ import { ROLE_LABELS } from "@/lib/constants";
 import { PROJECTS_DB_ROW_HEIGHT_OPTIONS } from "@/lib/projectsDatabaseColumns";
 import { subscribeProjectDataChanged } from "@/lib/projectDataEvents";
 import { ROLE_COLORS, ROLE_LEGEND_ITEMS } from "@/lib/roleColors";
-import { projectFiltersFromSearchParams } from "@/lib/urlDerivedFilters";
+import {
+  clearProjectUrlFilterParams,
+  projectFilterBannerLabels,
+  projectFiltersFromSearchParams,
+} from "@/lib/urlDerivedFilters";
 import { valueOrNA } from "@/lib/utils";
 import { exportProjectsToExcel } from "@/services/exportService";
 import { filterProjectRows, getProjectById, listActiveProjects } from "@/services/projectService";
@@ -98,9 +104,13 @@ function mergeEdits(existing: SpreadsheetCellEdit[], next: SpreadsheetCellEdit):
 }
 
 export function ProjectsDatabasePage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { registry } = useRegistry();
   const { user, profile } = useAuth();
+  const { can: canMenuAction } = useMenuPermissions();
+  const canEditDatabase = canMenuAction("projects_database", "edit");
+  const canExportDatabase = canMenuAction("projects_database", "export");
+  const gridRole = canEditDatabase ? profile?.role : "view";
   const { promptBatchDateAdjustment } = useDateAdjustment();
   const [rows, setRows] = useState<ProjectRow[]>([]);
   const [filters, setFilters] = useState<ProjectFilters>({});
@@ -269,16 +279,18 @@ export function ProjectsDatabasePage() {
       >
         Refresh
       </Button>
-      <Button
-        icon={<DownloadOutlined />}
-        onClick={() => {
-          exportProjectsToExcel(filtered);
-          message.success("Export started");
-        }}
-        disabled={!filtered.length}
-      >
-        Export to Excel
-      </Button>
+      {canExportDatabase ? (
+        <Button
+          icon={<DownloadOutlined />}
+          onClick={() => {
+            exportProjectsToExcel(filtered);
+            message.success("Export started");
+          }}
+          disabled={!filtered.length}
+        >
+          Export to Excel
+        </Button>
+      ) : null}
       <Button
         icon={<FilterOutlined />}
         type={showColumnFilters ? "default" : "primary"}
@@ -363,6 +375,31 @@ export function ProjectsDatabasePage() {
         )}
 
         {error ? <Alert type="error" showIcon message={error} /> : null}
+
+        <DashboardFilterBanner
+          labels={projectFilterBannerLabels(filters)}
+          onClear={() => {
+            setSearchParams(clearProjectUrlFilterParams(searchParams), { replace: true });
+            setFilters((current) => {
+              const next = { ...current };
+              for (const key of [
+                "cnf_status",
+                "final_status",
+                "due_window",
+                "pending_role",
+                "drill",
+                "fg_month",
+                "fg_year",
+                "delivery_status",
+                "sort",
+                "order",
+              ] as const) {
+                delete next[key];
+              }
+              return next;
+            });
+          }}
+        />
 
         {!fullView ? (
           <>
@@ -498,7 +535,7 @@ export function ProjectsDatabasePage() {
 
         <ProjectsDatabaseGrid
           rows={filtered}
-          role={profile?.role}
+          role={gridRole}
           registry={registry}
           dirtyEdits={dirtyEdits}
           onCellEdited={handleCellEdited}

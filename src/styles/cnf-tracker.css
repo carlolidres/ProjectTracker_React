@@ -578,20 +578,28 @@ html.meeting-view-nav-active .cnf-tracker-list-toolbar {
 .cnf-tracker-detail-modal .ant-modal-content {
   display: flex;
   flex-direction: column;
-  width: min(95vw, 1600px);
-  max-width: min(95vw, 1600px);
-  max-height: min(92vh, 980px);
+  /* Inherit Modal width prop so leave animation does not jump when classes change */
+  width: 100%;
+  max-width: 100%;
+  max-height: min(92vh, 900px);
   overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
+}
+
+.cnf-tracker-detail-modal--create .ant-modal-content {
+  max-height: min(92vh, 780px);
 }
 
 .cnf-tracker-detail-modal .ant-modal-header {
   flex-shrink: 0;
   margin-bottom: 0;
-  padding: 12px 56px 12px 16px;
+  padding: 12px 52px 10px 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 .cnf-tracker-detail-modal .ant-modal-close {
-  top: 14px;
+  top: 12px;
   inset-inline-end: 14px;
   width: 32px;
   height: 32px;
@@ -599,18 +607,71 @@ html.meeting-view-nav-active .cnf-tracker-list-toolbar {
 }
 
 .cnf-tracker-detail-modal .ant-modal-body {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   max-height: none;
   overflow: hidden;
-  padding-top: 12px;
+  padding: 10px 16px 4px;
+}
+
+.cnf-tracker-detail-modal .ant-modal-footer {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.cnf-tracker-detail-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
 }
 
 .cnf-tracker-detail-modal-scroll {
-  max-height: min(78vh, 820px);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;
+  padding-bottom: 12px;
+}
+
+.cnf-tracker-detail-modal--create .cnf-tracker-detail-modal-scroll {
+  padding-bottom: 16px;
+}
+
+.cnf-tracker-detail-modal--create .project-form-body {
+  padding: 8px 4px 12px;
+}
+
+.cnf-tracker-detail-modal--create .project-header-section {
+  margin-bottom: 8px;
+}
+
+.cnf-tracker-detail-modal--create .cnf-tracker-section-card {
+  margin-bottom: 0;
+}
+
+.cnf-tracker-detail-modal--create .cnf-tracker-section-card .ant-card-head {
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.cnf-tracker-detail-modal--create .cnf-tracker-section-card .ant-card-body {
+  padding: 8px 12px 14px;
+}
+
+.cnf-tracker-detail-modal--create .cnf-tracker-details-tabs .ant-tabs-nav {
+  margin-bottom: 10px;
+}
+
+.cnf-tracker-detail-modal--create .cnf-tracker-form-grid {
+  gap: 12px 12px;
 }
 
 .cnf-tracker-detail-modal-title {
@@ -625,16 +686,18 @@ html.meeting-view-nav-active .cnf-tracker-list-toolbar {
   position: static;
 }
 
-.cnf-tracker-detail-modal-title h2 {
-  margin: 0;
-  font-size: 1.25rem;
-  line-height: 1.25;
+.cnf-tracker-detail-modal-heading {
+  margin: 0 !important;
+  font-size: 1.2rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+  line-height: 1.25 !important;
 }
 
-.cnf-tracker-detail-modal-title p {
-  margin: 2px 0 0;
-  font-size: 13px;
-  font-weight: 600;
+.cnf-tracker-detail-modal-subtitle {
+  margin: 2px 0 0 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
 }
 
 .cnf-tracker-detail-modal-panel {
@@ -645,6 +708,31 @@ html.meeting-view-nav-active .cnf-tracker-list-toolbar {
 
 .cnf-tracker-detail-modal-panel .cnf-tracker-form-body {
   padding-top: 0;
+}
+
+.cnf-tracker-header-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 4px;
+}
+
+.cnf-tracker-details-tabs .ant-tabs-nav {
+  margin-bottom: 14px;
+}
+
+.cnf-tracker-details-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cnf-tracker-field-span-2 {
+  grid-column: span 2;
+}
+
+.cnf-tracker-detail-modal .cnf-tracker-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-weight: 600;
 }
 
 /* Scoped Product/Client Select — Ant Design 5 (.ant-select-selector) and 6 (.ant-select-content). */
@@ -721,7 +809,8 @@ html.meeting-view-nav-active .cnf-tracker-list-toolbar {
 }
 
 @media (max-width: 768px) {
-  .cnf-tracker-detail-modal .ant-modal-content {
+  .cnf-tracker-detail-modal .ant-modal-content,
+  .cnf-tracker-detail-modal--create .ant-modal-content {
     width: 100vw;
     max-width: 100vw;
     max-height: 100vh;
@@ -729,7 +818,21 @@ html.meeting-view-nav-active .cnf-tracker-list-toolbar {
   }
 
   .cnf-tracker-detail-modal-scroll {
-    max-height: calc(100vh - 120px);
+    max-height: none;
+  }
+
+  .cnf-tracker-header-grid,
+  .cnf-tracker-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cnf-tracker-field-span-2 {
+    grid-column: span 1;
+  }
+
+  .cnf-tracker-detail-modal-title {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
@@ -762,6 +865,26 @@ html.meeting-view-nav-active .cnf-tracker-list-toolbar {
 
 .cnf-tracker-section-card {
   margin-bottom: 16px;
+  border-radius: 12px;
+  border-color: var(--border);
+}
+
+.cnf-tracker-section-card .ant-card-head {
+  min-height: 44px;
+  border-bottom-color: var(--border);
+  font-weight: 600;
+}
+
+.cnf-tracker-section-card .ant-card-body {
+  padding-top: 12px;
+}
+
+.cnf-tracker-detail-modal--create .cnf-tracker-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cnf-tracker-detail-modal--create .cnf-tracker-field-span-3 {
+  grid-column: span 2;
 }
 
 .cnf-tracker-closure-message {
@@ -781,7 +904,8 @@ html.meeting-view-nav-active .cnf-tracker-list-toolbar {
     grid-template-columns: 1fr;
   }
 
-  .cnf-tracker-field-span-3 {
+  .cnf-tracker-field-span-3,
+  .cnf-tracker-field-span-2 {
     grid-column: span 1;
   }
 }

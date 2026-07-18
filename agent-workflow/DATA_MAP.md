@@ -1,6 +1,6 @@
 # Data Map
 
-Last Updated: `2026-07-16`
+Last Updated: `2026-07-18` (v0.89.0 release documentation)
 
 ## Purpose
 
@@ -57,6 +57,7 @@ A schema task is incomplete while code, types, migration records, and verificati
 | Support activity | `support_activities` | Separate smaller operational activity tracking | TSD/RnD/Non-Process; optional CNF + endorsement links by record ID. |
 | Endorsement tracker | `endorsement_tracker_records` / `endorsement_tracker_items` | Endorsement workflow header + implementation item rows | Source-linked by unique `(source_type, source_record_id)`; sync_version concurrency. |
 | Reusable options | `reusable_options` | Editable dropdown suggestions | Non-view create; admin soft-remove; does not rewrite historical values. |
+| Menu permission overrides | `menu_permission_overrides` | Admin overrides for menu View/Create/Edit/Export | Defaults in `src/lib/menuPermissions.ts`; PK `(role, menu_key)`. |
 | Registry item | `registry` | Dropdown and lookup values | Admin-managed; used across forms. |
 | Notification | `notifications` / `pt_notifications` | System reminders and alerts | FG Month and project status driven. |
 | Audit log | `audit_logs` | Immutable critical activity history | Must remain readable and protected. |
@@ -117,6 +118,27 @@ Optional free-text and select fields use:
 Do not treat filter/search boxes, Kind, or date pickers as N/A sentinels.
 
 Helpers: `src/lib/naField.ts`, `src/lib/utils.ts` (`isMissingValue`), `src/components/common/na-clearing-input.tsx`.
+
+## Menu permission matrix
+
+Layers (AND): Auth/profile → menu matrix (View/Create/Edit/Export) → field-group `can*` helpers → RLS.
+
+Default menus for new / non-admin users (View on):
+
+1. Dashboard  
+2. Projects  
+3. Projects Database  
+4. Support Activities  
+5. CNF Tracker  
+6. Endorsement Tracker  
+7. Lessons Learned  
+
+Audit Trail, Archived, Registry, User Management, Access Matrix, and Data Map are admin (or override) only.
+
+- Code defaults: `src/lib/menuPermissions.ts`
+- Overrides table: `menu_permission_overrides` (migration `20260716140000_menu_permission_overrides`)
+- Kill-switch: `VITE_FEATURE_MENU_MATRIX` (default on; `false` → legacy `ROUTE_ACCESS`)
+- Rollback: `agent-workflow/MENU_MATRIX_ROLLBACK.md`
 
 ## Key Tables
 
@@ -203,6 +225,17 @@ Key rules:
 - Soft-remove hides the option; historical record values are not rewritten.
 - Non-view roles may create; admin/manager soft-remove per role helpers.
 
+### `menu_permission_overrides`
+
+Purpose: Admin overrides for role × menu View/Create/Edit/Export.
+
+Key rules:
+
+- Defaults live in application code; empty table means all roles use defaults.
+- RLS: authenticated SELECT; admin-only write.
+- Changes must be audit-logged (module Access Matrix).
+- N/A actions (e.g. Dashboard Create) are forced off in code even if an override sets them.
+
 ### `registry`
 
 Purpose: Central lookup values for dropdowns and workflow options.
@@ -285,6 +318,31 @@ Confirm current RLS migrations before changing trusted access behavior.
 - Keep workflow-app runtime SQLite files ignored; do not commit `workflow-app/data/workflow.sqlite3`.
 - Do not use workflow-app baseline approval or restore features to rewrite `agent-history/version-0-baseline.md` without explicit owner approval.
 
+## Application version and release control
+
+Package identity: `package.json` → Vite define → About drawer (`src/components/layout/app-version-button.tsx`, `src/lib/appVersion.ts`).
+
+Deploy identity: GitHub Actions `.github/workflows/deploy.yml` sets `VITE_APP_GIT_SHA` from `github.sha` and publishes to GitHub Pages (`github-pages` environment).
+
+| Artifact | Path |
+|---|---|
+| Release checklist | `agent-workflow/RELEASE_CHECKLIST.md` |
+| Release notes (current) | `agent-workflow/releases/v0.89.0-RELEASE_NOTES.md` |
+| Versioned AVD / handoff | `agent-history/version-89-handoff.md` |
+| Menu matrix rollback | `agent-workflow/MENU_MATRIX_ROLLBACK.md` |
+
+### Current release baseline (fill deploy SHA after Actions)
+
+| Field | Value |
+|---|---|
+| Version | `0.89.0` (tag `v0.89.0`) |
+| Prior production | `0.88.0` @ `9e87130` |
+| Change class | Minor (security/config-relevant: menu overrides + RLS migration) |
+| Environment | GitHub Pages |
+| Rollback | Redeploy `9e87130` / `0.88.0`, or `VITE_FEATURE_MENU_MATRIX=false`, or migration down per `MENU_MATRIX_ROLLBACK.md` |
+
+Do not treat a local About label as released until Actions succeeds and package+SHA match the GitHub Release.
+
 ## Verification Commands
 
 Use the smallest relevant set:
@@ -292,6 +350,8 @@ Use the smallest relevant set:
 ```text
 npm run typecheck
 npm run build
+npm run test:menu-permissions
+npm run test:dashboard-drilldown
 npm run verify:supabase
 npm run smoke:supabase
 npm run migrate:validate

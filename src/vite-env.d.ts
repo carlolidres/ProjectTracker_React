@@ -8,6 +8,8 @@ interface ImportMetaEnv {
   readonly VITE_APP_VERSION?: string;
   /** Optional override; CI sets github.sha. Defaults to local git short SHA via Vite define. */
   readonly VITE_APP_GIT_SHA?: string;
+  /** Menu permission matrix kill-switch. Default on; set "false" to use legacy ROUTE_ACCESS only. */
+  readonly VITE_FEATURE_MENU_MATRIX?: string;
 }
 
 declare const __APP_VERSION__: string;

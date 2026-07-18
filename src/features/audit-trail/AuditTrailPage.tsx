@@ -1,8 +1,12 @@
 import { DownloadOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { Alert, Button, Card, Col, DatePicker, Input, Row, Select, Space, Spin, Table, Typography, message } from "antd";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { ProjectIdLink } from "@/components/common/project-id-link";
 import { AppShell } from "@/components/layout/app-shell";
+import { DashboardFilterBanner } from "@/components/common/dashboard-filter-banner";
+import { auditFiltersFromSearchParams } from "@/lib/urlDerivedFilters";
 import {
   formatAuditActivity,
   formatAuditDetails,
@@ -14,10 +18,17 @@ import { listAuditLogs } from "@/services/auditService";
 import type { AuditFilters, AuditLog } from "@/types";
 
 export function AuditTrailPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { can: canMenuAction } = useMenuPermissions();
+  const canExportAudit = canMenuAction("audit_trail", "export");
   const [rows, setRows] = useState<AuditLog[]>([]);
   const [filters, setFilters] = useState<AuditFilters>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFilters((current) => auditFiltersFromSearchParams(searchParams, current));
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,20 +54,32 @@ export function AuditTrailPage() {
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>Refresh</Button>
-          <Button
-            icon={<DownloadOutlined />}
-            onClick={() => {
-              exportAuditToExcel(rows);
-              message.success("Export started");
-            }}
-            disabled={!rows.length}
-          >
-            Export Data to Excel
-          </Button>
+          {canExportAudit ? (
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={() => {
+                exportAuditToExcel(rows);
+                message.success("Export started");
+              }}
+              disabled={!rows.length}
+            >
+              Export Data to Excel
+            </Button>
+          ) : null}
         </Space>
       </div>
 
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
+
+      <DashboardFilterBanner
+        labels={Object.entries(filters)
+          .filter(([, value]) => Boolean(value))
+          .map(([key, value]) => `${key}: ${value}`)}
+        onClear={() => {
+          setSearchParams({}, { replace: true });
+          setFilters({});
+        }}
+      />
 
       <Card style={{ marginBottom: 16 }}>
         <Row gutter={[12, 12]}>

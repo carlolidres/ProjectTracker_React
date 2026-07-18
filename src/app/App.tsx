@@ -5,6 +5,7 @@ import { AppRouter } from "@/app/router";
 import { AuthProvider } from "@/app/auth-provider";
 import { MeetingViewProvider } from "@/app/meeting-view-provider";
 import { DateAdjustmentProvider } from "@/app/date-adjustment-provider";
+import { MenuPermissionProvider } from "@/app/menu-permission-provider";
 import { RegistryProvider } from "@/app/registry-provider";
 import { ThemeProvider } from "@/app/theme-provider";
 import { diagLog, useDiagLifecycle, usePageVisibilityDiagnostics } from "@/lib/sessionDiagnostics";
@@ -23,13 +24,15 @@ function SessionScopedRouter() {
   return (
     <HashRouter>
       <RouteChangeLogger />
-      <RegistryProvider>
-        <DateAdjustmentProvider>
-          <MeetingViewProvider>
-            <AppRouter />
-          </MeetingViewProvider>
-        </DateAdjustmentProvider>
-      </RegistryProvider>
+      <MenuPermissionProvider>
+        <RegistryProvider>
+          <DateAdjustmentProvider>
+            <MeetingViewProvider>
+              <AppRouter />
+            </MeetingViewProvider>
+          </DateAdjustmentProvider>
+        </RegistryProvider>
+      </MenuPermissionProvider>
     </HashRouter>
   );
 }

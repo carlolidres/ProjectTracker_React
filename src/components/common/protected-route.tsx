@@ -1,8 +1,11 @@
-import { Button, Result, Spin } from "antd";
+import { Button, Result, Spin, message } from "antd";
+import { useEffect, useRef } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
+import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { ForcePasswordChangeScreen } from "@/components/common/force-password-change";
 import { signOut } from "@/lib/auth";
+import { canAccessRoute } from "@/lib/roleAccess";
 import { diagLog, useDiagLifecycle } from "@/lib/sessionDiagnostics";
 import type { UserRole } from "@/types";
 
@@ -13,7 +16,9 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, profile, initializing } = useAuth();
+  const { overrides, enabled: matrixEnabled } = useMenuPermissions();
   const location = useLocation();
+  const deniedToastRef = useRef<string | null>(null);
   useDiagLifecycle(`ProtectedRoute(${location.pathname})`);
 
   const sessionPending = initializing || Boolean(user && !profile);
@@ -79,5 +84,28 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/dashboard" replace />;
   }
 
+  const pathAllowed = canAccessRoute(profile.role, location.pathname, overrides);
+  if (!pathAllowed) {
+    return <MenuAccessDeniedRedirect pathname={location.pathname} toastKeyRef={deniedToastRef} />;
+  }
+
+  // Suppress unused when matrix off — still keep provider wired.
+  void matrixEnabled;
+
   return children;
+}
+
+function MenuAccessDeniedRedirect({
+  pathname,
+  toastKeyRef,
+}: {
+  pathname: string;
+  toastKeyRef: React.MutableRefObject<string | null>;
+}) {
+  useEffect(() => {
+    if (toastKeyRef.current === pathname) return;
+    toastKeyRef.current = pathname;
+    message.warning("You do not have access to that page.");
+  }, [pathname, toastKeyRef]);
+  return <Navigate to="/dashboard" replace />;
 }

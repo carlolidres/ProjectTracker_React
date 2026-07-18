@@ -15,6 +15,7 @@ import {
   message,
 } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { useRegistry } from "@/app/registry-provider";
 import { ProjectIdLink } from "@/components/common/project-id-link";
 import { AppShell } from "@/components/layout/app-shell";
@@ -30,6 +31,8 @@ import {
 
 export function LessonsLearnedPage() {
   const { registry } = useRegistry();
+  const { can: canMenuAction } = useMenuPermissions();
+  const canExportLessons = canMenuAction("lessons_learned", "export");
   const [rows, setRows] = useState<LessonLearned[]>([]);
   const [filters, setFilters] = useState<LessonLearnedFilters>({
     category: LESSON_CATEGORY_DATE_ADJUSTMENT,
@@ -71,16 +74,18 @@ export function LessonsLearnedPage() {
           <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>
             Refresh
           </Button>
-          <Button
-            icon={<DownloadOutlined />}
-            onClick={() => {
-              exportLessonsLearnedToExcel(rows);
-              message.success("Export started");
-            }}
-            disabled={!rows.length}
-          >
-            Export Data to Excel
-          </Button>
+          {canExportLessons ? (
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={() => {
+                exportLessonsLearnedToExcel(rows);
+                message.success("Export started");
+              }}
+              disabled={!rows.length}
+            >
+              Export Data to Excel
+            </Button>
+          ) : null}
         </Space>
       </div>
 

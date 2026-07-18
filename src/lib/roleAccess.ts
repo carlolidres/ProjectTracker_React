@@ -1,3 +1,9 @@
+import {
+  canMenuPath,
+  getMenuPermissionOverrideCache,
+  isMenuMatrixEnabled,
+  type MenuPermissionOverride,
+} from "@/lib/menuPermissions";
 import type { UserRole } from "@/types";
 
 export interface RouteAccess {
@@ -5,6 +11,7 @@ export interface RouteAccess {
   roles: UserRole[] | "all";
 }
 
+/** Legacy path allow-list — used when VITE_FEATURE_MENU_MATRIX is off. */
 export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/dashboard", roles: "all" },
   { path: "/projects", roles: "all" },
@@ -17,6 +24,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/archived", roles: ["admin"] },
   { path: "/registry", roles: ["admin"] },
   { path: "/admin/users", roles: ["admin"] },
+  { path: "/admin/access", roles: ["admin"] },
   { path: "/admin/data-map", roles: ["admin"] },
 ];
 
@@ -32,12 +40,21 @@ export function canManageRegistry(role: UserRole | undefined): boolean {
   return isAdminRole(role);
 }
 
-export function canAccessRoute(role: UserRole | undefined, path: string): boolean {
-  if (!role) return false;
+function legacyCanAccessRoute(role: UserRole, path: string): boolean {
   const entry = ROUTE_ACCESS.find((item) => path === item.path || path.startsWith(`${item.path}/`));
   if (!entry) return true;
   if (entry.roles === "all") return true;
   return entry.roles.includes(role);
+}
+
+export function canAccessRoute(
+  role: UserRole | undefined,
+  path: string,
+  overrides: MenuPermissionOverride[] = getMenuPermissionOverrideCache(),
+): boolean {
+  if (!role) return false;
+  if (!isMenuMatrixEnabled()) return legacyCanAccessRoute(role, path);
+  return canMenuPath(role, path, "view", overrides);
 }
 
 export function isViewerRole(role: UserRole | undefined): boolean {
