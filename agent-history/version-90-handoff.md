@@ -12,10 +12,10 @@ Structure aligned with ISO/IEC/IEEE 12207 release/configuration practice, ISO/IE
 | Prior production | `0.89.0` @ `82bc127` |
 | Change class | **Minor** |
 | Deployment environment | GitHub Pages (`github-pages`) via `.github/workflows/deploy.yml` |
-| Deployment status | **Pending deploy** — fill after Actions |
-| Deploy SHA | ________ |
-| Actions run | ________ |
-| GitHub Release | ________ |
+| Deployment status | **Deployed** — Actions success |
+| Deploy SHA | `de385ef` |
+| Actions run | https://github.com/carlolidres/ProjectTracker_React/actions/runs/29643088651 |
+| GitHub Release | https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.90.0 |
 | Rollback reference | Redeploy `82bc127` / `0.89.0`; or `VITE_FEATURE_DASHBOARD_WORKSPACE=false` — see `agent-workflow/DASHBOARD_WORKSPACE_ROLLBACK.md` |
 
 ---
