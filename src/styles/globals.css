@@ -1286,6 +1286,14 @@ textarea.ant-input.na-guide,
   font-style: italic;
 }
 
+.dashboard-filter-banner-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(6px);
+}
+
 .app-version-history {
   list-style: none;
   margin: 0;

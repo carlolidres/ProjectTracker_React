@@ -459,6 +459,8 @@ export function ProjectsDatabasePage() {
 
         <DashboardFilterBanner
           labels={projectFilterBannerLabels(filters)}
+          title={returnToPath ? "Dashboard context" : "Filtered from Dashboard"}
+          sticky={Boolean(returnToPath)}
           onBackToDashboard={returnToPath ? () => navigate(returnToPath) : undefined}
           onClear={() => {
             setSearchParams(clearProjectUrlFilterParams(searchParams), { replace: true });

@@ -6,6 +6,8 @@ interface DashboardFilterBannerProps {
   title?: string;
   /** When set (dashboard workspace), show navigation back to the hub. */
   onBackToDashboard?: () => void;
+  /** Keep banner visible while scrolling the drill page (R7). */
+  sticky?: boolean;
 }
 
 export function DashboardFilterBanner({
@@ -13,11 +15,12 @@ export function DashboardFilterBanner({
   onClear,
   title = "Filtered from Dashboard",
   onBackToDashboard,
+  sticky = false,
 }: DashboardFilterBannerProps) {
   if (!labels.length && !onBackToDashboard) return null;
   return (
     <div
-      className="dashboard-filter-banner"
+      className={`dashboard-filter-banner${sticky ? " dashboard-filter-banner-sticky" : ""}`}
       style={{
         marginBottom: 16,
         padding: "10px 14px",
@@ -44,7 +47,9 @@ export function DashboardFilterBanner({
             ))}
           </>
         ) : (
-          <Typography.Text type="secondary">Opened from Dashboard</Typography.Text>
+          <Typography.Text type="secondary">
+            {onBackToDashboard ? "Dashboard context — edit without leaving the workspace" : "Opened from Dashboard"}
+          </Typography.Text>
         )}
       </Space>
       <Space wrap size={8}>
