@@ -331,11 +331,13 @@ Deploy identity: GitHub Actions `.github/workflows/deploy.yml` sets `VITE_APP_GI
 | Versioned AVD / handoff | `agent-history/version-89-handoff.md` |
 | Menu matrix rollback | `agent-workflow/MENU_MATRIX_ROLLBACK.md` |
 
-### Current release baseline (fill deploy SHA after Actions)
+### Current release baseline
 
 | Field | Value |
 |---|---|
 | Version | `0.89.0` (tag `v0.89.0`) |
+| Deploy SHA | `82bc127` |
+| Deployed | 2026-07-18 — Actions [29638972620](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29638972620) success |
 | Prior production | `0.88.0` @ `9e87130` |
 | Change class | Minor (security/config-relevant: menu overrides + RLS migration) |
 | Environment | GitHub Pages |

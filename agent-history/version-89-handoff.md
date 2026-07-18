@@ -8,13 +8,14 @@ Structure aligned with ISO/IEC/IEEE 12207 release/configuration practice, ISO/IE
 | Field | Value |
 |---|---|
 | Version number | `0.89.0` (git tag `v0.89.0`) |
-| Release date | `2026-07-18` (UTC deploy time filled after Actions) |
+| Release date | `2026-07-18` (Actions completed `2026-07-18T09:20:36Z`) |
 | Prior production | `0.88.0` @ `9e87130` (Actions run #63, 2026-07-16) |
 | Change class | **Minor** (security/config-relevant) |
 | Deployment environment | GitHub Pages (`github-pages`) via `.github/workflows/deploy.yml` |
-| Deployment status | Pending Actions at document draft; update after green deploy |
-| Deploy SHA | _(fill after Actions)_ |
-| Actions run | _(fill after Actions)_ |
+| Deployment status | **Deployed** — Actions success |
+| Deploy SHA | `82bc127` |
+| Actions run | https://github.com/carlolidres/ProjectTracker_React/actions/runs/29638972620 |
+| GitHub Release | https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.89.0 |
 | Rollback reference | Redeploy `9e87130` / package `0.88.0`; or `VITE_FEATURE_MENU_MATRIX=false`; or migration down per `agent-workflow/MENU_MATRIX_ROLLBACK.md` |
 
 ---
@@ -75,7 +76,7 @@ Menu-level View/Create/Edit/Export permission matrix with Access Matrix admin UI
 | `npm run build` | PASSED (2026-07-18 pre-commit) | Vite OK |
 | `npm run test:menu-permissions` | PASSED (2026-07-18 pre-commit) | clean |
 | `npm run test:dashboard-drilldown` | PASSED (2026-07-18 pre-commit) | clean |
-| GitHub Actions Deploy to GitHub Pages | Pending until push | |
+| GitHub Actions Deploy to GitHub Pages | PASSED | [run 29638972620](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29638972620) success |
 | Browser smoke (Access Matrix / role nav) | NOT_RUN | `BROWSER_TESTING.md` |
 | Supabase migration apply on target | NOT_VERIFIED from GitHub | Owner must apply `20260716140000_menu_permission_overrides` |
 
@@ -93,16 +94,16 @@ Menu-level View/Create/Edit/Export permission matrix with Access Matrix admin UI
 | Type | Reference | Notes |
 |---|---|---|
 | Prior prod commit | `9e87130` | v88 deploy handoff |
-| This release commit | _(fill after commit)_ | |
+| This release commit | `82bc127` | Tag `v0.89.0` |
 | PRs | Open `#1`–`#3` not included unless merged | Not part of this baseline |
 | Issues / CR | MISSING | |
 
 ## Deployment status
 
-1. Commit `v89` / `0.89.0` to `main`
-2. Push → Actions `Deploy to GitHub Pages`
-3. Confirm success; tag `v0.89.0`; publish GitHub Release from `agent-workflow/releases/v0.89.0-RELEASE_NOTES.md`
-4. Confirm About drawer: `v0.89.0 (<deploy_sha>)`
+1. Commit `82bc127` (`v89` / `0.89.0`) pushed to `main` — done
+2. Actions `Deploy to GitHub Pages` run 29638972620 — **success**
+3. Tag/Release `v0.89.0` published at `82bc127` — done
+4. About drawer expected identity: `v0.89.0 (82bc127)`
 
 ## Rollback procedure
 
