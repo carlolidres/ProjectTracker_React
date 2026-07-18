@@ -2,6 +2,9 @@
   --sidebar-width: 280px;
   --sidebar-collapsed-width: 72px;
   --topbar-height: 72px;
+  /* Sticky bars sit under the topbar; when shell collapses (topbar hidden) use viewport top + pad. */
+  --app-sticky-top: var(--topbar-height);
+  --app-sticky-top-pad: 0px;
   --shell-motion-duration: 0.38s;
   --shell-motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --shell-fab-size: 28px;
@@ -113,11 +116,31 @@ html, body, #root {
   }
 }
 
-.sidebar-expand-fab.desktop-only {
+.sidebar-hover-chrome.desktop-only {
   position: fixed;
   top: var(--shell-fab-inset);
   left: var(--shell-fab-inset);
   z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  /* Bridge gap so moving from FAB into the rail keeps :hover */
+  padding-right: 10px;
+  padding-bottom: 10px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.sidebar-hover-chrome--hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sidebar-expand-fab {
+  display: inline-flex;
   width: var(--shell-fab-size);
   height: var(--shell-fab-size);
   align-items: center;
@@ -145,6 +168,88 @@ html, body, #root {
     filter 0.2s ease,
     box-shadow var(--shell-motion-duration) var(--shell-motion-ease),
     visibility 0s linear 0s;
+}
+
+.sidebar-collapsed-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: auto;
+  max-height: calc(100vh - 56px);
+  padding: 0;
+  overflow-x: visible;
+  overflow-y: auto;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-6px);
+  transition:
+    opacity 0.16s var(--shell-motion-ease),
+    transform 0.18s var(--shell-motion-ease),
+    visibility 0s linear 0.16s;
+}
+
+.sidebar-hover-chrome:hover .sidebar-collapsed-rail,
+.sidebar-hover-chrome:focus-within .sidebar-collapsed-rail {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0);
+  transition:
+    opacity 0.16s var(--shell-motion-ease),
+    transform 0.18s var(--shell-motion-ease),
+    visibility 0s linear 0s;
+}
+
+.sidebar-collapsed-rail-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  box-shadow:
+    0 2px 6px rgba(15, 23, 42, 0.1),
+    0 6px 14px rgba(15, 23, 42, 0.08);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.sidebar-collapsed-rail-item:hover {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow:
+    0 3px 8px rgba(15, 23, 42, 0.12),
+    0 8px 18px color-mix(in srgb, var(--primary) 22%, transparent);
+  transform: translateY(-1px);
+}
+
+.sidebar-collapsed-rail-item-active {
+  background: var(--surface);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent),
+    0 3px 8px rgba(15, 23, 42, 0.1),
+    0 8px 16px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.sidebar-collapsed-rail-icon {
+  font-size: 16px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.12));
 }
 
 .sidebar-expand-fab-icon {
@@ -177,8 +282,14 @@ html, body, #root {
     visibility 0s linear 0.16s;
 }
 
-/* Hard guarantee: never show the expand FAB while chrome is open. */
-.app-root:not(.sidebar-collapsed) .sidebar-expand-fab.desktop-only {
+/* Hard guarantee: never show hover chrome while sidebar is open. */
+.app-root:not(.sidebar-collapsed) .sidebar-hover-chrome.desktop-only {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.app-root:not(.sidebar-collapsed) .sidebar-expand-fab {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
@@ -191,6 +302,12 @@ html, body, #root {
 }
 
 /* Collapse: delay FAB fade-in slightly so it appears as chrome settles. */
+.app-root.sidebar-collapsed .sidebar-hover-chrome:not(.sidebar-hover-chrome--hidden) {
+  transition:
+    opacity 0.22s var(--shell-motion-ease) 0.12s,
+    visibility 0s linear 0.12s;
+}
+
 .app-root.sidebar-collapsed .sidebar-expand-fab:not(.sidebar-expand-fab--hidden) {
   transition:
     opacity 0.22s var(--shell-motion-ease) 0.12s,
@@ -622,6 +739,11 @@ html, body, #root {
 
 /* Desktop: hide topbar with sidebar; restore via glowing expand FAB. */
 @media (min-width: 961px) {
+  .app-root.sidebar-collapsed {
+    --app-sticky-top: 0px;
+    --app-sticky-top-pad: 12px;
+  }
+
   .app-root.sidebar-collapsed .topbar.topbar-hidden-when-sidebar-collapsed {
     height: 0;
     min-height: 0;

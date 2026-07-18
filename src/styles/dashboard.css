@@ -49,6 +49,14 @@
   color: var(--muted);
 }
 
+.dashboard-action-strip {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, var(--primary));
+  min-width: 0;
+}
+
 .dashboard-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);

@@ -1,78 +1,31 @@
 import {
-  ApartmentOutlined,
-  AuditOutlined,
-  BookOutlined,
   CloseOutlined,
-  DashboardOutlined,
-  DatabaseOutlined,
-  FileProtectOutlined,
-  FileTextOutlined,
-  InboxOutlined,
   LogoutOutlined,
   MoonOutlined,
-  SettingOutlined,
   SunOutlined,
-  ToolOutlined,
-  TeamOutlined,
   UserOutlined,
-  ReadOutlined,
-  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import { Avatar, Button, Drawer, Dropdown, Tooltip, Typography } from "antd";
 import type { MenuProps } from "antd";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProfileSettingsModal } from "@/components/layout/profile-settings-modal";
 import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
+import { getVisibleSidebarNavItems } from "@/components/layout/sidebar-nav";
 import { useAuth } from "@/app/auth-provider";
 import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { useAppTheme } from "@/app/theme-provider";
 import type { SidebarState } from "@/hooks/use-sidebar-state";
 import { signOut } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
-import type { MenuPermissionOverride } from "@/lib/menuPermissions";
 import { getProfileDisplayName, getProfileInitials } from "@/lib/profileName";
-import { canAccessRoute } from "@/lib/roleAccess";
 import { cn } from "@/lib/utils";
-import type { NavItem, UserRole } from "@/types";
-
-const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: DashboardOutlined },
-  { label: "Projects", href: "/projects", icon: FileTextOutlined },
-  { label: "Projects Database", href: "/projects/database", icon: DatabaseOutlined },
-  { label: "Support Activities", href: "/support-activities", icon: ToolOutlined },
-  { label: "CNF Tracker", href: "/cnf-tracker", icon: BookOutlined },
-  { label: "Endorsement Tracker", href: "/endorsement-tracker", icon: FileProtectOutlined },
-  { label: "Lessons Learned", href: "/lessons-learned", icon: ReadOutlined },
-  { label: "Audit Trail", href: "/audit-trail", icon: AuditOutlined },
-];
-
-const adminNavItems: NavItem[] = [
-  { label: "Archived", href: "/archived", icon: InboxOutlined },
-  { label: "Registry", href: "/registry", icon: SettingOutlined },
-  { label: "User Management", href: "/admin/users", icon: TeamOutlined },
-  { label: "Access Matrix", href: "/admin/access", icon: SafetyCertificateOutlined },
-  { label: "Data Map", href: "/admin/data-map", icon: ApartmentOutlined },
-];
-
-const allNavItems: NavItem[] = [...navItems, ...adminNavItems];
 
 interface SidebarProps {
   state: SidebarState;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
   onExpandSidebar?: () => void;
-}
-
-function filterNavItems(
-  items: NavItem[],
-  role: UserRole | undefined,
-  overrides: MenuPermissionOverride[],
-) {
-  return items.filter((item) => {
-    if (item.roles && (!role || !item.roles.includes(role))) return false;
-    return canAccessRoute(role, item.href, overrides);
-  });
 }
 
 export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }: SidebarProps) {
@@ -116,7 +69,10 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
     },
   ];
 
-  const visibleNavItems = filterNavItems(allNavItems, profile?.role, overrides);
+  const visibleNavItems = useMemo(
+    () => getVisibleSidebarNavItems(profile?.role, overrides),
+    [profile?.role, overrides],
+  );
 
   const content = (
     <div className="sidebar-inner">

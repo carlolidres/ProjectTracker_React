@@ -29,6 +29,7 @@ import {
   supportFilterBannerLabels,
   supportFiltersFromSearchParams,
 } from "@/lib/urlDerivedFilters";
+import { readReturnToPath } from "@/lib/dashboardReturnTo";
 import { canArchiveRecords, canRemoveReusableOptions, isViewerRole } from "@/lib/roleAccess";
 import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
 import { sanitizeAlphanumericInput, valueOrNA } from "@/lib/utils";
@@ -145,6 +146,7 @@ export function SupportActivitiesPage() {
   useDiagLifecycle("SupportActivitiesPage");
   const [searchParams, setSearchParams] = useSearchParams();
   const activityIdParam = searchParams.get("activityId");
+  const returnToPath = readReturnToPath(searchParams);
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { registry } = useRegistry();
@@ -449,6 +451,7 @@ export function SupportActivitiesPage() {
 
       <DashboardFilterBanner
         labels={supportFilterBannerLabels(filters)}
+        onBackToDashboard={returnToPath ? () => navigate(returnToPath) : undefined}
         onClear={() => {
           setSearchParams(clearSupportUrlFilterParams(searchParams), { replace: true });
           setFilters((current) => {

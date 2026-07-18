@@ -23,7 +23,9 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Module | Path | Responsibility |
 |---|---|---|
 | Auth | `src/features/auth/LoginPage.tsx` | Login flow and public entry route. |
-| Dashboard | `src/features/dashboard/DashboardPage.tsx` | KPI, worklist, meeting view, and dashboard rendering. |
+| Dashboard | `src/features/dashboard/DashboardPage.tsx` | KPI, worklist, meeting view, and dashboard rendering. Phase A workspace: action strip + project quick drawer when `VITE_FEATURE_DASHBOARD_WORKSPACE` is on (default). |
+| Dashboard action strip | `src/features/dashboard/components/DashboardActionStrip.tsx` | Role/menu-gated “Do next” actions. |
+| Project quick drawer | `src/features/dashboard/components/ProjectQuickDrawer.tsx` | Summary + Final Status edit from worklist/notifications. |
 | Dashboard components | `src/features/dashboard/components/` | Charts and meeting overlay pieces. |
 | Project Entry | `src/features/projects/ProjectEntryPage.tsx` | Main project form page. |
 | Project form components | `src/features/projects/components/` | Hierarchy form, role tabs, field controls, CNF copy modal. |
@@ -100,7 +102,10 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/types/` | Shared TypeScript types and Supabase database type definitions. |
 | `src/lib/constants.ts` | Shared constants and option sets. |
 | `src/lib/menuPermissions.ts` | Menu View/Create/Edit/Export defaults, resolve, path mapping, feature flag. |
-| `src/lib/dashboardDrilldown.ts` | Dashboard → list/DB route builders. |
+| `src/lib/dashboardDrilldown.ts` | Dashboard → list/DB route builders (appends `return_to` when workspace flag on). |
+| `src/lib/dashboardReturnTo.ts` | `return_to` param helpers for Back to Dashboard. |
+| `src/lib/featureFlags.ts` | `isDashboardWorkspaceEnabled()` kill-switch. |
+| Rollback | `agent-workflow/DASHBOARD_WORKSPACE_ROLLBACK.md` | Set `VITE_FEATURE_DASHBOARD_WORKSPACE=false` and redeploy. |
 | `src/lib/urlDerivedFilters.ts` | URL search-param merge for projects/support/audit/CNF list filters. |
 | `src/components/common/dashboard-filter-banner.tsx` | Active dashboard drill filter chips + clear. |
 | `src/lib/roleAccess.ts` | Route access (matrix-aware) and field-group `can*` helpers. |

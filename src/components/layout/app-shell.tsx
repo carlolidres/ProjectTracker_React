@@ -1,6 +1,7 @@
 import { MenuUnfoldOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 import { useEffect, useState } from "react";
+import { CollapsedNavRail } from "@/components/layout/collapsed-nav-rail";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { useSidebarState } from "@/hooks/use-sidebar-state";
@@ -8,6 +9,10 @@ import { cn } from "@/lib/utils";
 
 interface AppShellProps {
   children: React.ReactNode;
+}
+
+function hoverChromeContainer(trigger: HTMLElement): HTMLElement {
+  return (trigger.closest(".sidebar-hover-chrome") as HTMLElement | null) ?? document.body;
 }
 
 export function AppShell({ children }: Readonly<AppShellProps>) {
@@ -49,21 +54,34 @@ export function AppShell({ children }: Readonly<AppShellProps>) {
         <main className="app-content">{children}</main>
       </div>
       {showExpandFab ? (
-        <Tooltip title="Expand sidebar and header" placement="right" open={fabExiting ? false : undefined}>
-          <button
-            type="button"
-            className={cn(
-              "sidebar-expand-fab desktop-only",
-              (!isCollapsed || fabExiting) && "sidebar-expand-fab--hidden",
-            )}
-            aria-label="Expand sidebar and header"
-            aria-hidden={!isCollapsed || fabExiting}
-            tabIndex={isCollapsed && !fabExiting ? 0 : -1}
-            onClick={sidebar.expand}
+        <div
+          className={cn(
+            "sidebar-hover-chrome desktop-only",
+            (!isCollapsed || fabExiting) && "sidebar-hover-chrome--hidden",
+          )}
+        >
+          <Tooltip
+            title="Expand sidebar and header"
+            placement="right"
+            open={fabExiting ? false : undefined}
+            getPopupContainer={hoverChromeContainer}
           >
-            <MenuUnfoldOutlined className="sidebar-expand-fab-icon" aria-hidden />
-          </button>
-        </Tooltip>
+            <button
+              type="button"
+              className={cn(
+                "sidebar-expand-fab",
+                (!isCollapsed || fabExiting) && "sidebar-expand-fab--hidden",
+              )}
+              aria-label="Expand sidebar and header"
+              aria-hidden={!isCollapsed || fabExiting}
+              tabIndex={isCollapsed && !fabExiting ? 0 : -1}
+              onClick={sidebar.expand}
+            >
+              <MenuUnfoldOutlined className="sidebar-expand-fab-icon" aria-hidden />
+            </button>
+          </Tooltip>
+          <CollapsedNavRail />
+        </div>
       ) : null}
     </div>
   );

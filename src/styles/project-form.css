@@ -3,11 +3,21 @@
 }
 
 .project-panel {
-  --project-sticky-header-height: 88px;
+  /* Full sticky stack height (header + role tabs); synced via ResizeObserver */
+  --project-sticky-header-height: 140px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
   overflow: visible;
+}
+
+.project-sticky-stack {
+  position: sticky;
+  top: var(--app-sticky-top, var(--topbar-height));
+  z-index: 13;
+  background: var(--surface);
+  padding-top: var(--app-sticky-top-pad, 0px);
+  border-radius: 12px 12px 0 0;
 }
 
 .project-sticky-header {
@@ -18,9 +28,6 @@
   padding: 8px 16px;
   border-bottom: none;
   background: var(--surface);
-  position: sticky;
-  top: var(--topbar-height);
-  z-index: 13;
 }
 
 .project-sticky-header-text {
@@ -97,7 +104,9 @@
 
 .project-header-section {
   margin-bottom: 12px;
-  scroll-margin-top: calc(var(--topbar-height) + var(--project-sticky-header-height) + 12px);
+  scroll-margin-top: calc(
+    var(--app-sticky-top, var(--topbar-height)) + var(--project-sticky-header-height) + 12px
+  );
 }
 
 .project-form-grid {
@@ -279,17 +288,17 @@
 .project-tabs {
   display: flex;
   gap: 6px;
-  margin: 0 -16px 12px;
+  margin: 0;
   padding: 8px 16px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   overflow-x: auto;
-  position: sticky;
-  /* -1px overlaps header bottom so no background shows through between stuck bars */
-  top: calc(var(--topbar-height) + var(--project-sticky-header-height) - 1px);
-  z-index: 12;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.project-sticky-stack .project-tabs {
+  border-radius: 0;
 }
 
 .project-tab {
@@ -739,19 +748,8 @@
   }
 }
 
-html.meeting-view-nav-active .project-sticky-header {
+html.meeting-view-nav-active .project-sticky-stack {
   top: calc(var(--meeting-view-bar-height) + var(--meeting-view-bar-gap));
-  border-bottom: none;
-}
-
-html.meeting-view-nav-active .project-tabs {
-  top: calc(
-    var(--meeting-view-bar-height) + var(--meeting-view-bar-gap) + var(--project-sticky-header-height) - 1px
-  );
-  margin-top: 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  z-index: 12;
 }
 
 html.meeting-view-nav-active .project-header-section {

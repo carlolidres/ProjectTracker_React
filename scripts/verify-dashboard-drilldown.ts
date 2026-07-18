@@ -13,19 +13,19 @@ import {
   supportFiltersFromSearchParams,
 } from "../src/lib/urlDerivedFilters";
 
-assert.equal(projectsDatabaseRoute(), "/projects/database");
+assert.equal(projectsDatabaseRoute(), "/projects/database?return_to=%2Fdashboard");
 assert.equal(
   projectsDatabaseRoute({ final_status: "OPEN", due_window: "overdue" }),
-  "/projects/database?final_status=OPEN&due_window=overdue",
+  "/projects/database?final_status=OPEN&due_window=overdue&return_to=%2Fdashboard",
 );
 assert.equal(
   projectsDatabaseRoute({ delivery_status: "late", sort: "fg_month", order: "asc" }),
-  "/projects/database?delivery_status=late&sort=fg_month&order=asc",
+  "/projects/database?delivery_status=late&sort=fg_month&order=asc&return_to=%2Fdashboard",
 );
-assert.equal(pendingCnfDatabaseRoute(), "/projects/database?drill=pending_cnf");
+assert.equal(pendingCnfDatabaseRoute(), "/projects/database?drill=pending_cnf&return_to=%2Fdashboard");
 assert.equal(
   supportActivitiesRoute({ due_window: "within7", activity_kind: "TSD" }),
-  "/support-activities?due_window=within7&activity_kind=TSD",
+  "/support-activities?due_window=within7&activity_kind=TSD&return_to=%2Fdashboard",
 );
 
 const projectFilters = projectFiltersFromSearchParams(

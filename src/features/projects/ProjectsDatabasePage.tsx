@@ -13,13 +13,14 @@ import {
 } from "@ant-design/icons";
 import { Alert, Button, Card, Col, Input, Row, Select, Space, Tooltip, Typography, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { useDateAdjustment } from "@/app/date-adjustment-provider";
 import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { useRegistry } from "@/app/registry-provider";
 import { DashboardFilterBanner } from "@/components/common/dashboard-filter-banner";
 import { AppShell } from "@/components/layout/app-shell";
+import { readReturnToPath } from "@/lib/dashboardReturnTo";
 import {
   ProjectsDatabaseGrid,
   loadStoredRowHeight,
@@ -104,7 +105,9 @@ function mergeEdits(existing: SpreadsheetCellEdit[], next: SpreadsheetCellEdit):
 }
 
 export function ProjectsDatabasePage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const returnToPath = readReturnToPath(searchParams);
   const { registry } = useRegistry();
   const { user, profile } = useAuth();
   const { can: canMenuAction } = useMenuPermissions();
@@ -378,6 +381,7 @@ export function ProjectsDatabasePage() {
 
         <DashboardFilterBanner
           labels={projectFilterBannerLabels(filters)}
+          onBackToDashboard={returnToPath ? () => navigate(returnToPath) : undefined}
           onClear={() => {
             setSearchParams(clearProjectUrlFilterParams(searchParams), { replace: true });
             setFilters((current) => {

@@ -10,6 +10,8 @@ interface ImportMetaEnv {
   readonly VITE_APP_GIT_SHA?: string;
   /** Menu permission matrix kill-switch. Default on; set "false" to use legacy ROUTE_ACCESS only. */
   readonly VITE_FEATURE_MENU_MATRIX?: string;
+  /** Dashboard workspace UX kill-switch. Default on; set "false" to restore read-only hub navigation. */
+  readonly VITE_FEATURE_DASHBOARD_WORKSPACE?: string;
 }
 
 declare const __APP_VERSION__: string;

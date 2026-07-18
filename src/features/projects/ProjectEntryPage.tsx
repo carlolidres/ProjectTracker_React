@@ -324,7 +324,7 @@ export function ProjectEntryPage() {
   const [createCnfDuplicateHint, setCreateCnfDuplicateHint] = useState<string | null>(null);
   const [pendingTrackerRecordId, setPendingTrackerRecordId] = useState<string | null>(null);
   const [siblingProjectIds, setSiblingProjectIds] = useState<string[]>([]);
-  const stickyHeaderRef = useRef<HTMLDivElement>(null);
+  const stickyStackRef = useRef<HTMLDivElement>(null);
   const skipNextLoadRef = useRef(false);
 
   const meetingViewReadOnly = useMeetingViewReadOnly();
@@ -713,25 +713,25 @@ export function ProjectEntryPage() {
   useLayoutEffect(() => {
     if (loading) return;
 
-    const node = stickyHeaderRef.current;
+    const node = stickyStackRef.current;
     if (!node) return;
 
     const panel = node.closest(".project-panel") as HTMLElement | null;
-    const syncStickyHeaderHeight = () => {
+    const syncStickyStackHeight = () => {
       if (!panel) return;
       const height = node.getBoundingClientRect().height;
       panel.style.setProperty("--project-sticky-header-height", `${height}px`);
     };
 
-    syncStickyHeaderHeight();
-    const observer = new ResizeObserver(syncStickyHeaderHeight);
+    syncStickyStackHeight();
+    const observer = new ResizeObserver(syncStickyStackHeight);
     observer.observe(node);
-    window.addEventListener("resize", syncStickyHeaderHeight);
+    window.addEventListener("resize", syncStickyStackHeight);
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", syncStickyHeaderHeight);
+      window.removeEventListener("resize", syncStickyStackHeight);
     };
-  }, [loading, project.product_name, project.client_name, project.project_id, meetingViewReadOnly]);
+  }, [loading, project.product_name, project.client_name, project.project_id, meetingViewReadOnly, activeTab]);
 
   function updateProjectHead(field: keyof ProjectHierarchy, value: string) {
     setProject((current) => ({ ...current, [field]: value }));
@@ -1103,57 +1103,60 @@ export function ProjectEntryPage() {
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
 
       <div className="project-panel">
-        <div className="project-sticky-header" ref={stickyHeaderRef}>
-          <div className="project-sticky-header-text">
-            <span className="project-header-label">
-              {projectIdLabel}
-            </span>
-            <h2>{productTitle}</h2>
-            <p className={isMissingValue(project.client_name) ? "project-header-client-na" : undefined}>
-              {clientSubtitle}
-            </p>
-          </div>
-          <div className="project-sticky-header-actions">
-            <ProjectStickyActionButton
-              title="Expand All"
-              icon={<ExpandAltOutlined />}
-              onClick={() => setOpenKeys(allCollapseKeys)}
-            />
-            <ProjectStickyActionButton
-              title="Collapse All"
-              icon={<CompressOutlined />}
-              onClick={() => setOpenKeys([])}
-            />
-            <ProjectStickyActionButton
-              title="New Project"
-              icon={<PlusOutlined />}
-              disabled={viewOnly}
-              onClick={() => void prepareNewProject()}
-            />
-            {project.project_id !== "N/A" && canArchive ? (
+        <div className="project-sticky-stack" ref={stickyStackRef}>
+          <div className="project-sticky-header">
+            <div className="project-sticky-header-text">
+              <span className="project-header-label">
+                {projectIdLabel}
+              </span>
+              <h2>{productTitle}</h2>
+              <p className={isMissingValue(project.client_name) ? "project-header-client-na" : undefined}>
+                {clientSubtitle}
+              </p>
+            </div>
+            <div className="project-sticky-header-actions">
               <ProjectStickyActionButton
-                title="Archive Project"
-                icon={<DeleteOutlined />}
-                danger
-                disabled={viewOnly}
-                onClick={() => void handleArchive()}
+                title="Expand All"
+                icon={<ExpandAltOutlined />}
+                onClick={() => setOpenKeys(allCollapseKeys)}
               />
-            ) : null}
-            <ProjectStickyActionButton
-              title="Clear"
-              icon={<ClearOutlined />}
-              disabled={viewOnly}
-              onClick={handleClear}
-            />
-            <ProjectStickyActionButton
-              title={saving ? "Saving project" : "Save Project"}
-              type="primary"
-              icon={<SaveOutlined />}
-              loading={saving}
-              disabled={viewOnly || saving}
-              onClick={() => void handleSave()}
-            />
+              <ProjectStickyActionButton
+                title="Collapse All"
+                icon={<CompressOutlined />}
+                onClick={() => setOpenKeys([])}
+              />
+              <ProjectStickyActionButton
+                title="New Project"
+                icon={<PlusOutlined />}
+                disabled={viewOnly}
+                onClick={() => void prepareNewProject()}
+              />
+              {project.project_id !== "N/A" && canArchive ? (
+                <ProjectStickyActionButton
+                  title="Archive Project"
+                  icon={<DeleteOutlined />}
+                  danger
+                  disabled={viewOnly}
+                  onClick={() => void handleArchive()}
+                />
+              ) : null}
+              <ProjectStickyActionButton
+                title="Clear"
+                icon={<ClearOutlined />}
+                disabled={viewOnly}
+                onClick={handleClear}
+              />
+              <ProjectStickyActionButton
+                title={saving ? "Saving project" : "Save Project"}
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={saving}
+                disabled={viewOnly || saving}
+                onClick={() => void handleSave()}
+              />
+            </div>
           </div>
+          <ProjectRoleTabs activeTab={activeTab} onChange={setActiveTab} />
         </div>
 
         <div className="project-form-body">
@@ -1196,8 +1199,6 @@ export function ProjectEntryPage() {
               })}
             </div>
           </div>
-
-          <ProjectRoleTabs activeTab={activeTab} onChange={setActiveTab} />
 
           <ProjectHierarchyForm
             project={project}

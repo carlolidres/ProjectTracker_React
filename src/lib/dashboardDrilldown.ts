@@ -1,3 +1,5 @@
+import { appendReturnToDashboard } from "@/lib/dashboardReturnTo";
+
 export type ProjectDrillFilter = "pending_cnf" | "pending_protocol" | "pending_report";
 
 export function projectsDatabaseRoute(params?: Record<string, string | undefined>) {
@@ -8,7 +10,8 @@ export function projectsDatabaseRoute(params?: Record<string, string | undefined
     }
   }
   const query = search.toString();
-  return query ? `/projects/database?${query}` : "/projects/database";
+  const path = query ? `/projects/database?${query}` : "/projects/database";
+  return appendReturnToDashboard(path);
 }
 
 export function supportActivitiesRoute(params?: Record<string, string | undefined>) {
@@ -19,7 +22,8 @@ export function supportActivitiesRoute(params?: Record<string, string | undefine
     }
   }
   const query = search.toString();
-  return query ? `/support-activities?${query}` : "/support-activities";
+  const path = query ? `/support-activities?${query}` : "/support-activities";
+  return appendReturnToDashboard(path);
 }
 
 export function pendingCnfDatabaseRoute() {

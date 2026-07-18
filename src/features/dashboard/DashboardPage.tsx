@@ -24,6 +24,8 @@ import {
   MonthlyTrendChart,
   SegmentedChart,
 } from "@/features/dashboard/components/dashboard-charts";
+import { DashboardActionStrip } from "@/features/dashboard/components/DashboardActionStrip";
+import { ProjectQuickDrawer } from "@/features/dashboard/components/ProjectQuickDrawer";
 import { getSandboxDashboardData, getSandboxNotifications } from "@/lib/dashboardSandbox";
 import {
   pendingCnfDatabaseRoute,
@@ -33,6 +35,8 @@ import {
   supportActivitiesRoute,
 } from "@/lib/dashboardDrilldown";
 import { formatAppDateTime, formatAppMonth } from "@/lib/date";
+import { appendReturnToDashboard } from "@/lib/dashboardReturnTo";
+import { isDashboardWorkspaceEnabled } from "@/lib/featureFlags";
 import { getDashboardData } from "@/services/dashboardService";
 import { listNotifications, refreshAllNotifications } from "@/services/notificationService";
 import type { DashboardData, Notification } from "@/types";
@@ -78,6 +82,9 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sandboxMode, setSandboxMode] = useState(false);
+  const workspaceEnabled = isDashboardWorkspaceEnabled();
+  const [quickProjectId, setQuickProjectId] = useState<string | null>(null);
+  const worklistCardRef = useRef<HTMLDivElement>(null);
   const [pairedMetricsHeight, setPairedMetricsHeight] = useState<number | null>(null);
   const [fgMonthTasksHeight, setFgMonthTasksHeight] = useState<number | null>(null);
   const [notificationsPanelHeight, setNotificationsPanelHeight] = useState<number | null>(null);
@@ -234,6 +241,15 @@ export function DashboardPage() {
       message.info("Sandbox records are demonstration data and cannot be opened.");
       return;
     }
+    if (workspaceEnabled) {
+      setQuickProjectId(projectId);
+      return;
+    }
+    navigate(`/projects?projectId=${encodeURIComponent(projectId)}`);
+  };
+
+  const openProjectFull = (projectId: string) => {
+    setQuickProjectId(null);
     navigate(`/projects?projectId=${encodeURIComponent(projectId)}`);
   };
 
@@ -243,6 +259,10 @@ export function DashboardPage() {
       return;
     }
     navigate(dbRoute(params));
+  };
+
+  const scrollToWorklist = () => {
+    worklistCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -295,6 +315,17 @@ export function DashboardPage() {
       ) : null}
 
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
+
+      {workspaceEnabled && data ? (
+        <DashboardActionStrip
+          sandboxMode={sandboxMode}
+          onNewProject={() => navigate("/projects")}
+          onBrowseOverdue={() => drillToDatabase({ final_status: "OPEN", due_window: "overdue" })}
+          onNewSupport={() => navigate(supportActivitiesRoute())}
+          onNewCnf={() => navigate(appendReturnToDashboard("/cnf-tracker?new=1"))}
+          onOpenWorklist={scrollToWorklist}
+        />
+      ) : null}
 
       {loading && !data ? (
         <div className="page-loading"><Spin size="large" /></div>
@@ -563,37 +594,43 @@ export function DashboardPage() {
             </aside>
           </div>
 
-          <Card title="Priority Worklist" className="dashboard-section" style={{ marginTop: 16 }}>
-            <Table
-              className="dashboard-recent-table"
-              rowKey="recordId"
-              dataSource={data.worklist}
-              pagination={{ pageSize: 10, showSizeChanger: true }}
-              locale={{ emptyText: <Empty description="No open worklist items" /> }}
-              onRow={(record) => ({
-                onClick: () => openProject(record.project_id),
-                style: { cursor: "pointer" },
-              })}
-              columns={[
-                {
-                  title: "Project",
-                  dataIndex: "project_id",
-                  render: (projectId: string) => <ProjectIdLink projectId={projectId} />,
-                },
-                { title: "Client", dataIndex: "client_name" },
-                { title: "Product", dataIndex: "product_name" },
-                { title: "PO", dataIndex: "po_control_no" },
-                { title: "FG Month", dataIndex: "fg_month", render: (v) => formatAppMonth(v) },
-                {
-                  title: "Severity",
-                  dataIndex: "severity",
-                  render: (value: string) => <Tag color={severityColor[value] ?? "default"}>{value}</Tag>,
-                },
-                { title: "Focus Group", dataIndex: "focusGroup" },
-                { title: "Next Action", dataIndex: "nextAction" },
-              ]}
-            />
-          </Card>
+          <div ref={worklistCardRef}>
+            <Card title="Priority Worklist" className="dashboard-section" style={{ marginTop: 16 }}>
+              <Table
+                className="dashboard-recent-table"
+                rowKey="recordId"
+                dataSource={data.worklist}
+                pagination={{ pageSize: 10, showSizeChanger: true }}
+                locale={{ emptyText: <Empty description="No open worklist items" /> }}
+                onRow={(record) => ({
+                  onClick: () => openProject(record.project_id),
+                  style: { cursor: "pointer" },
+                })}
+                columns={[
+                  {
+                    title: "Project",
+                    dataIndex: "project_id",
+                    render: (projectId: string) => (
+                      <span onClick={(event) => event.stopPropagation()}>
+                        <ProjectIdLink projectId={projectId} />
+                      </span>
+                    ),
+                  },
+                  { title: "Client", dataIndex: "client_name" },
+                  { title: "Product", dataIndex: "product_name" },
+                  { title: "PO", dataIndex: "po_control_no" },
+                  { title: "FG Month", dataIndex: "fg_month", render: (v) => formatAppMonth(v) },
+                  {
+                    title: "Severity",
+                    dataIndex: "severity",
+                    render: (value: string) => <Tag color={severityColor[value] ?? "default"}>{value}</Tag>,
+                  },
+                  { title: "Focus Group", dataIndex: "focusGroup" },
+                  { title: "Next Action", dataIndex: "nextAction" },
+                ]}
+              />
+            </Card>
+          </div>
 
           <Card title="Recent Updates" className="dashboard-section" style={{ marginTop: 16 }}>
             <Table
@@ -639,6 +676,16 @@ export function DashboardPage() {
           <Button onClick={() => void refreshDashboard()}>Reload dashboard</Button>
         </Empty>
       )}
+
+      {workspaceEnabled ? (
+        <ProjectQuickDrawer
+          open={Boolean(quickProjectId)}
+          projectId={quickProjectId}
+          onClose={() => setQuickProjectId(null)}
+          onOpenFull={openProjectFull}
+          onSaved={() => void refreshDashboard()}
+        />
+      ) : null}
     </AppShell>
   );
 }

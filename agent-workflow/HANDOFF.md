@@ -1,21 +1,22 @@
 # Current Handoff
 
 Last Updated: `2026-07-18`
-Version: `v89 Menu permission matrix + dashboard hub + shell/CNF UX`
+Version: `v90 Dashboard workspace Phase A + collapsed shell hover rail`
 Branch: `main`
-Commit: `82bc127`
-App version: `0.89.0`
+Commit: _(pending release commit)_
+App version: `0.90.0`
 
 ## Current Status
 
-**Deployed** to GitHub Pages. Actions run [29638972620](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29638972620) success. Release: https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.89.0. About drawer should show `v0.89.0 (82bc127)`. Apply Supabase migration before relying on overrides persistence. Owner browser-smoke still outstanding.
+Preparing **v0.90.0** release: dashboard workspace Phase A (flagged), collapsed shell persistence + hover icon rail, project sticky stack. Prior production: `0.89.0` @ `82bc127`.
 
 ## Recently Completed
 
-- Menu matrix + Access Matrix + migration `20260716140000_menu_permission_overrides`
-- Dashboard filter banners + FG delivery/monthly trend drills
-- CNF create from Projects with `returnProjectId`; modal/shell UX polish
-- Release checklist, AVD (`agent-history/version-89-handoff.md`), GitHub Release `v0.89.0`
+- Dashboard workspace R1–R3 behind `VITE_FEATURE_DASHBOARD_WORKSPACE` (default ON)
+- Rollback doc `DASHBOARD_WORKSPACE_ROLLBACK.md`
+- Collapsed chrome persists across AppShell remounts
+- Hover FAB → compact nav rail; click FAB → full expand
+- Project sticky header + role tabs single stack (no overlap)
 
 ## Verification
 
@@ -23,15 +24,13 @@ App version: `0.89.0`
 |---|---|---|
 | `npm run typecheck` | PASSED | clean |
 | `npm run build` | PASSED | Vite OK |
-| `npm run test:menu-permissions` | PASSED | clean |
 | `npm run test:dashboard-drilldown` | PASSED | clean |
-| Browser smoke | NOT_RUN | BROWSER_TESTING access matrix |
-| GitHub Pages deploy | PASSED | run 29638972620 |
-| Migration on target Supabase | NOT_VERIFIED | owner apply |
+| Browser smoke | NOT_RUN | |
+| GitHub Pages | PENDING | after push |
 
 ## Next Action
 
-Apply `20260716140000_menu_permission_overrides` on target Supabase; owner browser-smoke Access Matrix / role nav. Rollback: `0.88.0` @ `9e87130`.
+Commit + push `0.90.0`; confirm Actions; publish GitHub Release `v0.90.0`.
 
 ## Dumb-Zone Recovery
 
