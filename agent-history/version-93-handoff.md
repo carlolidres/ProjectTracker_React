@@ -11,10 +11,10 @@ Document type: Configuration / release record
 | Prior production | `0.92.0` @ `9d95501` |
 | Change class | **Minor** |
 | Deployment environment | GitHub Pages (`github-pages`) via `.github/workflows/deploy.yml` |
-| Deployment status | **Pending** — fill after Actions success |
-| Deploy SHA | _(pending)_ |
-| Actions run | _(pending)_ |
-| GitHub Release | _(pending)_ |
+| Deployment status | **Deployed** — Actions success |
+| Deploy SHA | `e102a0d` |
+| Actions run | https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684541973 |
+| GitHub Release | https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.93.0 |
 | Rollback reference | Redeploy `9d95501` / `0.92.0` |
 
 ---
@@ -33,4 +33,9 @@ none
 
 ## Verification
 
-Fill from release commit: typecheck, build, Actions deploy URL.
+| Check | Status | Result |
+|---|---|---|
+| `npm run typecheck` | PASSED | clean |
+| `npm run build` | PASSED | Vite OK |
+| GitHub Pages deploy | PASSED | [29684541973](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684541973) |
+| GitHub Release | PASSED | [v0.93.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.93.0) |

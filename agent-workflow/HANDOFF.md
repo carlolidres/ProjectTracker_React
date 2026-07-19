@@ -3,18 +3,18 @@
 Last Updated: `2026-07-19`
 Version: `v0.93.0`
 Branch: `main`
-Commit: _(pending)_
+Commit: `e102a0d`
 App version: `0.93.0`
 
 ## Current Status
 
-**v0.93.0 release in progress.** Collapsed shell default + sticky Support form header. Prior production: `0.92.0` @ `9d95501`.
+**v0.93.0 deployed.** GitHub Pages Actions [29684541973](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684541973) success. Release: https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.93.0
 
 ## Recently Completed
 
-- Sidebar/topbar default `collapsed` (`use-sidebar-state.ts`)
-- Support Add/Edit Activity card head sticky (`support-activities.css`)
-- DATA_MAP shell persistence note + release baseline → `0.93.0`
+- Released `v0.93.0` @ `e102a0d`
+- Collapsed shell default + sticky Support Add/Edit Activity header
+- DATA_MAP / release notes / version-93 handoff updated
 
 ## Deferred
 
@@ -24,14 +24,14 @@ App version: `0.93.0`
 
 | Check | Status | Result |
 |---|---|---|
-| `npm run typecheck` | ☐ | |
-| `npm run build` | ☐ | |
-| GitHub Pages deploy | ☐ | |
-| GitHub Release | ☐ | |
+| `npm run typecheck` | PASSED | clean |
+| `npm run build` | PASSED | Vite OK |
+| GitHub Pages deploy | PASSED | [29684541973](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684541973) |
+| GitHub Release | PASSED | [v0.93.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.93.0) |
 
 ## Next Action
 
-Complete verify → commit → push → release → confirm Actions.
+Owner browser-smoke. Phase C R9 when ready.
 
 ## Dumb-Zone Recovery
 
