@@ -350,24 +350,30 @@ Deploy identity: GitHub Actions `.github/workflows/deploy.yml` sets `VITE_APP_GI
 | Artifact | Path |
 |---|---|
 | Release checklist | `agent-workflow/RELEASE_CHECKLIST.md` |
-| Release notes (current) | `agent-workflow/releases/v0.92.0-RELEASE_NOTES.md` |
-| Versioned AVD / handoff | `agent-history/version-92-handoff.md` |
+| Release notes (current) | `agent-workflow/releases/v0.93.0-RELEASE_NOTES.md` |
+| Versioned AVD / handoff | `agent-history/version-93-handoff.md` |
 | About version history | `src/lib/appVersionHistory.ts` |
 | Menu matrix rollback | `agent-workflow/MENU_MATRIX_ROLLBACK.md` |
 | Dashboard workspace rollback | `agent-workflow/DASHBOARD_WORKSPACE_ROLLBACK.md` |
+
+### Shell UI persistence (non-database)
+
+| Preference | Storage | Default | Notes |
+|---|---|---|---|
+| Sidebar / topbar collapse | `sessionStorage` key `pt.sidebar.state` (`expanded` \| `collapsed`) | `collapsed` | In-memory mirror survives AppShell remounts; topbar hides with sidebar on desktop; sticky page headers use `--app-sticky-top` / `--app-sticky-top-pad`. |
 
 ### Current release baseline
 
 | Field | Value |
 |---|---|
-| Version | `0.92.0` (tag `v0.92.0`) |
-| Deploy SHA | `9d95501` |
-| Deployed | 2026-07-19 — Actions [29684111124](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684111124) success |
-| Prior production | `0.91.0` @ `c264715` |
-| Change class | Minor (creatable fields, RnD role, status icons, worklist modal) |
+| Version | `0.93.0` (tag `v0.93.0`) |
+| Deploy SHA | _(pending deploy)_ |
+| Deployed | _(pending)_ |
+| Prior production | `0.92.0` @ `9d95501` |
+| Change class | Minor (collapsed shell default, sticky Support form header) |
 | Environment | GitHub Pages |
-| Migrations | `20260719120000_rnd_role_enum`, `20260719120100_rnd_role_helpers` (applied on Project Tracker Supabase) |
-| Rollback | Redeploy `c264715` / `0.91.0`; enum value `rnd` is additive (do not remove from Postgres without a planned reverse) |
+| Migrations | none |
+| Rollback | Redeploy `9d95501` / `0.92.0` |
 
 Do not treat a local About label as released until Actions succeeds and package+SHA match the GitHub Release.
 

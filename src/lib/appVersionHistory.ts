@@ -10,6 +10,15 @@ export interface AppVersionHistoryEntry {
 
 export const APP_VERSION_HISTORY: AppVersionHistoryEntry[] = [
   {
+    version: "0.93.0",
+    title: "Collapsed shell default + sticky Support form header",
+    date: "2026-07-19",
+    changes: [
+      "Sidebar and topbar start collapsed by default (session preference still honored)",
+      "Support Add/Edit Activity card header stays sticky at the top while scrolling",
+    ],
+  },
+  {
     version: "0.92.0",
     title: "Creatable fields, RnD role, status icons, worklist modal",
     date: "2026-07-19",

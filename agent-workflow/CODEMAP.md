@@ -41,7 +41,7 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | CNF Tracker | `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF tracker list, New CNF, detail modal, Unique Batch navigation. |
 | CNF select modal | `src/features/cnf-tracker/CnfTrackerSelectModal.tsx` | Insert CNF picker for Projects; New CNF opens `CnfTrackerDetailModal` via `/cnf-tracker?new=1`. |
 | Endorsement Tracker | `src/features/endorsement-tracker/EndorsementTrackerPage.tsx` | Endorsement list, detail modal, independent create, item rows, QA-only edit. |
-| Support Activities | `src/features/support-activities/SupportActivitiesPage.tsx` | Support activity form and database view. Styles: `src/styles/support-activities.css`. Icons: `src/components/common/lucide-icon.tsx`. |
+| Support Activities | `src/features/support-activities/SupportActivitiesPage.tsx` | Support activity form and database view. Styles: `src/styles/support-activities.css` (sticky Add/Edit card head). Icons: `src/components/common/lucide-icon.tsx`. |
 | Audit Trail | `src/features/audit-trail/AuditTrailPage.tsx` | Audit log browsing and filters. |
 | Lessons Learned | `src/features/lessons-learned/LessonsLearnedPage.tsx` | Lessons learned workflow. |
 | Archived | `src/features/archived/ArchivedPage.tsx` | Admin archive view. |
@@ -128,7 +128,7 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/app/registry-provider.tsx` | Registry context/provider. |
 | `src/app/date-adjustment-provider.tsx` | Date adjustment provider. |
 | `src/app/meeting-view-provider.tsx` | Meeting view state provider. |
-| `src/hooks/use-sidebar-state.ts` | Sidebar state hook. |
+| `src/hooks/use-sidebar-state.ts` | Sidebar state hook; default `collapsed`; persists via `sessionStorage` `pt.sidebar.state`. |
 
 ## Styling
 

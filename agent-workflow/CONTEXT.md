@@ -60,6 +60,6 @@ Project Tracker is a React + Supabase replacement for a working Google Apps Scri
 | Migration plan | `.cursor/plan/project_tracker_migration_36f9948d.plan.md` |
 | Supabase schema | `supabase/migrations/` |
 | Deployment | `.github/workflows/deploy.yml` |
-| Latest historical state | `agent-history/version-92-handoff.md` |
+| Latest historical state | `agent-history/version-93-handoff.md` |
 
 Keep this file limited to stable identity, stack, priorities, constraints, and source-of-truth paths.

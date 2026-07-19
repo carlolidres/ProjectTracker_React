@@ -20,7 +20,7 @@ function readStoredState(): SidebarState {
   } catch {
     /* ignore quota / private mode */
   }
-  return "expanded";
+  return "collapsed";
 }
 
 function writeStoredState(next: SidebarState) {
