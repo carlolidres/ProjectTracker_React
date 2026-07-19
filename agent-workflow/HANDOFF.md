@@ -3,20 +3,18 @@
 Last Updated: `2026-07-19`
 Version: `v0.92.0`
 Branch: `main`
-Commit: _(fill after push)_
+Commit: `9d95501`
 App version: `0.92.0`
 
 ## Current Status
 
-**Releasing v0.92.0.** Creatable fields, RnD role, CNF status icons, Dashboard worklist modal. Deploy via GitHub Pages Actions on push to `main`.
+**v0.92.0 deployed.** GitHub Pages Actions [29684111124](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684111124) success. Release: https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.92.0
 
 ## Recently Completed
 
-- Creatable registry/reusable-option fields across Project Entry, Projects DB, Support, CNF Initiator
-- User role `rnd` (RnD) + migrations applied on Project Tracker Supabase
-- CNF detail document number + status icon cells
-- Dashboard My Worklist modal (Process/Support, search, All toggle default Off)
-- DATA_MAP / CODEMAP / version history / release notes for `0.92.0`
+- Released `v0.92.0` @ `9d95501`
+- Creatable fields, RnD role, CNF status icons, Dashboard worklist modal
+- DATA_MAP / release notes / version-92 handoff updated
 
 ## Deferred
 
@@ -26,14 +24,16 @@ App version: `0.92.0`
 
 | Check | Status | Result |
 |---|---|---|
-| `npm run typecheck` | PENDING | |
-| `npm run build` | PENDING | |
-| GitHub Pages deploy | PENDING | |
-| GitHub Release | PENDING | |
+| `npm run typecheck` | PASSED | clean |
+| `npm run build` | PASSED | Vite OK |
+| `npm run test:menu-permissions` | PASSED | |
+| `npm run test:projects-db-validation` | PASSED | |
+| GitHub Pages deploy | PASSED | [29684111124](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684111124) |
+| GitHub Release | PASSED | [v0.92.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.92.0) |
 
 ## Next Action
 
-Confirm Actions deploy success; fill deploy SHA in DATA_MAP / version-92 handoff.
+Owner browser-smoke. Phase C R9 when ready.
 
 ## Dumb-Zone Recovery
 

@@ -361,8 +361,8 @@ Deploy identity: GitHub Actions `.github/workflows/deploy.yml` sets `VITE_APP_GI
 | Field | Value |
 |---|---|
 | Version | `0.92.0` (tag `v0.92.0`) |
-| Deploy SHA | _(fill after Actions)_ |
-| Deployed | 2026-07-19 — pending push |
+| Deploy SHA | `9d95501` |
+| Deployed | 2026-07-19 — Actions [29684111124](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684111124) success |
 | Prior production | `0.91.0` @ `c264715` |
 | Change class | Minor (creatable fields, RnD role, status icons, worklist modal) |
 | Environment | GitHub Pages |

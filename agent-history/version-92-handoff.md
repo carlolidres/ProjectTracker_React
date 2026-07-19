@@ -11,9 +11,9 @@ Document type: Configuration / release record
 | Prior production | `0.91.0` @ `c264715` |
 | Change class | **Minor** |
 | Deployment environment | GitHub Pages (`github-pages`) via `.github/workflows/deploy.yml` |
-| Deployment status | **Pending** — fill after Actions |
-| Deploy SHA | _(fill)_ |
-| Actions run | _(fill)_ |
+| Deployment status | **Deployed** — Actions success |
+| Deploy SHA | `9d95501` |
+| Actions run | https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684111124 |
 | GitHub Release | https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.92.0 |
 | Rollback reference | Redeploy `c264715` / `0.91.0` |
 

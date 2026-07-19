@@ -13,6 +13,7 @@ export const APP_VERSION_HISTORY: AppVersionHistoryEntry[] = [
     version: "0.92.0",
     title: "Creatable fields, RnD role, status icons, worklist modal",
     date: "2026-07-19",
+    sha: "9d95501",
     changes: [
       "Creatable searchable registry fields: project owner, client, activity type, UOM, business unit (forms + Projects DB)",
       "Support/CNF creatable suggestions (line, material, principal, product, department, initiator)",
