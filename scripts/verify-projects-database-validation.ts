@@ -27,6 +27,22 @@ const registry = {
 
 assert.equal(validateSpreadsheetCellValue(col("x", "select", { registry: "cnf_status" }), "Approved", registry).ok, true);
 assert.equal(validateSpreadsheetCellValue(col("x", "select", { registry: "cnf_status" }), "Nope", registry).ok, false);
+assert.equal(
+  validateSpreadsheetCellValue(
+    col("client_name", "select", { registry: "client_name", creatable: true }),
+    "Haleon Philippines, Inc.",
+    { client_name: ["Acme"] },
+  ).ok,
+  true,
+);
+assert.equal(
+  validateSpreadsheetCellValue(
+    col("client_name", "select", { registry: "client_name", creatable: true }),
+    "acme",
+    { client_name: ["Acme"] },
+  ).normalized,
+  "Acme",
+);
 assert.equal(validateSpreadsheetCellValue(col("x", "month"), "Jun 2026", {}).ok, true);
 assert.equal(validateSpreadsheetCellValue(col("x", "month"), "not-a-month", {}).ok, false);
 assert.equal(validateSpreadsheetCellValue(col("x", "order_quantity"), "1,234", {}).normalized, "1234");

@@ -924,6 +924,44 @@ html.meeting-view-nav-active .cnf-tracker-list-toolbar {
   margin-bottom: 12px;
 }
 
+.cnf-doc-number-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.cnf-doc-number-status__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cnf-doc-number-status .workflow-status-icon {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+.workflow-status-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workflow-status-tooltip__title {
+  font-weight: 600;
+}
+
+.workflow-status-tooltip__desc {
+  font-size: 12px;
+  opacity: 0.92;
+}
+
 .cnf-tracker-po-table .cnf-tracker-po-table-scroll {
   outline: none;
 }

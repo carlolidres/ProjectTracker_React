@@ -43,6 +43,12 @@ export function validateSpreadsheetCellValue(
 
   switch (column.editor) {
     case "select": {
+      // Creatable registry fields accept new values; prefer the saved casing when known.
+      if (column.creatable) {
+        const options = column.registry ? registry[column.registry] ?? [] : [];
+        const match = options.find((option) => option.toLowerCase() === text.toLowerCase());
+        return { ok: true, normalized: match ?? text };
+      }
       const options = column.registry ? registry[column.registry] ?? [] : [];
       if (!options.length) {
         return { ok: true, normalized: text };

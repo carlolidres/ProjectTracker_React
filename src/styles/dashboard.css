@@ -1569,3 +1569,58 @@ html.meeting-view-nav-active .app-content {
     align-items: stretch;
   }
 }
+
+.dashboard-worklist-modal.ant-modal {
+  max-width: 98vw;
+}
+
+.dashboard-worklist-modal .ant-modal-content {
+  min-height: calc(100vh - 32px);
+}
+
+.dashboard-worklist-modal-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(240px, 2fr) auto;
+  align-items: center;
+  gap: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.dashboard-worklist-modal-meta {
+  min-width: 0;
+}
+
+.dashboard-worklist-search {
+  width: 100%;
+  max-width: 560px;
+  justify-self: center;
+}
+
+.dashboard-worklist-all-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text, #1f2937);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  justify-self: end;
+}
+
+.dashboard-worklist-tabs .ant-tabs-content,
+.dashboard-worklist-tabs .ant-tabs-tabpane {
+  outline: none;
+}
+
+@media (max-width: 900px) {
+  .dashboard-worklist-modal-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-worklist-search,
+  .dashboard-worklist-all-toggle {
+    justify-self: stretch;
+    max-width: none;
+  }
+}

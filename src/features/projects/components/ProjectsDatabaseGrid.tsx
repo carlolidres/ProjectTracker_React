@@ -47,7 +47,7 @@ import {
 } from "@/lib/projectsDatabaseValidation";
 import { ROLE_COLORS } from "@/lib/roleColors";
 import { canAdjustSavedFgMonth, canEditProjectFields, isViewerRole } from "@/lib/roleAccess";
-import { isMissingValue, valueOrNA } from "@/lib/utils";
+import { isMissingValue, sanitizeAlphanumericInput, toTitleCase, valueOrNA } from "@/lib/utils";
 import { removeRegistryValue, saveRegistryValue } from "@/services/registryService";
 import type { ProjectRow, UserRole } from "@/types";
 import type { SpreadsheetCellEdit } from "@/services/projectsDatabaseService";
@@ -320,27 +320,22 @@ export function ProjectsDatabaseGrid({
     [allColumnsMode, rows, storedWidths.so_no],
   );
 
-  const canManageActivityTypeOptions =
+  const canManageCreatableOptions =
     Boolean(role) && !isViewerRole(role) && canEditProjectFields(role as UserRole, "am");
 
-  const activityTypeOptions = useMemo(
-    () => (registry.activity_type ?? []).map((value) => ({ value })),
-    [registry.activity_type],
-  );
-
-  const handleCreateActivityType = useCallback(
-    async (value: string) => {
-      if (!user?.email) throw new Error("Sign in again to add activity types.");
-      await saveRegistryValue("activity_type", value, value, user.email);
+  const handleCreateRegistryOption = useCallback(
+    async (registryKey: string, value: string) => {
+      if (!user?.email) throw new Error("Sign in again to add options.");
+      await saveRegistryValue(registryKey, value, value, user.email);
       await refreshRegistry();
     },
     [refreshRegistry, user?.email],
   );
 
-  const handleRemoveActivityType = useCallback(
-    async (option: { value: string }) => {
-      if (!user?.email) throw new Error("Sign in again to remove activity types.");
-      await removeRegistryValue("activity_type", option.value, user.email);
+  const handleRemoveRegistryOption = useCallback(
+    async (registryKey: string, option: { value: string }) => {
+      if (!user?.email) throw new Error("Sign in again to remove options.");
+      await removeRegistryValue(registryKey, option.value, user.email);
       await refreshRegistry();
     },
     [refreshRegistry, user?.email],
@@ -444,14 +439,20 @@ export function ProjectsDatabaseGrid({
         autofitColumns,
       );
       leaf.floatingFilter = showColumnFilters;
-      if (column.field === "activity_type") {
+      if (column.creatable && column.registry) {
+        const registryKey = column.registry;
         leaf.cellEditor = RegistryCreatableCellEditor;
         leaf.cellEditorPopup = true;
         leaf.cellEditorParams = {
-          options: activityTypeOptions,
-          canManageOptions: canManageActivityTypeOptions,
-          onCreateOption: handleCreateActivityType,
-          onRemoveOption: handleRemoveActivityType,
+          options: (registry[registryKey] ?? []).map((value) => ({ value })),
+          canManageOptions: canManageCreatableOptions,
+          sanitize:
+            column.field === "client_name"
+              ? (raw: string) => toTitleCase(sanitizeAlphanumericInput(raw))
+              : sanitizeAlphanumericInput,
+          onCreateOption: (value: string) => handleCreateRegistryOption(registryKey, value),
+          onRemoveOption: (option: { value: string }) =>
+            handleRemoveRegistryOption(registryKey, option),
         };
       } else if (column.editor === "select" && column.registry) {
         leaf.cellEditor = "agSelectCellEditor";
@@ -473,16 +474,15 @@ export function ProjectsDatabaseGrid({
 
     return [openProjectCol, ...groups];
   }, [
-    activityTypeOptions,
     allColumnsMode,
     autofitColumns,
-    canManageActivityTypeOptions,
+    canManageCreatableOptions,
     cellErrors,
     dataColumns,
     dirtyKeys,
     errorKeys,
-    handleCreateActivityType,
-    handleRemoveActivityType,
+    handleCreateRegistryOption,
+    handleRemoveRegistryOption,
     registry,
     role,
     selectedKeys,

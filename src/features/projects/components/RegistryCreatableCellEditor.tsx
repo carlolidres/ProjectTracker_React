@@ -8,6 +8,7 @@ import type { ProjectRow } from "@/types";
 export interface RegistryCreatableEditorParams {
   options: CreatableOption[];
   canManageOptions?: boolean;
+  sanitize?: (value: string) => string;
   onCreateOption?: (value: string) => Promise<void>;
   onRemoveOption?: (option: CreatableOption) => Promise<void>;
 }
@@ -24,6 +25,7 @@ export function RegistryCreatableCellEditor(
         value={value}
         options={props.options ?? []}
         canManageOptions={props.canManageOptions}
+        sanitize={props.sanitize}
         popupClassName="ag-custom-component-popup projects-db-creatable-popup"
         onChange={(next) => {
           props.onValueChange(next);

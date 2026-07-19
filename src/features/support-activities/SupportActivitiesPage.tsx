@@ -32,7 +32,7 @@ import {
 import { readReturnToPath } from "@/lib/dashboardReturnTo";
 import { canArchiveRecords, canRemoveReusableOptions, isViewerRole } from "@/lib/roleAccess";
 import { useDiagLifecycle } from "@/lib/sessionDiagnostics";
-import { sanitizeAlphanumericInput, valueOrNA } from "@/lib/utils";
+import { sanitizeAlphanumericInput, toTitleCase, valueOrNA } from "@/lib/utils";
 import { exportSupportToExcel } from "@/services/exportService";
 import {
   archiveSupportActivity,
@@ -47,6 +47,7 @@ import {
   listReusableOptions,
   softRemoveReusableOption,
 } from "@/services/reusableOptionService";
+import { removeRegistryValue, saveRegistryValue } from "@/services/registryService";
 import type { ActivityKind, SupportActivity, SupportActivityFilters } from "@/types";
 import type { CnfTrackerRecord } from "@/types/cnfTracker";
 import type { ReusableOption } from "@/types/endorsementTracker";
@@ -140,7 +141,22 @@ type OptionCategory =
   | "type_of_validation"
   | "protocol_status"
   | "report_status"
-  | "endorsement_status";
+  | "endorsement_status"
+  | "support_line"
+  | "support_material"
+  | "support_principal"
+  | "support_product";
+
+const EMPTY_OPTION_MAPS: Record<OptionCategory, ReusableOption[]> = {
+  type_of_validation: [],
+  protocol_status: [],
+  report_status: [],
+  endorsement_status: [],
+  support_line: [],
+  support_material: [],
+  support_principal: [],
+  support_product: [],
+};
 
 export function SupportActivitiesPage() {
   useDiagLifecycle("SupportActivitiesPage");
@@ -150,7 +166,7 @@ export function SupportActivitiesPage() {
   const returnToPath = readReturnToPath(searchParams);
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const { registry } = useRegistry();
+  const { registry, refreshRegistry } = useRegistry();
   const { promptBatchDateAdjustment } = useDateAdjustment();
   const meetingViewReadOnly = useMeetingViewReadOnly();
   const { can: canMenuAction } = useMenuPermissions();
@@ -173,24 +189,34 @@ export function SupportActivitiesPage() {
   const [error, setError] = useState<string | null>(null);
   const [cnfOptions, setCnfOptions] = useState<CnfTrackerRecord[]>([]);
   const [cnfPickerOpen, setCnfPickerOpen] = useState(false);
-  const [optionMaps, setOptionMaps] = useState<Record<OptionCategory, ReusableOption[]>>({
-    type_of_validation: [],
-    protocol_status: [],
-    report_status: [],
-    endorsement_status: [],
-  });
+  const [optionMaps, setOptionMaps] = useState<Record<OptionCategory, ReusableOption[]>>(EMPTY_OPTION_MAPS);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [activities, cnfs, typeOpts, protocolOpts, reportOpts, endorsementOpts] = await Promise.all([
+      const [
+        activities,
+        cnfs,
+        typeOpts,
+        protocolOpts,
+        reportOpts,
+        endorsementOpts,
+        lineOpts,
+        materialOpts,
+        principalOpts,
+        productOpts,
+      ] = await Promise.all([
         listActiveSupportActivities(),
         listActiveCnfTrackerRecords(),
         listReusableOptions("type_of_validation").catch(() => [] as ReusableOption[]),
         listReusableOptions("protocol_status").catch(() => [] as ReusableOption[]),
         listReusableOptions("report_status").catch(() => [] as ReusableOption[]),
         listReusableOptions("endorsement_status").catch(() => [] as ReusableOption[]),
+        listReusableOptions("support_line").catch(() => [] as ReusableOption[]),
+        listReusableOptions("support_material").catch(() => [] as ReusableOption[]),
+        listReusableOptions("support_principal").catch(() => [] as ReusableOption[]),
+        listReusableOptions("support_product").catch(() => [] as ReusableOption[]),
       ]);
       setRows(activities);
       setCnfOptions(cnfs);
@@ -199,6 +225,10 @@ export function SupportActivitiesPage() {
         protocol_status: protocolOpts,
         report_status: reportOpts,
         endorsement_status: endorsementOpts,
+        support_line: lineOpts,
+        support_material: materialOpts,
+        support_principal: principalOpts,
+        support_product: productOpts,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load support activities");
@@ -602,25 +632,43 @@ export function SupportActivitiesPage() {
               </Col>
               <Col xs={24} sm={12} md={6}>
                 <SupportFormField id="support-department" label="Department">
-                  <NaClearingSelect
+                  <CreatableNaSelect
                     id="support-department"
                     placeholder="Department"
-                    readOnly={readOnly}
                     value={form.Department ?? ""}
-                    options={(registry.department ?? []).map((v) => ({ label: v, value: v }))}
+                    readOnly={readOnly}
+                    canManageOptions={canManageOptions}
+                    options={(registry.department ?? []).map((value) => ({ value }))}
                     onChange={(Department) => setForm((f) => ({ ...f, Department }))}
+                    onCreateOption={async (value) => {
+                      if (!user?.email) throw new Error("Sign in again to save options.");
+                      await saveRegistryValue("department", value, value, user.email);
+                      await refreshRegistry();
+                    }}
+                    onRemoveOption={async (option) => {
+                      if (!user?.email) throw new Error("Sign in again to remove options.");
+                      await removeRegistryValue("department", option.value, user.email);
+                      await refreshRegistry();
+                    }}
                   />
                 </SupportFormField>
               </Col>
               {(isTsd || isNonProcess) ? (
                 <Col xs={24} sm={12} md={6}>
                   <SupportFormField id="support-line" label="Line or Room">
-                    <NaClearingInput
+                    <CreatableNaSelect
                       id="support-line"
                       placeholder="Line or Room"
                       value={form.Line ?? ""}
                       readOnly={readOnly}
+                      canManageOptions={canManageOptions}
+                      options={optionMaps.support_line.map((item) => ({
+                        id: item.option_id,
+                        value: item.option_value,
+                      }))}
                       onChange={(Line) => setForm((f) => ({ ...f, Line }))}
+                      onCreateOption={(value) => handleCreateOption("support_line", value)}
+                      onRemoveOption={(option) => handleRemoveOption("support_line", option)}
                     />
                   </SupportFormField>
                 </Col>
@@ -628,12 +676,20 @@ export function SupportActivitiesPage() {
               {(isTsd || isNonProcess) ? (
                 <Col xs={24} sm={12} md={6}>
                   <SupportFormField id="support-material" label="Material">
-                    <NaClearingInput
+                    <CreatableNaSelect
                       id="support-material"
                       placeholder="Material"
                       value={form.Material ?? ""}
                       readOnly={readOnly}
+                      canManageOptions={canManageOptions}
+                      options={optionMaps.support_material.map((item) => ({
+                        id: item.option_id,
+                        value: item.option_value,
+                      }))}
+                      sanitize={(value) => toTitleCase(sanitizeAlphanumericInput(value))}
                       onChange={(Material) => setForm((f) => ({ ...f, Material }))}
+                      onCreateOption={(value) => handleCreateOption("support_material", value)}
+                      onRemoveOption={(option) => handleRemoveOption("support_material", option)}
                     />
                   </SupportFormField>
                 </Col>
@@ -668,34 +724,57 @@ export function SupportActivitiesPage() {
                 <>
                   <Col xs={24} sm={12} md={6}>
                     <SupportFormField id="support-principal" label="Principal">
-                      <NaClearingInput
+                      <CreatableNaSelect
                         id="support-principal"
                         placeholder="Principal"
                         value={form.Principal ?? ""}
                         readOnly={readOnly}
+                        canManageOptions={canManageOptions}
+                        options={optionMaps.support_principal.map((item) => ({
+                          id: item.option_id,
+                          value: item.option_value,
+                        }))}
+                        sanitize={(value) => toTitleCase(sanitizeAlphanumericInput(value))}
                         onChange={(Principal) => setForm((f) => ({ ...f, Principal }))}
+                        onCreateOption={(value) => handleCreateOption("support_principal", value)}
+                        onRemoveOption={(option) => handleRemoveOption("support_principal", option)}
                       />
                     </SupportFormField>
                   </Col>
                   <Col xs={24} sm={12} md={6}>
                     <SupportFormField id="support-product" label="Product">
-                      <NaClearingInput
+                      <CreatableNaSelect
                         id="support-product"
                         placeholder="Product"
                         value={form.Product ?? ""}
                         readOnly={readOnly}
+                        canManageOptions={canManageOptions}
+                        options={optionMaps.support_product.map((item) => ({
+                          id: item.option_id,
+                          value: item.option_value,
+                        }))}
+                        sanitize={(value) => toTitleCase(sanitizeAlphanumericInput(value))}
                         onChange={(Product) => setForm((f) => ({ ...f, Product }))}
+                        onCreateOption={(value) => handleCreateOption("support_product", value)}
+                        onRemoveOption={(option) => handleRemoveOption("support_product", option)}
                       />
                     </SupportFormField>
                   </Col>
                   <Col xs={24} sm={12} md={6}>
                     <SupportFormField id="support-rnd-line" label="Line">
-                      <NaClearingInput
+                      <CreatableNaSelect
                         id="support-rnd-line"
                         placeholder="Line"
                         value={form.Line ?? ""}
                         readOnly={readOnly}
+                        canManageOptions={canManageOptions}
+                        options={optionMaps.support_line.map((item) => ({
+                          id: item.option_id,
+                          value: item.option_value,
+                        }))}
                         onChange={(Line) => setForm((f) => ({ ...f, Line }))}
+                        onCreateOption={(value) => handleCreateOption("support_line", value)}
+                        onRemoveOption={(option) => handleRemoveOption("support_line", option)}
                       />
                     </SupportFormField>
                   </Col>

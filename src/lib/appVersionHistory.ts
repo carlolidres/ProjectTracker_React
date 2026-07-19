@@ -10,6 +10,18 @@ export interface AppVersionHistoryEntry {
 
 export const APP_VERSION_HISTORY: AppVersionHistoryEntry[] = [
   {
+    version: "0.92.0",
+    title: "Creatable fields, RnD role, status icons, worklist modal",
+    date: "2026-07-19",
+    changes: [
+      "Creatable searchable registry fields: project owner, client, activity type, UOM, business unit (forms + Projects DB)",
+      "Support/CNF creatable suggestions (line, material, principal, product, department, initiator)",
+      "New user role rnd (RnD) with menu defaults and Supabase enum migrations",
+      "CNF detail document numbers show compact status icons with accessible tooltips",
+      "Dashboard My Worklist opens wide modal (Process/Support tabs, role scope, search, All toggle off by default)",
+    ],
+  },
+  {
     version: "0.91.0",
     title: "Projects Database UX + remarks columns + About history",
     date: "2026-07-18",

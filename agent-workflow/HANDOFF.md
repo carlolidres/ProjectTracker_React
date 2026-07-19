@@ -1,22 +1,22 @@
 # Current Handoff
 
-Last Updated: `2026-07-18`
-Version: `v0.91.0`
+Last Updated: `2026-07-19`
+Version: `v0.92.0`
 Branch: `main`
-Commit: `c264715`
-App version: `0.91.0`
+Commit: _(fill after push)_
+App version: `0.92.0`
 
 ## Current Status
 
-**v0.91.0 deployed.** GitHub Pages Actions [29648385082](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29648385082) success. Release: https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.91.0
+**Releasing v0.92.0.** Creatable fields, RnD role, CNF status icons, Dashboard worklist modal. Deploy via GitHub Pages Actions on push to `main`.
 
 ## Recently Completed
 
-- Released `v0.91.0` @ `c264715`
-- Projects Database UX, TSD/QC remarks migrations, role-default tabs, expand-from-DB
-- Sticky Dashboard context banner on Projects Database drills (R7)
-- Retired dead `CnfCreateModal` (R8); About version history
-- DATA_MAP / release notes / version-91 handoff updated
+- Creatable registry/reusable-option fields across Project Entry, Projects DB, Support, CNF Initiator
+- User role `rnd` (RnD) + migrations applied on Project Tracker Supabase
+- CNF detail document number + status icon cells
+- Dashboard My Worklist modal (Process/Support, search, All toggle default Off)
+- DATA_MAP / CODEMAP / version history / release notes for `0.92.0`
 
 ## Deferred
 
@@ -26,16 +26,14 @@ App version: `0.91.0`
 
 | Check | Status | Result |
 |---|---|---|
-| `npm run typecheck` | PASSED | clean |
-| `npm run build` | PASSED | Vite OK |
-| `npm run test:dashboard-drilldown` | PASSED | |
-| `npm run test:projects-db-validation` | PASSED | |
-| GitHub Pages deploy | PASSED | [29648385082](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29648385082) |
-| GitHub Release | PASSED | [v0.91.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.91.0) |
+| `npm run typecheck` | PENDING | |
+| `npm run build` | PENDING | |
+| GitHub Pages deploy | PENDING | |
+| GitHub Release | PENDING | |
 
 ## Next Action
 
-Apply remarks migrations on target Supabase if not yet. Owner browser-smoke. Phase C R9 when ready.
+Confirm Actions deploy success; fill deploy SHA in DATA_MAP / version-92 handoff.
 
 ## Dumb-Zone Recovery
 

@@ -50,15 +50,15 @@ A schema task is incomplete while code, types, migration records, and verificati
 
 | Entity | Main table | Purpose | Key notes |
 |---|---|---|---|
-| User profile | `profiles` | Application identity, display name, role, approval/access state | Linked to Supabase Auth user ID. |
+| User profile | `profiles` | Application identity, display name, role, approval/access state | Linked to Supabase Auth user ID. Role enum includes `rnd` (RnD). |
 | Project record | `cnf_projects` | Core Project Tracker PO-line records and project lifecycle fields | Preserves migration-friendly field structure and hierarchy IDs. |
 | CNF tracker record | `cnf_tracker_records` | CNF tracker workflow records | Added after original migration phases; verify v61 behavior before changing. |
 | Project/CNF link | `project_cnf_links` | Relationship between project and CNF tracker records | v64 noted delete permissions issue during seed cleanup. |
 | Support activity | `support_activities` | Separate smaller operational activity tracking | TSD/RnD/Non-Process; optional CNF + endorsement links by record ID. |
 | Endorsement tracker | `endorsement_tracker_records` / `endorsement_tracker_items` | Endorsement workflow header + implementation item rows | Source-linked by unique `(source_type, source_record_id)`; sync_version concurrency. |
-| Reusable options | `reusable_options` | Editable dropdown suggestions | Non-view create; admin soft-remove; does not rewrite historical values. |
+| Reusable options | `reusable_options` | Editable dropdown suggestions (`type_of_validation`, status fields, `support_line` / `support_material` / `support_principal` / `support_product`, `cnf_initiator`, …) | Non-view create; admin soft-remove; does not rewrite historical values. |
 | Menu permission overrides | `menu_permission_overrides` | Admin overrides for menu View/Create/Edit/Export | Defaults in `src/lib/menuPermissions.ts`; PK `(role, menu_key)`. |
-| Registry item | `registry` | Dropdown and lookup values | Admin-managed; used across forms. |
+| Registry item | `registry` | Dropdown and lookup values | Admin-managed; also used by creatable selects (`activity_type`, `project_owner`, `client_name`, `uom`, `business_unit`, `department`, …). Soft-remove via Inactive status; historical project values unchanged. |
 | Notification | `notifications` / `pt_notifications` | System reminders and alerts | FG Month and project status driven. |
 | Audit log | `audit_logs` | Immutable critical activity history | Must remain readable and protected. |
 | Feedback | `app_feedback` | In-app feedback capture and admin handling | Subject to TTL/status migrations. |
@@ -220,13 +220,22 @@ Key rules:
 
 ### `reusable_options`
 
-Purpose: User-managed dropdown suggestions for Support/Endorsement creatable fields.
+Purpose: User-managed dropdown suggestions for Support/Endorsement/CNF creatable fields.
 
 Key rules:
 
-- Categories such as `type_of_validation`, `protocol_status`, `report_status`, `endorsement_status`.
+- Categories include `type_of_validation`, `protocol_status`, `report_status`, `endorsement_status`, `support_line`, `support_material`, `support_principal`, `support_product`, `cnf_initiator`, `implemented_by` (and related endorsement categories).
 - Soft-remove hides the option; historical record values are not rewritten.
-- Non-view roles may create; admin/manager soft-remove per role helpers.
+- Non-view roles may create; admin soft-remove via `canRemoveReusableOptions`.
+
+### `user_role` enum
+
+Purpose: Trusted application roles on `profiles.role` / `requested_role`.
+
+Current values: `am_bm_pl`, `qa`, `pp`, `tsd`, `val`, `qc`, `rnd`, `admin`, `view`.
+
+- `rnd` (label **RnD**): Support-focused menu defaults; process project field ownership unchanged.
+- Additions require a committed `ALTER TYPE ... ADD VALUE` migration before helpers may reference the new label (`20260719120000_rnd_role_enum`, `20260719120100_rnd_role_helpers`).
 
 ### `menu_permission_overrides`
 
@@ -245,9 +254,11 @@ Purpose: Central lookup values for dropdowns and workflow options.
 
 Key rules:
 
-- Admin-only mutation.
-- Read access must support forms and dashboards.
-- Registry changes can affect user input choices and should be verified in forms.
+- Admin Registry page mutations; creatable form/grid editors may insert Active values for configured types (AM editors for project creatable fields).
+- Soft-remove sets `status = Inactive`; does not rewrite project/support rows.
+- Case-insensitive duplicate prevention on create.
+- Defaults from `DEFAULT_REGISTRY` apply only when a type has no Active rows.
+- Creatable project types: `activity_type`, `project_owner`, `client_name`, `uom`, `business_unit` (plus existing fixed selects).
 
 ### `audit_logs`
 
@@ -283,6 +294,14 @@ Use `src/lib/constants.ts`, registry values, and domain services for current opt
 - Primary notification driver: `fg_month` and related target dates.
 - Overdue and urgency logic: check `src/lib/fgUrgency.ts`, `src/lib/fgDeliveryMetrics.ts`, dashboard service logic, and notification service logic.
 - Date adjustment and lock behavior: check `src/lib/dateAdjustment.ts`, `src/lib/fgMonthLock.ts`, and `src/app/date-adjustment-provider.tsx`.
+- Dashboard worklist: process items from `getProjectPriority` / Focus Group; support items sorted by Planning Schedule → Target Date → severity (`src/lib/worklistSort.ts`). Modal UI: `WorklistModal` (role scope default, All Worklist toggle, global search).
+
+## Computed dashboard worklists
+
+| Payload | Source | Notes |
+|---|---|---|
+| `DashboardData.worklist` | Open/priority project rows | Focus Group + severity; used by Due Soon and Process tab |
+| `DashboardData.supportWorklist` | Open support activities | Severity from target/planning dates; Support tab |
 
 ## Data Ownership
 
@@ -294,7 +313,8 @@ Use `src/lib/constants.ts`, registry values, and domain services for current opt
 | VAL fields | VAL role and admin | Authenticated permitted roles | Full access |
 | QC fields | QC role and admin | Authenticated permitted roles | Full access |
 | QA fields | QA role and admin | Authenticated permitted roles | Full access |
-| Registry | Admin | Authenticated permitted roles | Full access |
+| RnD role | Support Activities (menu defaults); no process field ownership | Authenticated permitted roles | Full access |
+| Registry | Admin page; creatable editors for configured types | Authenticated permitted roles | Full access |
 | Audit logs | System/service writes; admin reads | Role-dependent | Protected from casual mutation |
 
 Confirm current RLS migrations before changing trusted access behavior.
@@ -330,8 +350,8 @@ Deploy identity: GitHub Actions `.github/workflows/deploy.yml` sets `VITE_APP_GI
 | Artifact | Path |
 |---|---|
 | Release checklist | `agent-workflow/RELEASE_CHECKLIST.md` |
-| Release notes (current) | `agent-workflow/releases/v0.91.0-RELEASE_NOTES.md` |
-| Versioned AVD / handoff | `agent-history/version-91-handoff.md` |
+| Release notes (current) | `agent-workflow/releases/v0.92.0-RELEASE_NOTES.md` |
+| Versioned AVD / handoff | `agent-history/version-92-handoff.md` |
 | About version history | `src/lib/appVersionHistory.ts` |
 | Menu matrix rollback | `agent-workflow/MENU_MATRIX_ROLLBACK.md` |
 | Dashboard workspace rollback | `agent-workflow/DASHBOARD_WORKSPACE_ROLLBACK.md` |
@@ -340,14 +360,14 @@ Deploy identity: GitHub Actions `.github/workflows/deploy.yml` sets `VITE_APP_GI
 
 | Field | Value |
 |---|---|
-| Version | `0.91.0` (tag `v0.91.0`) |
-| Deploy SHA | `c264715` |
-| Deployed | 2026-07-18 — Actions [29648385082](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29648385082) success |
-| Prior production | `0.90.0` @ `de385ef` |
-| Change class | Minor (Projects Database UX, remarks columns, workspace Phase B/C partial, About history) |
+| Version | `0.92.0` (tag `v0.92.0`) |
+| Deploy SHA | _(fill after Actions)_ |
+| Deployed | 2026-07-19 — pending push |
+| Prior production | `0.91.0` @ `c264715` |
+| Change class | Minor (creatable fields, RnD role, status icons, worklist modal) |
 | Environment | GitHub Pages |
-| Migrations | `20260718140000_cnf_projects_tsd_remarks`, `20260718141000_cnf_projects_qc_remarks` (apply on target if not yet) |
-| Rollback | Redeploy `de385ef` / `0.90.0`; workspace flag `VITE_FEATURE_DASHBOARD_WORKSPACE=false`; remarks downs if schema must reverse |
+| Migrations | `20260719120000_rnd_role_enum`, `20260719120100_rnd_role_helpers` (applied on Project Tracker Supabase) |
+| Rollback | Redeploy `c264715` / `0.91.0`; enum value `rnd` is additive (do not remove from Postgres without a planned reverse) |
 
 Do not treat a local About label as released until Actions succeeds and package+SHA match the GitHub Release.
 

@@ -9,6 +9,7 @@ import { Alert, Button, Card, Modal, Select, Space, Table, Tabs, Tag, Typography
 import type { ColumnsType } from "antd/es/table";
 import { useNavigate } from "react-router-dom";
 import { CreatableNaSelect } from "@/components/common/creatable-na-select";
+import { DocumentNumberStatusCell } from "@/components/common/document-number-status-cell";
 import { FieldHelpIcon } from "@/components/common/field-help-icon";
 import { NaClearingInput, NaClearingTextArea } from "@/components/common/na-clearing-input";
 import type { CnfTrackerAggregatedView } from "@/lib/cnfTrackerAggregation";
@@ -59,6 +60,7 @@ interface CnfTrackerDetailModalProps {
   saving: boolean;
   formError: string | null;
   activityTypeOptions?: { id?: string; value: string }[];
+  initiatorOptions?: { id?: string; value: string }[];
   canManageOptions?: boolean;
   duplicateHint?: string | null;
   onOpenDuplicate?: () => void;
@@ -72,6 +74,8 @@ interface CnfTrackerDetailModalProps {
   onOpenReferencePicker: () => void;
   onCreateActivityType?: (value: string) => Promise<void> | void;
   onRemoveActivityType?: (option: { id?: string; value: string }) => Promise<void> | void;
+  onCreateInitiator?: (value: string) => Promise<void> | void;
+  onRemoveInitiator?: (option: { id?: string; value: string }) => Promise<void> | void;
   blockViewOnlyInteraction: (event: React.SyntheticEvent) => void;
 }
 
@@ -89,6 +93,7 @@ export function CnfTrackerDetailModal({
   saving,
   formError,
   activityTypeOptions = [],
+  initiatorOptions = [],
   canManageOptions,
   duplicateHint,
   onOpenDuplicate,
@@ -102,6 +107,8 @@ export function CnfTrackerDetailModal({
   onOpenReferencePicker,
   onCreateActivityType,
   onRemoveActivityType,
+  onCreateInitiator,
+  onRemoveInitiator,
   blockViewOnlyInteraction,
 }: CnfTrackerDetailModalProps) {
   const navigate = useNavigate();
@@ -276,12 +283,16 @@ export function CnfTrackerDetailModal({
                     </span>
                     <FieldHelpIcon title="Person or group that initiated the CNF." />
                   </label>
-                  <NaClearingInput
+                  <CreatableNaSelect
                     id="cnf-tracker-initiator"
                     value={form.cnf_initiator}
+                    options={initiatorOptions}
                     readOnly={viewOnly}
-                    sanitize={sanitizeAlphanumericInput}
-                    onChange={(value) => onFormChange({ cnf_initiator: sanitizeAlphanumericInput(value) })}
+                    canManageOptions={canManageOptions}
+                    placeholder="Select or type a new initiator"
+                    onChange={(value) => onFormChange({ cnf_initiator: value })}
+                    onCreateOption={onCreateInitiator}
+                    onRemoveOption={onRemoveInitiator}
                   />
                 </div>
                 {!isCreateMode ? (
@@ -499,22 +510,39 @@ export function CnfTrackerDetailModal({
                                 title: "Protocol Number",
                                 dataIndex: "protocol_number",
                                 key: "protocol_number",
-                                width: 160,
-                                render: (value: string) => valueOrNA(value),
+                                width: 188,
+                                sorter: (a: SupportActivity, b: SupportActivity) =>
+                                  String(a.protocol_number ?? "").localeCompare(String(b.protocol_number ?? "")),
+                                render: (value: string, row: SupportActivity) => (
+                                  <DocumentNumberStatusCell number={value} status={row.protocol_status} />
+                                ),
                               },
                               {
                                 title: "Report Number",
                                 dataIndex: "report_number",
                                 key: "report_number",
-                                width: 160,
-                                render: (value: string) => valueOrNA(value),
+                                width: 188,
+                                sorter: (a: SupportActivity, b: SupportActivity) =>
+                                  String(a.report_number ?? "").localeCompare(String(b.report_number ?? "")),
+                                render: (value: string, row: SupportActivity) => (
+                                  <DocumentNumberStatusCell number={value} status={row.report_status} />
+                                ),
                               },
                               {
                                 title: "Endorsement Number",
                                 dataIndex: "endorsement_number",
                                 key: "endorsement_number",
-                                width: 180,
-                                render: (value: string) => valueOrNA(value),
+                                width: 208,
+                                sorter: (a: SupportActivity, b: SupportActivity) =>
+                                  String(a.endorsement_number ?? "").localeCompare(
+                                    String(b.endorsement_number ?? ""),
+                                  ),
+                                render: (value: string, row: SupportActivity) => (
+                                  <DocumentNumberStatusCell
+                                    number={value}
+                                    status={row.endorsement_status}
+                                  />
+                                ),
                               },
                             ]}
                           />

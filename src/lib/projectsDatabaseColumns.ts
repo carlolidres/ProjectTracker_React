@@ -21,6 +21,7 @@ export interface SpreadsheetColumnDef {
   fieldGroup: SpreadsheetFieldGroup;
   editor: ProjectFieldType;
   registry?: string;
+  creatable?: boolean;
   level: SpreadsheetValueLevel;
   width: number;
   pinned?: "left";
@@ -51,6 +52,7 @@ function col(
     headerName: overrides.headerName ?? base?.label ?? field,
     editor: overrides.editor ?? base?.type ?? "text",
     registry: overrides.registry ?? base?.registry,
+    creatable: overrides.creatable ?? base?.creatable,
     width: overrides.width ?? 140,
     pinned: overrides.pinned,
     readOnlyAlways: overrides.readOnlyAlways,

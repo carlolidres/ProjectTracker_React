@@ -7,6 +7,7 @@ export type UserRole =
   | "tsd"
   | "val"
   | "qc"
+  | "rnd"
   | "admin"
   | "view";
 

@@ -14,6 +14,10 @@ import {
   hasMissingFieldsForGroup,
 } from "@/lib/projectPriority";
 import {
+  buildSupportWorklistItem,
+  isOpenSupportActivity,
+} from "@/lib/worklistSort";
+import {
   isApprovedOrNotApplicableStatus, isOpenFinalStatus, valueOrNA,
 } from "@/lib/utils";
 import { listActiveProjects } from "@/services/projectService";
@@ -154,6 +158,10 @@ export async function getDashboardData(): Promise<DashboardData> {
     || String(a.project_id).localeCompare(String(b.project_id)),
   );
 
+  const supportWorklist = supportRows
+    .filter(isOpenSupportActivity)
+    .map((row) => buildSupportWorklistItem(row));
+
   recentRecords.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   return {
@@ -177,7 +185,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     finalStatusCounts,
     dueDateCounts,
     pendingRoleCounts,
-    worklist: worklist.slice(0, 100),
+    worklist: worklist.slice(0, 250),
+    supportWorklist: supportWorklist.slice(0, 250),
     recentRecords: recentRecords.slice(0, 10),
     monthlyTrend: buildMonthlyTrend(rows),
     fgDeliveryMetrics: buildFgDeliveryMetrics(rows),

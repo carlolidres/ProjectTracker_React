@@ -3,6 +3,8 @@ export const NA_VALUE = "N/A";
 export const DEFAULT_REGISTRY: Record<string, string[]> = {
   activity_type: ["PILOT/TRIAL", "TRC", "VAL/VER"],
   business_unit: ["CM", "BM", "PL"],
+  project_owner: [],
+  client_name: [],
   cnf_status: ["CNF Creation", "Routing", "Client Approval", "Approved"],
   cnf_product: [],
   cnf_client: [],
@@ -71,6 +73,7 @@ export const ROLE_LABELS: Record<string, string> = {
   tsd: "TSD",
   val: "VAL",
   qc: "QC",
+  rnd: "RnD",
   admin: "Admin",
   view: "View",
 };

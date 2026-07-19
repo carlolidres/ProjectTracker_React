@@ -23,7 +23,7 @@ import {
 } from "@/services/menuPermissionService";
 import type { UserRole } from "@/types";
 
-const ROLE_OPTIONS: UserRole[] = ["am_bm_pl", "qa", "pp", "tsd", "val", "qc", "view", "admin"];
+const ROLE_OPTIONS: UserRole[] = ["am_bm_pl", "qa", "pp", "tsd", "val", "qc", "rnd", "view", "admin"];
 
 interface MatrixRow {
   key: MenuKey;

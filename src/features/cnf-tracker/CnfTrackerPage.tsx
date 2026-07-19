@@ -13,6 +13,7 @@ import {
   useFlushOnPageHide,
 } from "@/lib/formDraftStorage";
 import { AppShell } from "@/components/layout/app-shell";
+import { DocumentNumberStatusCell } from "@/components/common/document-number-status-cell";
 import { ProjectIdLink } from "@/components/common/project-id-link";
 import { CnfReferencePickerModal } from "@/features/cnf-tracker/CnfReferencePickerModal";
 import { CnfTrackerDetailModal, type CnfTrackerDetailFormState } from "@/features/cnf-tracker/CnfTrackerDetailModal";
@@ -162,6 +163,7 @@ export function CnfTrackerPage() {
   const [linkedProjectIds, setLinkedProjectIds] = useState<string[]>([]);
   const [linkedSupportActivityId, setLinkedSupportActivityId] = useState<string | null>(null);
   const [activityTypeOptions, setActivityTypeOptions] = useState<ReusableOption[]>([]);
+  const [initiatorOptions, setInitiatorOptions] = useState<ReusableOption[]>([]);
   const [highlightedTrackerId, setHighlightedTrackerId] = useState<string | null>(null);
   const [supportTitleLookup, setSupportTitleLookup] = useState<
     Map<string, { titleActivityName: string; activityType: string }>
@@ -259,10 +261,11 @@ export function CnfTrackerPage() {
     setLoading(true);
     setListError(null);
     try {
-      const [rows, records, activityTypes, supportLookup] = await Promise.all([
+      const [rows, records, activityTypes, initiators, supportLookup] = await Promise.all([
         loadProjects(),
         listActiveCnfTrackerRecords(),
         listReusableOptions("type_of_validation").catch(() => [] as ReusableOption[]),
+        listReusableOptions("cnf_initiator").catch(() => [] as ReusableOption[]),
         buildSupportTitleLookupByCnfRecordId().catch(
           () => new Map<string, { titleActivityName: string; activityType: string }>(),
         ),
@@ -270,6 +273,7 @@ export function CnfTrackerPage() {
       setProjects(rows);
       setTrackerRecords(records);
       setActivityTypeOptions(activityTypes);
+      setInitiatorOptions(initiators);
       setSupportTitleLookup(supportLookup);
       return { rows, records };
     } catch (err) {
@@ -705,29 +709,41 @@ export function CnfTrackerPage() {
       title: "Protocol No.",
       dataIndex: "protocolNo",
       key: "protocolNo",
-      width: 140,
-      render: (value: string) => valueOrNA(value),
+      width: 168,
+      sorter: (a, b) => a.protocolNo.localeCompare(b.protocolNo),
+      render: (value: string, row) => (
+        <DocumentNumberStatusCell number={value} status={row.protocolStatus} />
+      ),
     },
     {
       title: "Interim Report No.",
       dataIndex: "interimReportNo",
       key: "interimReportNo",
-      width: 160,
-      render: (value: string) => valueOrNA(value),
+      width: 188,
+      sorter: (a, b) => a.interimReportNo.localeCompare(b.interimReportNo),
+      render: (value: string, row) => (
+        <DocumentNumberStatusCell number={value} status={row.interimReportStatus} />
+      ),
     },
     {
       title: "Validation Report No.",
       dataIndex: "validationReportNo",
       key: "validationReportNo",
-      width: 180,
-      render: (value: string) => valueOrNA(value),
+      width: 208,
+      sorter: (a, b) => a.validationReportNo.localeCompare(b.validationReportNo),
+      render: (value: string, row) => (
+        <DocumentNumberStatusCell number={value} status={row.validationReportStatus} />
+      ),
     },
     {
       title: "Endorsement No.",
       dataIndex: "endorsementNo",
       key: "endorsementNo",
-      width: 160,
-      render: (value: string) => valueOrNA(value),
+      width: 188,
+      sorter: (a, b) => a.endorsementNo.localeCompare(b.endorsementNo),
+      render: (value: string, row) => (
+        <DocumentNumberStatusCell number={value} status={row.endorsementReportStatus} />
+      ),
     },
     {
       title: "Val Activity",
@@ -785,6 +801,10 @@ export function CnfTrackerPage() {
             id: item.option_id,
             value: item.option_value,
           }))}
+          initiatorOptions={initiatorOptions.map((item) => ({
+            id: item.option_id,
+            value: item.option_value,
+          }))}
           canManageOptions={canManageOptions && !meetingViewReadOnly}
           duplicateHint={duplicateHint}
           onOpenDuplicate={
@@ -822,6 +842,21 @@ export function CnfTrackerPage() {
             if (!user?.email || !option.id) return;
             await softRemoveReusableOption(option.id, user.email);
             setActivityTypeOptions((current) => current.filter((item) => item.option_id !== option.id));
+          }}
+          onCreateInitiator={async (value) => {
+            if (!user?.email) {
+              throw new Error("You must be signed in to add a new initiator.");
+            }
+            const created = await createReusableOption("cnf_initiator", value, user.email);
+            setInitiatorOptions((current) => [
+              ...current.filter((item) => item.option_id !== created.option_id),
+              created,
+            ]);
+          }}
+          onRemoveInitiator={async (option) => {
+            if (!user?.email || !option.id) return;
+            await softRemoveReusableOption(option.id, user.email);
+            setInitiatorOptions((current) => current.filter((item) => item.option_id !== option.id));
           }}
           blockViewOnlyInteraction={blockViewOnlyInteraction}
         />

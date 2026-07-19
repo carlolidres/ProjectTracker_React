@@ -125,9 +125,13 @@ export interface CnfTrackerAggregatedView {
     productName: string;
     poControlNo: string;
     protocolNo: string;
+    protocolStatus: string;
     interimReportNo: string;
+    interimReportStatus: string;
     validationReportNo: string;
+    validationReportStatus: string;
     endorsementNo: string;
+    endorsementReportStatus: string;
     valActivity: string;
     valStability: string;
     valBatchSeqNo: string;
@@ -213,9 +217,13 @@ export function aggregateCnfTrackerView(matches: CnfMatchedLine[]): CnfTrackerAg
       productName: valueOrNA(matchRow.product_name),
       poControlNo: valueOrNA(matchRow.po_control_no),
       protocolNo: valueOrNA(matchRow.protocol_no),
+      protocolStatus: valueOrNA(matchRow.protocol_Status),
       interimReportNo: valueOrNA(matchRow.val_interim_report_no),
+      interimReportStatus: valueOrNA(matchRow.val_interim_report_status),
       validationReportNo: valueOrNA(matchRow.validation_report_no),
+      validationReportStatus: valueOrNA(matchRow.validation_report_status),
       endorsementNo: valueOrNA(matchRow.endorsement_report_no),
+      endorsementReportStatus: valueOrNA(matchRow.endorsement_report_status),
       valActivity: valueOrNA(matchRow.Val_Activity),
       valStability: valueOrNA(matchRow.Val_Stability),
       valBatchSeqNo: valueOrNA(matchRow.Val_Batch_Seq_No),

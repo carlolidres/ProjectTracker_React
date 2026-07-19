@@ -71,12 +71,31 @@ export interface DashboardData {
   };
   pendingRoleCounts: Record<string, number>;
   worklist: WorklistItem[];
+  supportWorklist: SupportWorklistItem[];
   recentRecords: RecentRecord[];
   monthlyTrend: MonthlyTrendItem[];
   fgDeliveryMetrics: FgDeliveryMetrics;
   supportSummary: SupportSummary;
   recentSupportActivities: SupportActivitySummary[];
   generatedAt: string;
+}
+
+export interface SupportWorklistItem {
+  activity_id: string;
+  activity_kind: string;
+  Department: string;
+  Principal: string;
+  Product: string;
+  Material: string;
+  Line: string;
+  non_process_description: string;
+  Planning_Schedule: string;
+  Target_Date: string;
+  status: string;
+  severity: string;
+  priorityRank: number;
+  planningSort: number;
+  targetSort: number;
 }
 
 export interface WorklistItem {

@@ -23,8 +23,10 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Module | Path | Responsibility |
 |---|---|---|
 | Auth | `src/features/auth/LoginPage.tsx` | Login flow and public entry route. |
-| Dashboard | `src/features/dashboard/DashboardPage.tsx` | KPI, worklist, meeting view. Workspace flag: action strip, quick drawer, Browse/My labels (Phase B). |
+| Dashboard | `src/features/dashboard/DashboardPage.tsx` | KPI, meeting view. Workspace flag: action strip, quick drawer, Browse/My labels (Phase B). |
 | Dashboard action strip | `src/features/dashboard/components/DashboardActionStrip.tsx` | Role/menu-gated “Do next” create/browse actions. |
+| Worklist modal | `src/features/dashboard/components/WorklistModal.tsx` | Wide My Worklist popup (Process / Support tabs, All Worklist toggle). |
+| Worklist sort | `src/lib/worklistSort.ts` | Role-scoped process/support worklist filter and priority sort. |
 | Project quick drawer | `src/features/dashboard/components/ProjectQuickDrawer.tsx` | Summary + Final Status edit from worklist/notifications. |
 | Dashboard charts block | `src/features/dashboard/components/DashboardChartsBlock.tsx` | CNF/final/department/FG/support/monthly charts. |
 | Dashboard components | `src/features/dashboard/components/` | Charts and meeting overlay pieces. |
@@ -70,7 +72,11 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/components/common/protected-route.tsx` | Route guard and allowed-role enforcement. |
 | `src/components/common/app-date-picker.tsx` | Shared date picker wrapper. |
 | `src/components/common/na-clearing-input.tsx` | Shared input behavior for `N/A` handling. |
-| `src/components/common/creatable-na-select.tsx` | Searchable/editable dropdown with create + confirmed admin remove. |
+| `src/components/common/creatable-na-select.tsx` | Searchable/editable dropdown with create + confirmed remove. |
+| `src/components/common/workflow-status-badge.tsx` | Compact borderless status icon + accessible tooltip. |
+| `src/components/common/document-number-status-cell.tsx` | Document number with status icon on the right (one line). |
+| `src/features/projects/components/ProjectFieldControl.tsx` | Project form controls; `creatable` registry fields use CreatableNaSelect. |
+| `src/features/projects/components/RegistryCreatableCellEditor.tsx` | AG Grid popup editor wrapping CreatableNaSelect. |
 | `src/lib/naField.ts` | Optional-field NA normalize/display helpers. |
 | `src/lib/endorsementSync.ts` | Endorsement status canon, sync mapping, echo-loop prevention. |
 | `src/components/common/project-id-link.tsx` | Project record linking. |

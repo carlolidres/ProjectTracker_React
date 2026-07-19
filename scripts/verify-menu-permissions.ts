@@ -12,7 +12,7 @@ import {
 } from "../src/lib/menuPermissions";
 import type { UserRole } from "../src/types";
 
-const nonAdminRoles: UserRole[] = ["view", "am_bm_pl", "pp", "tsd", "val", "qc", "qa"];
+const nonAdminRoles: UserRole[] = ["view", "am_bm_pl", "pp", "tsd", "val", "qc", "qa", "rnd"];
 
 for (const role of nonAdminRoles) {
   for (const menu of DEFAULT_USER_MENU_KEYS) {
@@ -39,6 +39,9 @@ for (const menu of DEFAULT_USER_MENU_KEYS) {
 
 assert.equal(canMenu("val", "cnf_tracker", "create"), true);
 assert.equal(canMenu("am_bm_pl", "cnf_tracker", "create"), false);
+assert.equal(canMenu("rnd", "support_activities", "create"), true);
+assert.equal(canMenu("rnd", "projects_entry", "create"), false);
+assert.equal(canMenu("rnd", "projects_database", "edit"), false);
 assert.equal(canMenu("val", "endorsement_tracker", "edit"), true);
 assert.equal(canMenu("qa", "endorsement_tracker", "edit"), true);
 assert.equal(canMenu("admin", "audit_trail", "view"), true);

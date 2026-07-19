@@ -1,6 +1,9 @@
 import { Input, Select } from "antd";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useAuth } from "@/app/auth-provider";
+import { useRegistry } from "@/app/registry-provider";
 import { AppDatePicker, AppMonthPicker } from "@/components/common/app-date-picker";
+import { CreatableNaSelect } from "@/components/common/creatable-na-select";
 import { FieldHelpIcon } from "@/components/common/field-help-icon";
 import { NaClearingInput, NaClearingTextArea } from "@/components/common/na-clearing-input";
 import { NA_VALUE } from "@/lib/constants";
@@ -10,6 +13,9 @@ import {
   sanitizeNumericDigits,
   sanitizeOrderQuantityInput,
 } from "@/lib/orderQuantity";
+import { canEditProjectFields, isViewerRole } from "@/lib/roleAccess";
+import { removeRegistryValue, saveRegistryValue } from "@/services/registryService";
+import type { UserRole } from "@/types";
 import {
   cn,
   isMissingValue,
@@ -61,6 +67,8 @@ export function ProjectFieldControl({
   domId,
   onChange,
 }: ProjectFieldControlProps) {
+  const { user, profile } = useAuth();
+  const { refreshRegistry } = useRegistry();
   const [selectFocused, setSelectFocused] = useState(false);
   const isViewOnly = readOnly && !disabled;
   const isNa = isMissingValue(value);
@@ -68,6 +76,41 @@ export function ProjectFieldControl({
   const capitalizeClass = field.capitalizeWords ? "project-field-capitalize" : "";
   const anchorId = domId;
   const fieldId = anchorId ? `${anchorId}-control` : `project-field-${field.key}`;
+
+  const canManageOptions =
+    Boolean(profile?.role)
+    && !isViewerRole(profile?.role)
+    && canEditProjectFields(profile?.role as UserRole, "am");
+
+  const sanitizeCreatable = useCallback(
+    (raw: string) => {
+      const cleaned = sanitizeAlphanumericInput(raw);
+      return field.capitalizeWords ? toTitleCase(cleaned) : cleaned;
+    },
+    [field.capitalizeWords],
+  );
+
+  const handleCreateOption = useCallback(
+    async (next: string) => {
+      if (!field.registry || !user?.email) {
+        throw new Error("Sign in again to save options.");
+      }
+      await saveRegistryValue(field.registry, next, next, user.email);
+      await refreshRegistry();
+    },
+    [field.registry, refreshRegistry, user?.email],
+  );
+
+  const handleRemoveOption = useCallback(
+    async (option: { value: string }) => {
+      if (!field.registry || !user?.email) {
+        throw new Error("Sign in again to remove options.");
+      }
+      await removeRegistryValue(field.registry, option.value, user.email);
+      await refreshRegistry();
+    },
+    [field.registry, refreshRegistry, user?.email],
+  );
 
   function handleSelectChange(next: string) {
     if (isViewOnly) return;
@@ -82,6 +125,23 @@ export function ProjectFieldControl({
           value={isNa ? NA_VALUE : value}
           classNames={{ input: cn(isNa && naGuideClass) }}
           readOnly
+        />
+      );
+    }
+
+    if (field.type === "select" && field.creatable && field.registry) {
+      return (
+        <CreatableNaSelect
+          id={fieldId}
+          value={value}
+          options={(registry[field.registry] ?? []).map((item) => ({ value: item }))}
+          disabled={disabled && !isViewOnly}
+          readOnly={isViewOnly}
+          canManageOptions={canManageOptions}
+          sanitize={sanitizeCreatable}
+          onChange={onChange}
+          onCreateOption={handleCreateOption}
+          onRemoveOption={canManageOptions ? handleRemoveOption : undefined}
         />
       );
     }

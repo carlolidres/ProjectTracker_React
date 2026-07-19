@@ -163,6 +163,19 @@ function buildNonAdminDefaults(role: UserRole): Record<MenuKey, MenuCapabilities
     ) as Record<MenuKey, MenuCapabilities>;
   }
 
+  // RnD focuses on support activities; project CNF field ownership stays with AM/QA/PP/TSD/VAL/QC.
+  if (role === "rnd") {
+    base.projects_entry = { ...viewOnly };
+    base.projects_database = { ...viewExport };
+    base.support_activities = { ...full };
+    base.lessons_learned = { ...full };
+    base.cnf_tracker = { ...viewExport };
+    base.endorsement_tracker = { ...viewExport };
+    return Object.fromEntries(
+      ALL_MENU_KEYS.map((key) => [key, applyNa(key, base[key])]),
+    ) as Record<MenuKey, MenuCapabilities>;
+  }
+
   // Operational roles: Create/Edit/Export aligned with existing can* helpers.
   base.projects_entry = { ...entryFull };
   base.projects_database = { ...viewEditExport };
@@ -204,7 +217,7 @@ function buildAdminDefaults(): Record<MenuKey, MenuCapabilities> {
   return base;
 }
 
-const ROLE_ORDER: UserRole[] = ["am_bm_pl", "qa", "pp", "tsd", "val", "qc", "admin", "view"];
+const ROLE_ORDER: UserRole[] = ["am_bm_pl", "qa", "pp", "tsd", "val", "qc", "rnd", "admin", "view"];
 
 export const DEFAULT_MENU_PERMISSIONS: Record<UserRole, Record<MenuKey, MenuCapabilities>> =
   Object.fromEntries(
