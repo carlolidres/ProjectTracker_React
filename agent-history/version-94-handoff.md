@@ -11,9 +11,9 @@ Document type: Configuration / release record
 | Prior production | `0.93.0` @ `e102a0d` |
 | Change class | **Minor** |
 | Deployment environment | GitHub Pages (`github-pages`) via `.github/workflows/deploy.yml` |
-| Deployment status | **Pending** — update after Actions success |
-| Deploy SHA | `d3c4133` (release commit; confirm Actions) |
-| Actions run | _(set after deploy)_ |
+| Deployment status | **Deployed** — Actions success |
+| Deploy SHA | `03597e0` |
+| Actions run | https://github.com/carlolidres/ProjectTracker_React/actions/runs/29741024111 |
 | GitHub Release | https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.94.0 |
 | Rollback reference | Redeploy `e102a0d` / `0.93.0` |
 
@@ -39,6 +39,6 @@ none
 | `npm run typecheck` | PASSED | clean |
 | `npm run test:projects-db-validation` | PASSED | draft-row reconcile |
 | `npm run test:navigation-history` | PASSED | stack hygiene |
-| `npm run build` | PENDING | before push |
-| GitHub Pages deploy | PENDING | after push |
-| GitHub Release | PENDING | after tag |
+| `npm run build` | PASSED | Vite OK |
+| GitHub Pages deploy | PASSED | [29741024111](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29741024111) |
+| GitHub Release | PASSED | [v0.94.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.94.0) |

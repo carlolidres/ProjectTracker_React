@@ -13,7 +13,7 @@ export const APP_VERSION_HISTORY: AppVersionHistoryEntry[] = [
     version: "0.94.0",
     title: "Projects DB draft rows, nav history, status icons",
     date: "2026-07-20",
-    sha: "d3c4133",
+    sha: "03597e0",
     changes: [
       "Projects Database: blank fill-viewport rows replace Add project; Save bulk-creates projects with unique PROJ ids",
       "App Back/Forward with view-state restore on priority pages (Worklist, Project Entry, Projects DB, Support, CNF)",

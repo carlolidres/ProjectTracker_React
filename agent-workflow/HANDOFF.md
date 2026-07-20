@@ -3,20 +3,20 @@
 Last Updated: `2026-07-20`
 Version: `v0.94.0`
 Branch: `main`
-Commit: `d3c4133`
+Commit: `03597e0`
 App version: `0.94.0`
 
 ## Current Status
 
-**v0.94.0 release in progress** @ `d3c4133`. Push to `main` triggers GitHub Pages deploy; then publish GitHub Release `v0.94.0`.
+**v0.94.0 deployed.** GitHub Pages Actions success; Release [v0.94.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.94.0) published.
 
 ## Recently Completed
 
-- Projects Database: blank fill-viewport draft rows (replaced Add project); Save bulk-creates projects
-- Compact workflow status icons in Projects Database
-- App Back/Forward + view-state restore on priority pages
-- Worklist / Project Entry UX polish; sidebar session clear; dropdown editor mousedown fix
-- DATA_MAP: draft-row create path + session UI preferences; release baseline → 0.94.0
+- Released `v0.94.0` @ `03597e0`
+- Projects Database blank draft rows + bulk create on Save
+- Compact workflow status icons; Back/Forward view-state restore
+- Worklist / Project Entry polish; sidebar session clear; dropdown editor fix
+- DATA_MAP updated for draft-row create path and release baseline
 
 ## Deferred
 
@@ -30,13 +30,13 @@ App version: `0.94.0`
 | `npm run typecheck` | PASSED | clean |
 | `npm run test:projects-db-validation` | PASSED | draft-row reconcile |
 | `npm run test:navigation-history` | PASSED | stack hygiene |
-| `npm run build` | PENDING | before push |
-| GitHub Pages deploy | PENDING | after push |
-| GitHub Release | PENDING | `v0.94.0` |
+| `npm run build` | PASSED | Vite OK |
+| GitHub Pages deploy | PASSED | [29741024111](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29741024111) |
+| GitHub Release | PASSED | [v0.94.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.94.0) |
 
 ## Next Action
 
-Confirm Actions deploy green; update deploy SHA in DATA_MAP / version-94-handoff / About history.
+Browser-smoke Projects Database blank-row create + Save. Phase C R9 when ready.
 
 ## Dumb-Zone Recovery
 
