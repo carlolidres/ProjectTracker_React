@@ -20,12 +20,17 @@ export function RegistryCreatableCellEditor(
   const value = props.value == null ? "" : String(props.value);
 
   return (
-    <div className="projects-db-creatable-editor">
+    <div
+      className="projects-db-creatable-editor"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
       <CreatableNaSelect
         value={value}
         options={props.options ?? []}
         canManageOptions={props.canManageOptions}
         sanitize={props.sanitize}
+        defaultOpen
+        autoFocus
         popupClassName="ag-custom-component-popup projects-db-creatable-popup"
         onChange={(next) => {
           props.onValueChange(next);

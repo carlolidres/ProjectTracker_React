@@ -89,7 +89,7 @@ export const PROJECTS_DB_DATA_COLUMNS: SpreadsheetColumnDef[] = [
   col("business_unit", { roleGroup: "am", roleGroupLabel: "AM/BM/PL", fieldGroup: "am", level: "po", headerName: "BU", width: 80 }),
   col("cnf_reference", { roleGroup: "am", roleGroupLabel: "AM/BM/PL", fieldGroup: "am", level: "cnf", width: 120 }),
   col("updatedDocsVer", { roleGroup: "am", roleGroupLabel: "AM/BM/PL", fieldGroup: "am", level: "po", headerName: "Updated Docs/Ver (Y/N)", width: 140 }),
-  col("cnf_status", { roleGroup: "am", roleGroupLabel: "AM/BM/PL", fieldGroup: "am", level: "cnf", width: 130 }),
+  col("cnf_status", { roleGroup: "am", roleGroupLabel: "AM/BM/PL", fieldGroup: "am", level: "cnf", width: 88 }),
   col("client_approval_target_date", {
     roleGroup: "am",
     roleGroupLabel: "AM/BM/PL",
@@ -100,7 +100,7 @@ export const PROJECTS_DB_DATA_COLUMNS: SpreadsheetColumnDef[] = [
   }),
 
   col("qrmr_ref_no", { roleGroup: "qa", roleGroupLabel: "QA", fieldGroup: "qa", level: "cnf", headerName: "QRMR No.", width: 120 }),
-  col("qrmr_status", { roleGroup: "qa", roleGroupLabel: "QA", fieldGroup: "qa", level: "cnf", headerName: "QRMR Status", width: 130 }),
+  col("qrmr_status", { roleGroup: "qa", roleGroupLabel: "QA", fieldGroup: "qa", level: "cnf", headerName: "QRMR Status", width: 88 }),
   col("qrmr_target_date", {
     roleGroup: "qa",
     roleGroupLabel: "QA",
@@ -111,7 +111,7 @@ export const PROJECTS_DB_DATA_COLUMNS: SpreadsheetColumnDef[] = [
   }),
 
   col("manufacturing_start_week", { roleGroup: "pp", roleGroupLabel: "PP", fieldGroup: "pp", level: "po", headerName: "Mfg Start Week", width: 130 }),
-  col("final_status", { roleGroup: "pp", roleGroupLabel: "PP", fieldGroup: "pp", level: "po", headerName: "FINAL STATUS", width: 120 }),
+  col("final_status", { roleGroup: "pp", roleGroupLabel: "PP", fieldGroup: "pp", level: "po", headerName: "FINAL STATUS", width: 88 }),
 
   col("mo_bmr_po_submission_status", {
     roleGroup: "tsd",
@@ -161,7 +161,7 @@ export const PROJECTS_DB_DATA_COLUMNS: SpreadsheetColumnDef[] = [
     fieldGroup: "val",
     level: "projectVal",
     headerName: "Protocol Submission",
-    width: 140,
+    width: 96,
   }),
   col("protocol_target_date", {
     roleGroup: "val",
@@ -185,7 +185,7 @@ export const PROJECTS_DB_DATA_COLUMNS: SpreadsheetColumnDef[] = [
     fieldGroup: "val",
     level: "projectVal",
     headerName: "Val/Ver Report",
-    width: 130,
+    width: 88,
   }),
   col("validation_report_target_date", {
     roleGroup: "val",
@@ -338,4 +338,21 @@ export function filterTypeForEditor(editor: ProjectFieldType): string {
 
 export function isMonthYearFilterColumn(column: Pick<SpreadsheetColumnDef, "editor" | "field">): boolean {
   return column.editor === "date" || column.editor === "month" || column.field === "fg_month";
+}
+
+/** Workflow status fields rendered as compact icons (filter/sort/edit keep full text labels). */
+const WORKFLOW_STATUS_REGISTRIES = new Set([
+  "cnf_status",
+  "qrmr_status",
+  "final_status",
+  "doc_status",
+  "val_interim_report_status",
+  "validation_report_status",
+  "endorsement_report_status",
+]);
+
+export function isWorkflowStatusSpreadsheetColumn(
+  column: Pick<SpreadsheetColumnDef, "registry">,
+): boolean {
+  return Boolean(column.registry && WORKFLOW_STATUS_REGISTRIES.has(column.registry));
 }

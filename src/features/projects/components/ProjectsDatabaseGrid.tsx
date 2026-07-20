@@ -35,12 +35,19 @@ import {
   canEditSpreadsheetColumn,
   filterTypeForEditor,
   isMonthYearFilterColumn,
+  isWorkflowStatusSpreadsheetColumn,
   resolveSpreadsheetColumnFocus,
   type SpreadsheetColumnDef,
   type SpreadsheetColumnFocus,
 } from "@/lib/projectsDatabaseColumns";
+import {
+  estimateProjectsDbViewportRows,
+  isDraftSpreadsheetId,
+} from "@/lib/projectsDatabaseDraftRows";
+import { WorkflowStatusBadge } from "@/components/common/workflow-status-badge";
 import { ProjectsDbMonthYearDateInput } from "@/features/projects/components/ProjectsDbMonthYearDateInput";
 import { RegistryCreatableCellEditor } from "@/features/projects/components/RegistryCreatableCellEditor";
+import { shouldIgnoreProjectsDbCellMouseDown } from "@/lib/projectsDatabaseGridInteraction";
 import {
   cellErrorKey,
   validateSpreadsheetCellValue,
@@ -131,7 +138,7 @@ function estimateSoNoColumnWidth(rows: ProjectRow[]): number {
 
 function OpenProjectCell(params: ICellRendererParams<ProjectRow>) {
   const projectId = params.data?.project_id ?? "";
-  if (isMissingValue(projectId)) {
+  if (isMissingValue(projectId) || isDraftSpreadsheetId(projectId)) {
     return (
       <span className="projects-db-open-cell is-disabled" aria-hidden>
         <FormOutlined />
@@ -154,6 +161,15 @@ function OpenProjectCell(params: ICellRendererParams<ProjectRow>) {
 
 function SoNoCell(params: ICellRendererParams<ProjectRow>) {
   return <span className="projects-db-so-value">{formatSoNoLabel(params.value)}</span>;
+}
+
+function WorkflowStatusCell(params: ICellRendererParams<ProjectRow>) {
+  const value = params.value == null ? "" : String(params.value);
+  return (
+    <span className="projects-db-status-cell">
+      <WorkflowStatusBadge status={value} />
+    </span>
+  );
 }
 
 function formatCellValue(field: string, value: unknown, editor: string): string {
@@ -214,6 +230,7 @@ function buildLeafCol(
     headerClass: `projects-db-header-${column.roleGroup}`,
     cellClass: (params: CellClassParams<ProjectRow>) => {
       const classes = [`projects-db-cell-${column.roleGroup}`];
+      if (isWorkflowStatusSpreadsheetColumn(column)) classes.push("projects-db-cell-status");
       if (!editable || column.readOnlyAlways) classes.push("projects-db-cell-readonly");
       const key = `${params.data?.record_id}:${column.field}`;
       if (dirtyKeys.has(key)) classes.push("projects-db-cell-dirty");
@@ -278,6 +295,8 @@ interface ProjectsDatabaseGridProps {
   undoRequestToken?: number;
   redoRequestToken?: number;
   onCellErrorsChange?: (errors: Record<string, string>) => void;
+  /** Visible body row capacity (excludes header) for blank draft-row fill. */
+  onViewportRowCapacityChange?: (capacity: number) => void;
 }
 
 export function ProjectsDatabaseGrid({
@@ -295,11 +314,13 @@ export function ProjectsDatabaseGrid({
   undoRequestToken = 0,
   redoRequestToken = 0,
   onCellErrorsChange,
+  onViewportRowCapacityChange,
 }: ProjectsDatabaseGridProps) {
   const { message } = App.useApp();
   const { user } = useAuth();
   const { refreshRegistry } = useRegistry();
   const apiRef = useRef<GridApi<ProjectRow> | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const storedWidths = useMemo(() => loadStoredWidths(), []);
   const anchorRef = useRef<CellCoord | null>(null);
   const dragSelectingRef = useRef(false);
@@ -468,6 +489,17 @@ export function ProjectsDatabaseGrid({
         leaf.minWidth = allColumnsMode ? 88 : 100;
         leaf.maxWidth = allColumnsMode ? 160 : undefined;
       }
+      if (isWorkflowStatusSpreadsheetColumn(column)) {
+        leaf.cellRenderer = WorkflowStatusCell;
+        leaf.minWidth = 72;
+        leaf.maxWidth = allColumnsMode ? 110 : undefined;
+        if (autofitColumns) {
+          leaf.width = undefined;
+          leaf.flex = undefined;
+          leaf.minWidth = 72;
+          leaf.maxWidth = 96;
+        }
+      }
       currentChildren.push(leaf);
     }
     flush();
@@ -519,6 +551,27 @@ export function ProjectsDatabaseGrid({
   useEffect(() => {
     apiRef.current?.resetRowHeights();
   }, [rowHeight]);
+
+  useEffect(() => {
+    if (!onViewportRowCapacityChange) return;
+    const shell = shellRef.current;
+    if (!shell) return;
+
+    const report = () => {
+      const header =
+        shell.querySelector<HTMLElement>(".ag-header")?.offsetHeight
+        ?? shell.querySelector<HTMLElement>(".ag-header-viewport")?.offsetHeight
+        ?? 96;
+      onViewportRowCapacityChange(
+        estimateProjectsDbViewportRows(shell.clientHeight, header, rowHeight),
+      );
+    };
+
+    report();
+    const observer = new ResizeObserver(() => report());
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, [onViewportRowCapacityChange, rowHeight, rows.length, loading]);
 
   useEffect(() => {
     if (!autofitColumns) return;
@@ -604,12 +657,19 @@ export function ProjectsDatabaseGrid({
     (event: CellMouseDownEvent<ProjectRow>) => {
       const mouseEvent = event.event as MouseEvent | undefined;
       if (!mouseEvent || mouseEvent.button !== 0) return;
-      const target = mouseEvent.target as HTMLElement | null;
-      if (target?.closest("a, button, input, textarea")) return;
+      if (shouldIgnoreProjectsDbCellMouseDown(mouseEvent.target)) return;
 
       const field = event.colDef.field;
       const rowId = event.data?.record_id;
       if (!field || !rowId) return;
+
+      // Keep the active dropdown/editor open while the user interacts with it.
+      const editingThisCell = event.api.getEditingCells().some((cell) => {
+        if (cell.rowIndex == null || !cell.column) return false;
+        if (cell.column.getColDef().field !== field) return false;
+        return event.api.getDisplayedRowAtIndex(cell.rowIndex)?.data?.record_id === rowId;
+      });
+      if (editingThisCell) return;
 
       mouseEvent.preventDefault();
       dragSelectingRef.current = true;
@@ -1059,6 +1119,7 @@ export function ProjectsDatabaseGrid({
 
   return (
     <div
+      ref={shellRef}
       className={`projects-db-grid-shell ag-theme-quartz${isDragSelecting ? " is-drag-selecting" : ""}`}
       onContextMenu={(event) => {
         // Browser menu is handled per-cell; suppress leftover shell context menus.

@@ -1,50 +1,37 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  readSidebarState,
+  resetSidebarStateForSessionClear,
+  SIDEBAR_STATE_RESET_EVENT,
+  type SidebarState,
+  writeSidebarState,
+} from "@/lib/sidebarSessionState";
 
-export type SidebarState = "expanded" | "collapsed";
-
-const STORAGE_KEY = "pt.sidebar.state";
-
-/** Survives AppShell remounts on route change (each page owns its own AppShell). */
-let sidebarStateMemory: SidebarState | null = null;
-
-function readStoredState(): SidebarState {
-  if (sidebarStateMemory === "expanded" || sidebarStateMemory === "collapsed") {
-    return sidebarStateMemory;
-  }
-  try {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored === "expanded" || stored === "collapsed") {
-      sidebarStateMemory = stored;
-      return stored;
-    }
-  } catch {
-    /* ignore quota / private mode */
-  }
-  return "collapsed";
-}
-
-function writeStoredState(next: SidebarState) {
-  sidebarStateMemory = next;
-  try {
-    sessionStorage.setItem(STORAGE_KEY, next);
-  } catch {
-    /* ignore */
-  }
-}
+export type { SidebarState };
+export { resetSidebarStateForSessionClear };
 
 export function useSidebarState() {
-  const [state, setState] = useState<SidebarState>(readStoredState);
+  const [state, setState] = useState<SidebarState>(readSidebarState);
+
+  useEffect(() => {
+    const onReset = () => {
+      writeSidebarState("collapsed");
+      setState("collapsed");
+    };
+    window.addEventListener(SIDEBAR_STATE_RESET_EVENT, onReset);
+    return () => window.removeEventListener(SIDEBAR_STATE_RESET_EVENT, onReset);
+  }, []);
 
   const toggle = useCallback(() => {
     setState((current) => {
       const next: SidebarState = current === "expanded" ? "collapsed" : "expanded";
-      writeStoredState(next);
+      writeSidebarState(next);
       return next;
     });
   }, []);
 
   const expand = useCallback(() => {
-    writeStoredState("expanded");
+    writeSidebarState("expanded");
     setState("expanded");
   }, []);
 

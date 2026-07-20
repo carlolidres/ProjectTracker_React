@@ -1,37 +1,42 @@
 # Current Handoff
 
-Last Updated: `2026-07-19`
-Version: `v0.93.0`
+Last Updated: `2026-07-20`
+Version: `v0.94.0`
 Branch: `main`
-Commit: `e102a0d`
-App version: `0.93.0`
+Commit: _(pending push)_
+App version: `0.94.0`
 
 ## Current Status
 
-**v0.93.0 deployed.** GitHub Pages Actions [29684541973](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684541973) success. Release: https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.93.0
+**v0.94.0 release in progress.** DATA_MAP and version artifacts updated; deploy via push to `main` + GitHub Release.
 
 ## Recently Completed
 
-- Released `v0.93.0` @ `e102a0d`
-- Collapsed shell default + sticky Support Add/Edit Activity header
-- DATA_MAP / release notes / version-93 handoff updated
+- Projects Database: blank fill-viewport draft rows (replaced Add project); Save bulk-creates projects
+- Compact workflow status icons in Projects Database
+- App Back/Forward + view-state restore on priority pages
+- Worklist / Project Entry UX polish; sidebar session clear; dropdown editor mousedown fix
+- DATA_MAP: draft-row create path + session UI preferences; release baseline → 0.94.0
 
 ## Deferred
 
 - Phase C R9 Support CNF/Endorsement handoff overlays
+- Opt-in view-state restore for remaining routes (audit, registry, admin, etc.)
 
 ## Verification
 
 | Check | Status | Result |
 |---|---|---|
 | `npm run typecheck` | PASSED | clean |
-| `npm run build` | PASSED | Vite OK |
-| GitHub Pages deploy | PASSED | [29684541973](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684541973) |
-| GitHub Release | PASSED | [v0.93.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.93.0) |
+| `npm run test:projects-db-validation` | PASSED | draft-row reconcile |
+| `npm run test:navigation-history` | PASSED | stack hygiene |
+| `npm run build` | PENDING | before push |
+| GitHub Pages deploy | PENDING | after push |
+| GitHub Release | PENDING | `v0.94.0` |
 
 ## Next Action
 
-Owner browser-smoke. Phase C R9 when ready.
+Confirm Actions deploy green; update deploy SHA in DATA_MAP / version-94-handoff / About history.
 
 ## Dumb-Zone Recovery
 

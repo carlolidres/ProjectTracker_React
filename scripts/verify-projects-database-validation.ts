@@ -1,7 +1,24 @@
 import assert from "node:assert/strict";
 import { compareAppMonthYear, compareMonthFilterDate } from "../src/lib/date";
+import {
+  createBlankProjectRow,
+  estimateProjectsDbViewportRows,
+  isBlankDraftProjectRow,
+  isDraftSpreadsheetId,
+  reconcileDraftProjectRows,
+} from "../src/lib/projectsDatabaseDraftRows";
+import { shouldIgnoreProjectsDbCellMouseDown } from "../src/lib/projectsDatabaseGridInteraction";
 import { validateSpreadsheetCellValue } from "../src/lib/projectsDatabaseValidation";
 import type { SpreadsheetColumnDef } from "../src/lib/projectsDatabaseColumns";
+
+function fakeElement(selfSelector: string): Element {
+  return {
+    closest(selector: string) {
+      const tokens = selector.split(",").map((part) => part.trim());
+      return tokens.includes(selfSelector) ? (this as unknown as Element) : null;
+    },
+  } as Element;
+}
 
 function col(
   field: string,
@@ -59,5 +76,27 @@ assert.equal(compareMonthFilterDate(junFilter, "30 Jun 2026"), 0);
 assert.equal(compareMonthFilterDate(junFilter, "01 Jun 2026"), 0);
 assert.ok(compareMonthFilterDate(junFilter, "15 May 2026") < 0);
 assert.ok(compareMonthFilterDate(junFilter, "Jul 2026") > 0);
+
+assert.equal(shouldIgnoreProjectsDbCellMouseDown(null), false);
+assert.equal(shouldIgnoreProjectsDbCellMouseDown(fakeElement(".ant-select")), true);
+assert.equal(shouldIgnoreProjectsDbCellMouseDown(fakeElement(".projects-db-creatable-editor")), true);
+assert.equal(shouldIgnoreProjectsDbCellMouseDown(fakeElement(".ag-select-list")), true);
+assert.equal(shouldIgnoreProjectsDbCellMouseDown(fakeElement(".ag-cell")), false);
+
+const blank = createBlankProjectRow("Carlo");
+assert.equal(isDraftSpreadsheetId(blank.project_id), true);
+assert.equal(isBlankDraftProjectRow(blank, "Carlo"), true);
+assert.equal(isBlankDraftProjectRow({ ...blank, client_name: "Acme" }, "Carlo"), false);
+
+const filledShell = createBlankProjectRow("Carlo");
+const trailing = reconcileDraftProjectRows(
+  [filledShell, createBlankProjectRow("Carlo")],
+  [{ recordId: filledShell.record_id, projectId: filledShell.project_id, field: "product_name", oldValue: "", newValue: "Widget" }],
+  5,
+  10,
+  "Carlo",
+);
+assert.equal(trailing.length, 5); // capacity 10 - existing 5 = 5 drafts; 1 filled + 4 blank
+assert.equal(estimateProjectsDbViewportRows(400, 96, 32), 9);
 
 console.log("verify-projects-database-validation: PASS");

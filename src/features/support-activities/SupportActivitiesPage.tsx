@@ -12,6 +12,7 @@ import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { useRegistry } from "@/app/registry-provider";
 import { DashboardFilterBanner } from "@/components/common/dashboard-filter-banner";
 import { AppShell } from "@/components/layout/app-shell";
+import { useRestorableViewState } from "@/hooks/use-restorable-view-state";
 import { CnfTrackerSelectModal } from "@/features/cnf-tracker/CnfTrackerSelectModal";
 import { ROLE_LABELS } from "@/lib/constants";
 import { collectSupportDateChanges } from "@/lib/dateAdjustmentReview";
@@ -177,6 +178,7 @@ export function SupportActivitiesPage() {
   const canManageOptions = canRemoveReusableOptions(profile?.role);
   const [rows, setRows] = useState<SupportActivity[]>([]);
   const [filters, setFilters] = useState<SupportActivityFilters>({ activity_kind: "TSD" });
+  useRestorableViewState("support-activities.filters", filters, setFilters);
   const [form, setForm] = useState<Partial<SupportActivity>>(emptyActivity());
   const baselineFormRef = useRef<Partial<SupportActivity>>(emptyActivity());
   const isNewSupport = !form.activity_id || form.activity_id === "N/A";

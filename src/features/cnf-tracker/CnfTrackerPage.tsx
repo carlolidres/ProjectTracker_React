@@ -15,6 +15,7 @@ import {
 import { AppShell } from "@/components/layout/app-shell";
 import { DocumentNumberStatusCell } from "@/components/common/document-number-status-cell";
 import { ProjectIdLink } from "@/components/common/project-id-link";
+import { useRestorableViewState } from "@/hooks/use-restorable-view-state";
 import { CnfReferencePickerModal } from "@/features/cnf-tracker/CnfReferencePickerModal";
 import { CnfTrackerDetailModal, type CnfTrackerDetailFormState } from "@/features/cnf-tracker/CnfTrackerDetailModal";
 import { CnfTrackerListTable } from "@/features/cnf-tracker/CnfTrackerListTable";
@@ -157,6 +158,7 @@ export function CnfTrackerPage() {
   const [initiatorTouched, setInitiatorTouched] = useState(false);
   const [referencePickerOpen, setReferencePickerOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  useRestorableViewState("cnf-tracker.detailModalOpen", detailModalOpen, setDetailModalOpen);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [returnProjectId, setReturnProjectId] = useState<string | null>(null);
   const [returnToPath, setReturnToPath] = useState<string | null>(null);
@@ -170,6 +172,7 @@ export function CnfTrackerPage() {
   >(new Map());
   const [linkedSupportRows, setLinkedSupportRows] = useState<SupportActivity[]>([]);
   const [listTab, setListTab] = useState<"process" | "non_process">("process");
+  useRestorableViewState("cnf-tracker.listTab", listTab, setListTab);
   const draftFlushEnabledRef = useRef(true);
 
   const projectLinked = linkedProjectIds.length > 0;

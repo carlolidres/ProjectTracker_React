@@ -31,6 +31,7 @@ function buildWorklistItem(row: ProjectRow) {
     project_id: row.project_id,
     product_name: row.product_name,
     client_name: row.client_name,
+    project_owner: valueOrNA(row.project_owner),
     po_control_no: row.po_control_no,
     fg_month: row.fg_month,
     cnf_status: row.cnf_status,

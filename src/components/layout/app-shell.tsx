@@ -2,6 +2,7 @@ import { MenuUnfoldOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 import { useEffect, useState } from "react";
 import { CollapsedNavRail } from "@/components/layout/collapsed-nav-rail";
+import { NavHistoryButtons } from "@/components/layout/nav-history-buttons";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { useSidebarState } from "@/hooks/use-sidebar-state";
@@ -53,6 +54,9 @@ export function AppShell({ children }: Readonly<AppShellProps>) {
         />
         <main className="app-content">{children}</main>
       </div>
+      {isCollapsed ? (
+        <NavHistoryButtons floating className="desktop-only" />
+      ) : null}
       {showExpandFab ? (
         <div
           className={cn(

@@ -1,6 +1,6 @@
 # Data Map
 
-Last Updated: `2026-07-18` (v0.91.0 release documentation)
+Last Updated: `2026-07-20` (v0.94.0 release documentation)
 
 ## Purpose
 
@@ -166,6 +166,18 @@ Key rules:
 - `tsd_remarks` is TSD long-text remarks (separate from AM CNF `remarks`); migration `20260718140000_cnf_projects_tsd_remarks`.
 - `qc_remarks` is QC long-text remarks (separate from AM/TSD remarks); migration `20260718141000_cnf_projects_qc_remarks`.
 - Projects Database spreadsheet omits `textarea` long-text columns (`change_description`, `remarks`, `risk_control`, `tsd_remarks`, `qc_remarks`); edit those on Project Entry.
+- Projects Database blank draft rows are client-only (`__draft__*` record/project ids via `src/lib/projectsDatabaseDraftRows.ts`). They are not written to Supabase until Save.
+- On Save: non-blank valid draft rows call `createProjectsFromSpreadsheetDrafts` → `saveProject` (assigns unique `PROJ-YYYY-NNN` via `getNextProjectId`); existing-row edits use `patchProjectFromSpreadsheetEdits` → `updateProject`. Completely blank drafts are ignored; cell validation errors block the whole Save.
+- Draft create requires menu Create on Projects Entry and Edit on Projects Database; role/registry rules still apply in the service layer. Audit CREATE entries are written per inserted PO line as with other project creates.
+
+Projects Database spreadsheet path:
+
+| Step | Module | Notes |
+|---|---|---|
+| Edit existing cell | `ProjectsDatabaseGrid` → dirty `SpreadsheetCellEdit` | Validated by `validateSpreadsheetCellValue` |
+| Fill blank row | Local draft `ProjectRow` | Viewport-fill + trailing blank reconcile |
+| Save existing | `patchProjectFromSpreadsheetEdits` | Date-adjustment confirm when needed |
+| Save new rows | `createProjectsFromSpreadsheetDrafts` | One hierarchy / project per filled draft |
 
 ### `cnf_tracker_records`
 
@@ -350,8 +362,8 @@ Deploy identity: GitHub Actions `.github/workflows/deploy.yml` sets `VITE_APP_GI
 | Artifact | Path |
 |---|---|
 | Release checklist | `agent-workflow/RELEASE_CHECKLIST.md` |
-| Release notes (current) | `agent-workflow/releases/v0.93.0-RELEASE_NOTES.md` |
-| Versioned AVD / handoff | `agent-history/version-93-handoff.md` |
+| Release notes (current) | `agent-workflow/releases/v0.94.0-RELEASE_NOTES.md` |
+| Versioned AVD / handoff | `agent-history/version-94-handoff.md` |
 | About version history | `src/lib/appVersionHistory.ts` |
 | Menu matrix rollback | `agent-workflow/MENU_MATRIX_ROLLBACK.md` |
 | Dashboard workspace rollback | `agent-workflow/DASHBOARD_WORKSPACE_ROLLBACK.md` |
@@ -360,20 +372,22 @@ Deploy identity: GitHub Actions `.github/workflows/deploy.yml` sets `VITE_APP_GI
 
 | Preference | Storage | Default | Notes |
 |---|---|---|---|
-| Sidebar / topbar collapse | `sessionStorage` key `pt.sidebar.state` (`expanded` \| `collapsed`) | `collapsed` | In-memory mirror survives AppShell remounts; topbar hides with sidebar on desktop; sticky page headers use `--app-sticky-top` / `--app-sticky-top-pad`. |
+| Sidebar / topbar collapse | `sessionStorage` key `pt.sidebar.state` (`expanded` \| `collapsed`) | `collapsed` | In-memory mirror survives AppShell remounts; cleared via `resetSidebarStateForSessionClear()` from `clearAppSessionState()` (same-tab user switch). Topbar hides with sidebar on desktop; sticky headers use `--app-sticky-top` / `--app-sticky-top-pad`. |
+| App Back/Forward history | In-memory (`NavigationHistoryProvider`) + view-state slots | empty on load | Cleared with session cleanup. Restores scroll + priority UI (Worklist, Project Entry chrome, Projects DB focus/full view, Support filters, CNF list tab/modal). Not persisted to Supabase. |
+| Projects DB Full View | `localStorage` `project-tracker:projects-db:full-view` | on | Column widths / row height also local-only. |
 
 ### Current release baseline
 
 | Field | Value |
 |---|---|
-| Version | `0.93.0` (tag `v0.93.0`) |
-| Deploy SHA | `e102a0d` |
-| Deployed | 2026-07-19 — Actions [29684541973](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29684541973) success |
-| Prior production | `0.92.0` @ `9d95501` |
-| Change class | Minor (collapsed shell default, sticky Support form header) |
+| Version | `0.94.0` (tag `v0.94.0`) |
+| Deploy SHA | _(set after Actions deploy)_ |
+| Deployed | 2026-07-20 — pending Actions |
+| Prior production | `0.93.0` @ `e102a0d` |
+| Change class | Minor (Projects DB draft-row create, nav history, status icons, worklist UX) |
 | Environment | GitHub Pages |
 | Migrations | none |
-| Rollback | Redeploy `9d95501` / `0.92.0` |
+| Rollback | Redeploy `e102a0d` / `0.93.0` |
 
 Do not treat a local About label as released until Actions succeeds and package+SHA match the GitHub Release.
 

@@ -3,7 +3,6 @@ import {
   CompressOutlined,
   DownloadOutlined,
   ExpandOutlined,
-  PlusOutlined,
   RedoOutlined,
   ReloadOutlined,
   SaveOutlined,
@@ -21,6 +20,7 @@ import { useRegistry } from "@/app/registry-provider";
 import { AppMonthPicker } from "@/components/common/app-date-picker";
 import { DashboardFilterBanner } from "@/components/common/dashboard-filter-banner";
 import { AppShell } from "@/components/layout/app-shell";
+import { useRestorableViewState } from "@/hooks/use-restorable-view-state";
 import { readReturnToPath } from "@/lib/dashboardReturnTo";
 import {
   ProjectsDatabaseGrid,
@@ -35,6 +35,11 @@ import {
   spreadsheetFieldGroupForPendingRole,
   type SpreadsheetColumnFocus,
 } from "@/lib/projectsDatabaseColumns";
+import {
+  groupDraftEditsByRecord,
+  isBlankDraftProjectRow,
+  reconcileDraftProjectRows,
+} from "@/lib/projectsDatabaseDraftRows";
 import { subscribeProjectDataChanged } from "@/lib/projectDataEvents";
 import { ROLE_COLORS, ROLE_LEGEND_ITEMS } from "@/lib/roleColors";
 import { canFocusProjectsDbRoleColumns, isAdminRole } from "@/lib/roleAccess";
@@ -46,13 +51,14 @@ import {
 import { valueOrNA } from "@/lib/utils";
 import { exportProjectsToExcel } from "@/services/exportService";
 import {
-  createBlankProject,
   filterProjectRows,
   getProjectById,
   listActiveProjects,
 } from "@/services/projectService";
 import {
   applyLocalRowEdits,
+  createProjectsFromSpreadsheetDrafts,
+  partitionSpreadsheetEdits,
   patchProjectFromSpreadsheetEdits,
   previewSpreadsheetDateChanges,
   type SpreadsheetCellEdit,
@@ -116,11 +122,12 @@ export function ProjectsDatabasePage() {
   const [filters, setFilters] = useState<ProjectFilters>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [dirtyEdits, setDirtyEdits] = useState<SpreadsheetCellEdit[]>([]);
   const [cellErrors, setCellErrors] = useState<Record<string, string>>({});
+  const [draftRows, setDraftRows] = useState<ProjectRow[]>([]);
+  const [viewportRowCapacity, setViewportRowCapacity] = useState(12);
   const [rowHeight, setRowHeight] = useState(loadStoredRowHeight);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
@@ -129,6 +136,8 @@ export function ProjectsDatabasePage() {
   const [fullView, setFullView] = useState(loadFullView);
   /** Column visibility only — independent of row filters and edit rights. */
   const [columnFocus, setColumnFocus] = useState<SpreadsheetColumnFocus>({ mode: "all" });
+  useRestorableViewState("projects-db.columnFocus", columnFocus, setColumnFocus);
+  useRestorableViewState("projects-db.fullView", fullView, setFullView);
 
   const authorizedLegendItems = useMemo(
     () =>
@@ -152,6 +161,12 @@ export function ProjectsDatabasePage() {
     });
   }, []);
 
+  const defaultDraftOwner = useMemo(
+    () => (isAdminRole(profile?.role) ? "" : getProfileFirstName(profile)),
+    [profile],
+  );
+  const canUseDraftRows = canCreateProject && canEditDatabase;
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -159,6 +174,7 @@ export function ProjectsDatabasePage() {
       setRows(await listActiveProjects());
       setDirtyEdits([]);
       setCellErrors({});
+      setDraftRows([]);
       setSaveStatus("idle");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load projects");
@@ -196,6 +212,31 @@ export function ProjectsDatabasePage() {
 
   const displayRows = useMemo(() => applyLocalRowEdits(rows, dirtyEdits), [rows, dirtyEdits]);
   const filtered = useMemo(() => filterProjectRows(displayRows, filters), [displayRows, filters]);
+  const displayDraftRows = useMemo(
+    () => applyLocalRowEdits(draftRows, dirtyEdits),
+    [draftRows, dirtyEdits],
+  );
+  const gridRows = useMemo(
+    () => (canUseDraftRows ? [...filtered, ...displayDraftRows] : filtered),
+    [canUseDraftRows, displayDraftRows, filtered],
+  );
+
+  useEffect(() => {
+    if (!canUseDraftRows) {
+      setDraftRows([]);
+      return;
+    }
+    setDraftRows((current) =>
+      reconcileDraftProjectRows(
+        current,
+        dirtyEdits,
+        filtered.length,
+        viewportRowCapacity,
+        defaultDraftOwner,
+      ),
+    );
+  }, [canUseDraftRows, defaultDraftOwner, dirtyEdits, filtered.length, viewportRowCapacity]);
+
   const cellErrorCount = Object.keys(cellErrors).length;
 
   const ownerOptions = useMemo(() => {
@@ -223,10 +264,37 @@ export function ProjectsDatabasePage() {
       return;
     }
 
+    const { existingEdits, draftEdits } = partitionSpreadsheetEdits(dirtyEdits);
+    const draftGroups = groupDraftEditsByRecord(draftEdits);
+    const createGroups: { recordId: string; edits: SpreadsheetCellEdit[] }[] = [];
+
+    for (const [recordId, edits] of draftGroups) {
+      const shell = draftRows.find((row) => row.record_id === recordId);
+      const view = applyLocalRowEdits(shell ? [shell] : [], edits)[0];
+      if (!view || isBlankDraftProjectRow(view, defaultDraftOwner)) continue;
+      createGroups.push({ recordId, edits });
+    }
+
+    if (!existingEdits.length && !createGroups.length) {
+      message.info("No project changes to save. Blank rows are ignored.");
+      return;
+    }
+
+    const changeSummary = [
+      existingEdits.length
+        ? `${existingEdits.length} edit${existingEdits.length === 1 ? "" : "s"}`
+        : null,
+      createGroups.length
+        ? `${createGroups.length} new project${createGroups.length === 1 ? "" : "s"}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" and ");
+
     const confirmed = await new Promise<boolean>((resolve) => {
       modal.confirm({
         title: "Save spreadsheet changes?",
-        content: `Save ${dirtyEdits.length} unsaved change${dirtyEdits.length === 1 ? "" : "s"}? Valid cells will be written; role and field rules still apply on the server.`,
+        content: `Save ${changeSummary}? Blank rows are skipped. Role and field rules still apply on the server.`,
         okText: "Save",
         cancelText: "Cancel",
         onOk: () => resolve(true),
@@ -239,7 +307,7 @@ export function ProjectsDatabasePage() {
     setError(null);
     try {
       const byProject = new Map<string, SpreadsheetCellEdit[]>();
-      for (const edit of dirtyEdits) {
+      for (const edit of existingEdits) {
         const list = byProject.get(edit.projectId) ?? [];
         list.push(edit);
         byProject.set(edit.projectId, list);
@@ -261,16 +329,35 @@ export function ProjectsDatabasePage() {
         }
       }
 
-      await patchProjectFromSpreadsheetEdits(dirtyEdits, user.email, {
-        dateAdjustmentsConfirmed: true,
+      const createdIds = await createProjectsFromSpreadsheetDrafts(createGroups, user.email, {
         role: gridRole,
         registry,
+        defaultProjectOwner: defaultDraftOwner,
       });
+
+      if (existingEdits.length) {
+        await patchProjectFromSpreadsheetEdits(existingEdits, user.email, {
+          dateAdjustmentsConfirmed: true,
+          role: gridRole,
+          registry,
+        });
+      }
 
       setDirtyEdits([]);
       setCellErrors({});
+      setDraftRows([]);
       setSaveStatus("saved");
-      message.success("Changes saved");
+      if (createdIds.length && existingEdits.length) {
+        message.success(
+          `Saved changes and created ${createdIds.length} project${createdIds.length === 1 ? "" : "s"}`,
+        );
+      } else if (createdIds.length) {
+        message.success(
+          `Created ${createdIds.length} project${createdIds.length === 1 ? "" : "s"}: ${createdIds.join(", ")}`,
+        );
+      } else {
+        message.success("Changes saved");
+      }
       setRows(await listActiveProjects());
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to save spreadsheet changes.";
@@ -282,7 +369,9 @@ export function ProjectsDatabasePage() {
     }
   }, [
     cellErrorCount,
+    defaultDraftOwner,
     dirtyEdits,
+    draftRows,
     gridRole,
     modal,
     profile?.role,
@@ -292,28 +381,6 @@ export function ProjectsDatabasePage() {
   ]);
 
   const unsavedCount = dirtyEdits.length;
-
-  const handleAddProjectRow = useCallback(async () => {
-    if (!user?.email) {
-      message.error("Sign in again to create a project.");
-      return;
-    }
-    if (unsavedCount > 0) {
-      message.warning("Save or discard unsaved edits before adding a project.");
-      return;
-    }
-    setCreating(true);
-    try {
-      const owner = isAdminRole(profile?.role) ? "" : getProfileFirstName(profile);
-      const result = await createBlankProject(user.email, owner);
-      message.success(`Project ${result.project_id} created`);
-      await load();
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : "Failed to create project");
-    } finally {
-      setCreating(false);
-    }
-  }, [load, profile, unsavedCount, user?.email]);
 
   const discardSaveButtons = (
     <Space size={4}>
@@ -661,7 +728,7 @@ export function ProjectsDatabasePage() {
         ) : null}
 
         <ProjectsDatabaseGrid
-          rows={filtered}
+          rows={gridRows}
           role={gridRole}
           registry={registry}
           dirtyEdits={dirtyEdits}
@@ -671,6 +738,7 @@ export function ProjectsDatabasePage() {
           columnFocus={columnFocus}
           loading={loading}
           onCellErrorsChange={setCellErrors}
+          onViewportRowCapacityChange={setViewportRowCapacity}
           onUndoRedoAvailabilityChange={({ canUndo: nextUndo, canRedo: nextRedo }) => {
             setCanUndo(nextUndo);
             setCanRedo(nextRedo);
@@ -678,19 +746,6 @@ export function ProjectsDatabasePage() {
           undoRequestToken={undoRequestToken}
           redoRequestToken={redoRequestToken}
         />
-        {canCreateProject ? (
-          <div className="projects-db-add-row-bar">
-            <Button
-              type="dashed"
-              icon={<PlusOutlined />}
-              loading={creating}
-              disabled={loading || creating || unsavedCount > 0}
-              onClick={() => void handleAddProjectRow()}
-            >
-              Add project
-            </Button>
-          </div>
-        ) : null}
       </div>
     </AppShell>
   );

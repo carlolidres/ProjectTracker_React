@@ -10,6 +10,18 @@ export interface AppVersionHistoryEntry {
 
 export const APP_VERSION_HISTORY: AppVersionHistoryEntry[] = [
   {
+    version: "0.94.0",
+    title: "Projects DB draft rows, nav history, status icons",
+    date: "2026-07-20",
+    changes: [
+      "Projects Database: blank fill-viewport rows replace Add project; Save bulk-creates projects with unique PROJ ids",
+      "App Back/Forward with view-state restore on priority pages (Worklist, Project Entry, Projects DB, Support, CNF)",
+      "Compact workflow status icons in Projects Database (tooltip keeps full status text)",
+      "Worklist: search in header, Project Owner column, Process open icon; Project Entry hierarchy expanded by default",
+      "Sidebar session clear on user switch; Projects DB dropdown editors no longer close on mousedown",
+    ],
+  },
+  {
     version: "0.93.0",
     title: "Collapsed shell default + sticky Support form header",
     date: "2026-07-19",

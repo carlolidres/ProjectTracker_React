@@ -6,6 +6,7 @@ import { AuthProvider } from "@/app/auth-provider";
 import { MeetingViewProvider } from "@/app/meeting-view-provider";
 import { DateAdjustmentProvider } from "@/app/date-adjustment-provider";
 import { MenuPermissionProvider } from "@/app/menu-permission-provider";
+import { NavigationHistoryProvider } from "@/app/navigation-history-provider";
 import { RegistryProvider } from "@/app/registry-provider";
 import { ThemeProvider } from "@/app/theme-provider";
 import { diagLog, useDiagLifecycle, usePageVisibilityDiagnostics } from "@/lib/sessionDiagnostics";
@@ -23,16 +24,18 @@ function SessionScopedRouter() {
 
   return (
     <HashRouter>
-      <RouteChangeLogger />
-      <MenuPermissionProvider>
-        <RegistryProvider>
-          <DateAdjustmentProvider>
-            <MeetingViewProvider>
-              <AppRouter />
-            </MeetingViewProvider>
-          </DateAdjustmentProvider>
-        </RegistryProvider>
-      </MenuPermissionProvider>
+      <NavigationHistoryProvider>
+        <RouteChangeLogger />
+        <MenuPermissionProvider>
+          <RegistryProvider>
+            <DateAdjustmentProvider>
+              <MeetingViewProvider>
+                <AppRouter />
+              </MeetingViewProvider>
+            </DateAdjustmentProvider>
+          </RegistryProvider>
+        </MenuPermissionProvider>
+      </NavigationHistoryProvider>
     </HashRouter>
   );
 }

@@ -774,6 +774,52 @@ html, body, #root {
   min-width: 0;
 }
 
+.nav-history-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.nav-history-buttons .ant-btn {
+  border: none;
+  box-shadow: none;
+}
+
+.nav-history-buttons-floating {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: 2px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(8px);
+  opacity: 0.45;
+  transition:
+    opacity 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.nav-history-buttons-floating:hover,
+.nav-history-buttons-floating:focus-within {
+  opacity: 1;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border-color: var(--border);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+}
+
+@media (max-width: 960px) {
+  .nav-history-buttons-floating {
+    display: none;
+  }
+}
+
 .topbar-actions .ant-btn {
   border: none;
   box-shadow: none;
@@ -1069,6 +1115,21 @@ html, body, #root {
 .workflow-status-icon--warning { color: #d97706; }
 .workflow-status-icon--info { color: #2563eb; }
 .workflow-status-icon--neutral { color: var(--muted); }
+
+.workflow-status-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workflow-status-tooltip__title {
+  font-weight: 600;
+}
+
+.workflow-status-tooltip__desc {
+  font-size: 12px;
+  opacity: 0.92;
+}
 
 .mobile-only { display: none; }
 .desktop-only { display: inline-flex; }

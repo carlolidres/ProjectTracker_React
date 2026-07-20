@@ -1,14 +1,13 @@
-import { SearchOutlined } from "@ant-design/icons";
-import { Input, Modal, Switch, Table, Tabs, Tag, Typography } from "antd";
+import { FormOutlined, SearchOutlined } from "@ant-design/icons";
+import { Button, Input, Modal, Switch, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ProjectIdLink } from "@/components/common/project-id-link";
 import { formatAppDate, formatAppMonth } from "@/lib/date";
 import { supportActivitiesRoute } from "@/lib/dashboardDrilldown";
 import { ROLE_LABELS } from "@/lib/constants";
+import { isMissingValue } from "@/lib/utils";
 import {
-  defaultShowAllWorklist,
   filterAndSortProcessWorklist,
   filterAndSortSupportWorklist,
   focusGroupForRole,
@@ -39,6 +38,12 @@ export interface WorklistModalProps {
   processItems: WorklistItem[];
   supportItems: SupportWorklistItem[];
   onOpenProject: (projectId: string) => void;
+  tab: string;
+  search: string;
+  showAll: boolean;
+  onTabChange: (tab: string) => void;
+  onSearchChange: (search: string) => void;
+  onShowAllChange: (showAll: boolean) => void;
 }
 
 export function WorklistModal({
@@ -48,19 +53,14 @@ export function WorklistModal({
   processItems,
   supportItems,
   onOpenProject,
+  tab,
+  search,
+  showAll,
+  onTabChange,
+  onSearchChange,
+  onShowAllChange,
 }: WorklistModalProps) {
   const navigate = useNavigate();
-  const [showAll, setShowAll] = useState(false);
-  const [tab, setTab] = useState("process");
-  const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    if (open) {
-      setShowAll(defaultShowAllWorklist(role));
-      setSearch("");
-      setTab(role === "rnd" || role === "tsd" ? "support" : "process");
-    }
-  }, [open, role]);
 
   const preferredFocus = focusGroupForRole(role);
   const preferredSupportKind = supportKindForRole(role);
@@ -72,6 +72,7 @@ export function WorklistModal({
         [
           row.project_id,
           row.client_name,
+          row.project_owner,
           row.product_name,
           row.po_control_no,
           row.fg_month,
@@ -122,16 +123,38 @@ export function WorklistModal({
 
   const processColumns: ColumnsType<WorklistItem> = [
     {
-      title: "Project",
+      title: "",
+      key: "open_project",
       dataIndex: "project_id",
-      width: 140,
-      render: (projectId: string) => (
-        <span onClick={(event) => event.stopPropagation()}>
-          <ProjectIdLink projectId={projectId} />
-        </span>
-      ),
+      width: 48,
+      fixed: "left",
+      align: "center",
+      render: (projectId: string) => {
+        if (isMissingValue(projectId)) {
+          return (
+            <span className="dashboard-worklist-open-cell is-disabled" aria-hidden>
+              <FormOutlined />
+            </span>
+          );
+        }
+        return (
+          <Button
+            type="link"
+            size="small"
+            className="dashboard-worklist-open-cell"
+            icon={<FormOutlined />}
+            title={`Open project form ${projectId}`}
+            aria-label={`Open project form ${projectId}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenProject(projectId);
+            }}
+          />
+        );
+      },
     },
     { title: "Client", dataIndex: "client_name", width: 180, ellipsis: true },
+    { title: "Project Owner", dataIndex: "project_owner", width: 140, ellipsis: true },
     { title: "Product", dataIndex: "product_name", width: 200, ellipsis: true },
     { title: "PO", dataIndex: "po_control_no", width: 120 },
     {
@@ -185,7 +208,22 @@ export function WorklistModal({
     <Modal
       open={open}
       onCancel={onClose}
-      title="My Worklist"
+      title={
+        <div className="dashboard-worklist-modal-header">
+          <span className="dashboard-worklist-modal-heading">My Worklist</span>
+          <Input
+            allowClear
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search project, client, product, PO, severity, action…"
+            prefix={<SearchOutlined />}
+            aria-label="Search worklist"
+            className="dashboard-worklist-search"
+            onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+          />
+        </div>
+      }
       width="98vw"
       style={{ top: 16, maxWidth: "98vw", paddingBottom: 0 }}
       styles={{
@@ -202,20 +240,11 @@ export function WorklistModal({
             {scopeHint}
           </Typography.Paragraph>
         </div>
-        <Input
-          allowClear
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search project, client, product, PO, severity, action…"
-          prefix={<SearchOutlined />}
-          aria-label="Search worklist"
-          className="dashboard-worklist-search"
-        />
         <label className="dashboard-worklist-all-toggle">
           <span>All Worklist</span>
           <Switch
             checked={showAll}
-            onChange={setShowAll}
+            onChange={onShowAllChange}
             checkedChildren="On"
             unCheckedChildren="Off"
           />
@@ -224,7 +253,7 @@ export function WorklistModal({
 
       <Tabs
         activeKey={tab}
-        onChange={setTab}
+        onChange={onTabChange}
         className="dashboard-worklist-tabs"
         items={[
           {
@@ -237,7 +266,7 @@ export function WorklistModal({
                 dataSource={processRows}
                 columns={processColumns}
                 pagination={false}
-                scroll={{ x: 1100, y: "calc(100vh - 260px)" }}
+                scroll={{ x: 1240, y: "calc(100vh - 260px)" }}
                 locale={{ emptyText: "No process worklist items for this scope." }}
                 onRow={(record) => ({
                   onClick: () => onOpenProject(record.project_id),
@@ -260,7 +289,7 @@ export function WorklistModal({
                 locale={{ emptyText: "No support worklist items for this scope." }}
                 onRow={(record) => ({
                   onClick: () => {
-                    onClose();
+                    // Keep worklist snapshot open so Back restores modal UI state.
                     navigate(supportActivitiesRoute({ activityId: record.activity_id }));
                   },
                   style: { cursor: "pointer" },

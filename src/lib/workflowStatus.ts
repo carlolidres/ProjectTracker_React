@@ -11,14 +11,18 @@ const WORKFLOW_STATUS_DESCRIPTIONS: Record<string, string> = {
   "n/a": "No status recorded for this document.",
   "in-process": "Document work is underway.",
   "in process": "Document work is underway.",
+  "cnf creation": "CNF is being created.",
   routing: "Document is circulating for review or approval.",
   "client approval": "Awaiting client approval.",
   approved: "Document has been approved.",
   "not applicable": "This document does not apply to the record.",
   open: "Record remains open.",
   closed: "Record is closed.",
+  cancelled: "Record was cancelled.",
+  others: "Custom or other final status.",
   planned: "Activity is planned.",
   done: "Activity is complete.",
+  submitted: "Document has been submitted.",
 };
 
 export function workflowStatusDescription(status: string): string | undefined {

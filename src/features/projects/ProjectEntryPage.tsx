@@ -26,6 +26,7 @@ import { useDateAdjustment } from "@/app/date-adjustment-provider";
 import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
 import { useRegistry } from "@/app/registry-provider";
 import { AppShell } from "@/components/layout/app-shell";
+import { useRestorableViewState } from "@/hooks/use-restorable-view-state";
 import { FieldHelpIcon } from "@/components/common/field-help-icon";
 import { ProjectFieldControl } from "@/features/projects/components/ProjectFieldControl";
 import { CopyCnfFromProjectModal } from "@/features/projects/components/CopyCnfFromProjectModal";
@@ -301,7 +302,6 @@ export function ProjectEntryPage() {
   const navigate = useNavigate();
   const projectIdParam = searchParams.get("projectId");
   const createNewParam = searchParams.get("new");
-  const fromDatabase = searchParams.get("from") === "database";
   const returnToPath = readReturnToPath(searchParams);
   const { registry } = useRegistry();
   const { promptBatchDateAdjustment } = useDateAdjustment();
@@ -314,6 +314,8 @@ export function ProjectEntryPage() {
     defaultProjectTabForRole(profile?.role),
   );
   const [openKeys, setOpenKeys] = useState<string[]>([]);
+  useRestorableViewState("project-entry.activeTab", activeTab, setActiveTab);
+  useRestorableViewState("project-entry.openKeys", openKeys, setOpenKeys);
   const [savedFgMonths, setSavedFgMonths] = useState<Record<string, string>>({});
   const [copyCnfModalOpen, setCopyCnfModalOpen] = useState(false);
   const [copyCnfModalLoading, setCopyCnfModalLoading] = useState(false);
@@ -357,7 +359,7 @@ export function ProjectEntryPage() {
     baselineProjectRef.current = structuredClone(next);
     setProject(next);
     setSavedFgMonths({});
-    setOpenKeys([]);
+    setOpenKeys(collectAllCollapseKeys(next));
     setActiveTab(defaultProjectTabForRole(profile?.role));
     setPendingTrackerRecordId(null);
     setSiblingProjectIds([]);
@@ -521,7 +523,9 @@ export function ProjectEntryPage() {
     baselineProjectRef.current = structuredClone(restored);
     setProject(restored);
     setSavedFgMonths(draft.savedFgMonths);
-    setOpenKeys(draft.openKeys);
+    setOpenKeys(
+      draft.openKeys.length > 0 ? draft.openKeys : collectAllCollapseKeys(restored),
+    );
     setActiveTab(draft.activeTab);
   }
 
@@ -560,7 +564,9 @@ export function ProjectEntryPage() {
             baselineProjectRef.current = structuredClone(withLink);
             setProject(withLink);
             setSavedFgMonths(collectSavedFgMonths(withLink));
-            setOpenKeys(fromDatabase ? collectAllCollapseKeys(withLink) : []);
+            setOpenKeys((current) =>
+              current.length > 0 ? current : collectAllCollapseKeys(withLink),
+            );
             setActiveTab(defaultProjectTabForRole(profile?.role));
             if (user?.id) clearProjectEntryDraft(user.id);
             const entryTrackerId = withLink.batches[0]?.mo_controls[0]?.po_controls[0]?.cnf_entries?.[0]?.cnf_tracker_record_id;
@@ -584,7 +590,7 @@ export function ProjectEntryPage() {
             baselineProjectRef.current = structuredClone(empty);
             setProject(empty);
             setSavedFgMonths({});
-            setOpenKeys([]);
+            setOpenKeys(collectAllCollapseKeys(empty));
             setActiveTab(defaultProjectTabForRole(profile?.role));
             if (user?.id) clearProjectEntryDraft(user.id);
           }
@@ -646,7 +652,7 @@ export function ProjectEntryPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectIdParam, cnfTrackerIdParam, createNewParam, fromDatabase, setSearchParams, user?.id, profile]);
+  }, [projectIdParam, cnfTrackerIdParam, createNewParam, setSearchParams, user?.id, profile]);
 
   const persistProjectDraft = useCallback(() => {
     if (!user?.id || loading) return;
@@ -1002,14 +1008,11 @@ export function ProjectEntryPage() {
     syncProjectCnfEntryCounts(baseline);
     setProject(baseline);
     setSavedFgMonths(collectSavedFgMonths(baseline));
-    setOpenKeys((current) => {
-      const valid = new Set(collectAllCollapseKeys(baseline));
-      return current.filter((key) => valid.has(key));
-    });
+    setOpenKeys(collectAllCollapseKeys(baseline));
     if (user?.id) {
       saveProjectEntryDraft(user.id, {
         project: baseline,
-        openKeys,
+        openKeys: collectAllCollapseKeys(baseline),
         activeTab,
         projectIdParam,
         savedFgMonths: collectSavedFgMonths(baseline),
@@ -1047,8 +1050,11 @@ export function ProjectEntryPage() {
     syncProjectCnfEntryCounts(next);
     setProject(next);
     setOpenKeys((keys) => {
-      const valid = new Set(collectAllCollapseKeys(next));
-      return keys.filter((key) => valid.has(key));
+      const all = collectAllCollapseKeys(next);
+      const existing = new Set(keys);
+      const kept = keys.filter((key) => all.includes(key));
+      const added = all.filter((key) => !existing.has(key));
+      return [...kept, ...added];
     });
     message.success("Batch 1 values copied as editable defaults.");
   }
@@ -1178,8 +1184,11 @@ export function ProjectEntryPage() {
             onChange={(next) => {
               setProject(next);
               setOpenKeys((current) => {
-                const valid = new Set(collectAllCollapseKeys(next));
-                return current.filter((key) => valid.has(key));
+                const all = collectAllCollapseKeys(next);
+                const existing = new Set(current);
+                const kept = current.filter((key) => all.includes(key));
+                const added = all.filter((key) => !existing.has(key));
+                return [...kept, ...added];
               });
             }}
             onCopyFromFirstPo={copyFromFirstPo}

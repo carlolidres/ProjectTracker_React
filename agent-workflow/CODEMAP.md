@@ -1,6 +1,6 @@
 # Code Map
 
-Last Updated: `2026-07-18`
+Last Updated: `2026-07-20`
 
 ## Purpose
 
@@ -13,8 +13,9 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Path | Responsibility |
 |---|---|
 | `src/main.tsx` | React DOM bootstrap and global style import entry. |
-| `src/app/App.tsx` | App providers, Ant Design app wrapper, HashRouter, menu-permission/registry/date/meeting providers. |
+| `src/app/App.tsx` | App providers, Ant Design app wrapper, HashRouter, navigation-history + menu-permission/registry/date/meeting providers. |
 | `src/app/router.tsx` | Route definitions and protected route wiring. |
+| `src/app/navigation-history-provider.tsx` | SPA Back/Forward enablement, scroll restore, view-state store by `location.key`. |
 | `src/app/menu-permission-provider.tsx` | Loads menu permission overrides; exposes `can` / `canPath`. |
 | `vite.config.ts` | Vite config, `@` alias, GitHub Pages base path. |
 
@@ -34,8 +35,11 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Project Entry | `src/features/projects/ProjectEntryPage.tsx` | Main project form page. |
 | Project form components | `src/features/projects/components/` | Hierarchy form, role tabs, field controls, CNF copy modal. |
 | Projects Database | `src/features/projects/ProjectsDatabasePage.tsx` | Role-colored AG Grid spreadsheet; search/filter/export; inline role-gated edits. |
-| Projects Database Grid | `src/features/projects/components/ProjectsDatabaseGrid.tsx` | Frozen Project ID + two-level role headers; cell edit + width persist. |
-| Projects Database columns | `src/lib/projectsDatabaseColumns.ts` | Spreadsheet column/group/role/editor config. |
+| Projects Database Grid | `src/features/projects/components/ProjectsDatabaseGrid.tsx` | Role headers; cell edit + width persist; status icons; viewport capacity for draft rows. |
+| Projects Database columns | `src/lib/projectsDatabaseColumns.ts` | Spreadsheet column/group/role/editor config; `isWorkflowStatusSpreadsheetColumn`. |
+| Projects Database draft rows | `src/lib/projectsDatabaseDraftRows.ts` | Blank fill-viewport rows; blank detection; reconcile trailing blanks. |
+| Projects Database save service | `src/services/projectsDatabaseService.ts` | Patch existing edits; `createProjectsFromSpreadsheetDrafts` for new rows. |
+| Projects Database grid interaction | `src/lib/projectsDatabaseGridInteraction.ts` | Ignore drag-select mousedown over dropdown/editors. |
 | Role colors | `src/lib/roleColors.ts`, `src/styles/role-colors.css` | Shared form + spreadsheet role palette. |
 | Spreadsheet save | `src/services/projectsDatabaseService.ts` | Patch edits → `updateProject` + emit sync. |
 | CNF Tracker | `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF tracker list, New CNF, detail modal, Unique Batch navigation. |
@@ -57,9 +61,12 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 
 | Path | Responsibility |
 |---|---|
-| `src/components/layout/app-shell.tsx` | Main authenticated shell; collapse chrome + glowing expand FAB. |
+| `src/components/layout/app-shell.tsx` | Main authenticated shell; collapse chrome + glowing expand FAB; floating Back/Forward when collapsed. |
+| `src/components/layout/nav-history-buttons.tsx` | Accessible Back/Forward controls for SPA history. |
+| `src/lib/navigationHistory.ts` | Pure PUSH/REPLACE/POP stack helpers + session-clear reset. |
+| `src/hooks/use-restorable-view-state.ts` | Persist/restore page UI snapshots per history entry. |
 | `src/components/layout/sidebar.tsx` | Navigation and role-aware menu structure (hidden scrollbar; collapsed icon nav). |
-| `src/components/layout/topbar.tsx` | Header controls; collapses with sidebar on desktop. |
+| `src/components/layout/topbar.tsx` | Header controls (Back/Forward beside About); collapses with sidebar on desktop. |
 | `src/components/common/dashboard-filter-banner.tsx` | Active dashboard/database filter chip banner. |
 | `src/components/common/workflow-status-badge.tsx` | Icon + tooltip workflow status (sort/filter labels stay text). |
 | `src/services/menuPermissionService.ts` | Load/save `menu_permission_overrides`. |
@@ -128,7 +135,8 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/app/registry-provider.tsx` | Registry context/provider. |
 | `src/app/date-adjustment-provider.tsx` | Date adjustment provider. |
 | `src/app/meeting-view-provider.tsx` | Meeting view state provider. |
-| `src/hooks/use-sidebar-state.ts` | Sidebar state hook; default `collapsed`; persists via `sessionStorage` `pt.sidebar.state`. |
+| `src/hooks/use-sidebar-state.ts` | Sidebar state hook; default `collapsed`. |
+| `src/lib/sidebarSessionState.ts` | Sidebar session memory + `sessionStorage` `pt.sidebar.state`; reset on `clearAppSessionState()`. |
 
 ## Styling
 

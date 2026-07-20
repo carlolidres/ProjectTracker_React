@@ -40,7 +40,7 @@ function statusTone(normalized: string): StatusTone {
     return "processing";
   }
   if (lower.includes("client approval")) return "warning";
-  if (lower.includes("open")) return "info";
+  if (lower.includes("cnf creation") || lower.includes("open")) return "info";
   return "neutral";
 }
 
@@ -69,7 +69,7 @@ function tooltipContent(display: string, status: string): ReactNode {
 export function WorkflowStatusBadge({ status, label }: WorkflowStatusBadgeProps) {
   if (isMissingValue(status)) {
     return (
-      <Tooltip title={tooltipContent("N/A", "N/A")}>
+      <Tooltip title={tooltipContent("N/A", "N/A")} getPopupContainer={() => document.body}>
         <span
           className="workflow-status-icon workflow-status-icon--neutral"
           tabIndex={0}
@@ -88,7 +88,7 @@ export function WorkflowStatusBadge({ status, label }: WorkflowStatusBadgeProps)
   const ariaLabel = description ? `Status: ${display}. ${description}` : `Status: ${display}`;
 
   return (
-    <Tooltip title={tooltipContent(display, status)}>
+    <Tooltip title={tooltipContent(display, status)} getPopupContainer={() => document.body}>
       <span
         className={cn("workflow-status-icon", `workflow-status-icon--${tone}`)}
         tabIndex={0}

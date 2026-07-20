@@ -14,8 +14,11 @@ import { canAdjustSavedFgMonth, canEditProjectFields } from "@/lib/roleAccess";
 import { validateSpreadsheetCellValue } from "@/lib/projectsDatabaseValidation";
 import { valueOrNA } from "@/lib/utils";
 import type { PoControl, ProjectHierarchy, ProjectRow, UserRole } from "@/types";
+import { emptyProjectHierarchy } from "@/lib/projectHierarchy";
+import { isDraftSpreadsheetId } from "@/lib/projectsDatabaseDraftRows";
 import {
   getProjectById,
+  saveProject,
   updateProject,
   type ProjectSaveOptions,
 } from "@/services/projectService";
@@ -158,6 +161,56 @@ function assertSpreadsheetEditAllowed(
   return { ...edit, newValue: validated.normalized };
 }
 
+/** Create one project per draft row from spreadsheet edits (project_id assigned by saveProject). */
+export async function createProjectsFromSpreadsheetDrafts(
+  draftGroups: { recordId: string; edits: SpreadsheetCellEdit[] }[],
+  userEmail: string,
+  options?: SpreadsheetPatchOptions & { defaultProjectOwner?: string },
+): Promise<string[]> {
+  if (!draftGroups.length) return [];
+
+  const role = options?.role;
+  const registry = options?.registry ?? {};
+  const createdIds: string[] = [];
+
+  for (const group of draftGroups) {
+    if (!group.edits.length) continue;
+    const hierarchy = emptyProjectHierarchy(options?.defaultProjectOwner ?? "");
+    hierarchy.project_id = "N/A";
+    const po = hierarchy.batches[0]?.mo_controls[0]?.po_controls[0];
+    if (!po) throw new Error("Failed to initialize blank project hierarchy.");
+    po.record_id = group.recordId;
+
+    const authorizedEdits = group.edits.map((edit) =>
+      assertSpreadsheetEditAllowed(edit, role, registry, hierarchy),
+    );
+    const patched = applyEditsToHierarchy(hierarchy, authorizedEdits);
+    patched.project_id = "N/A";
+
+    const result = await saveProject(patched, userEmail);
+    emitProjectDataChanged({ projectId: result.project_id, action: "create" });
+    createdIds.push(result.project_id);
+  }
+
+  return createdIds;
+}
+
+export function partitionSpreadsheetEdits(edits: SpreadsheetCellEdit[]): {
+  existingEdits: SpreadsheetCellEdit[];
+  draftEdits: SpreadsheetCellEdit[];
+} {
+  const existingEdits: SpreadsheetCellEdit[] = [];
+  const draftEdits: SpreadsheetCellEdit[] = [];
+  for (const edit of edits) {
+    if (isDraftSpreadsheetId(edit.projectId) || isDraftSpreadsheetId(edit.recordId)) {
+      draftEdits.push(edit);
+    } else {
+      existingEdits.push(edit);
+    }
+  }
+  return { existingEdits, draftEdits };
+}
+
 export async function patchProjectFromSpreadsheetEdits(
   edits: SpreadsheetCellEdit[],
   userEmail: string,
@@ -170,6 +223,9 @@ export async function patchProjectFromSpreadsheetEdits(
 
   const byProject = new Map<string, SpreadsheetCellEdit[]>();
   for (const edit of edits) {
+    if (isDraftSpreadsheetId(edit.projectId) || isDraftSpreadsheetId(edit.recordId)) {
+      throw new Error("Draft spreadsheet rows must be created, not patched.");
+    }
     const list = byProject.get(edit.projectId) ?? [];
     list.push(edit);
     byProject.set(edit.projectId, list);

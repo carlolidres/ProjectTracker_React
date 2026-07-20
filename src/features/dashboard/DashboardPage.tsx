@@ -14,9 +14,10 @@ import {
 } from "@ant-design/icons";
 import { Alert, App as AntApp, Button, Card, Empty, Space, Spin, Table, Tag, Tooltip, Typography } from "antd";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { useMeetingView } from "@/app/meeting-view-provider";
+import { useNavigationHistory } from "@/app/navigation-history-provider";
 import { ProjectIdLink } from "@/components/common/project-id-link";
 import { AppShell } from "@/components/layout/app-shell";
 import { DashboardActionStrip } from "@/features/dashboard/components/DashboardActionStrip";
@@ -34,9 +35,37 @@ import {
 import { formatAppDateTime } from "@/lib/date";
 import { appendReturnToDashboard } from "@/lib/dashboardReturnTo";
 import { isDashboardWorkspaceEnabled } from "@/lib/featureFlags";
+import { defaultShowAllWorklist } from "@/lib/worklistSort";
+import { useRestorableViewState } from "@/hooks/use-restorable-view-state";
 import { getDashboardData } from "@/services/dashboardService";
 import { listNotifications, refreshAllNotifications } from "@/services/notificationService";
-import type { DashboardData, Notification } from "@/types";
+import type { DashboardData, Notification, UserRole } from "@/types";
+
+const WORKLIST_HISTORY_PARAM = "worklist";
+
+interface WorklistUiState {
+  open: boolean;
+  tab: string;
+  search: string;
+  showAll: boolean;
+}
+
+function createWorklistUiState(role: UserRole | undefined, open = false): WorklistUiState {
+  return {
+    open,
+    tab: role === "rnd" || role === "tsd" ? "support" : "process",
+    search: "",
+    showAll: defaultShowAllWorklist(role),
+  };
+}
+
+function withWorklistParam(searchParams: URLSearchParams, open: boolean): string {
+  const next = new URLSearchParams(searchParams);
+  if (open) next.set(WORKLIST_HISTORY_PARAM, "1");
+  else next.delete(WORKLIST_HISTORY_PARAM);
+  const value = next.toString();
+  return value ? `?${value}` : "";
+}
 
 const severityColor: Record<string, string> = {
   overdue: "red",
@@ -72,6 +101,8 @@ export function DashboardPage() {
   const { message } = AntApp.useApp();
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { canGoBack, goBack } = useNavigationHistory();
   const isAdmin = profile?.role === "admin";
   const { isMeetingView, enterMeetingView } = useMeetingView();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -81,7 +112,40 @@ export function DashboardPage() {
   const [sandboxMode, setSandboxMode] = useState(false);
   const workspaceEnabled = isDashboardWorkspaceEnabled();
   const [quickProjectId, setQuickProjectId] = useState<string | null>(null);
-  const [worklistOpen, setWorklistOpen] = useState(false);
+  const worklistInUrl = searchParams.get(WORKLIST_HISTORY_PARAM) === "1";
+  const [worklistUi, setWorklistUi] = useState<WorklistUiState>(() =>
+    createWorklistUiState(profile?.role, worklistInUrl),
+  );
+  useRestorableViewState("dashboard.worklist", worklistUi, setWorklistUi);
+
+  useEffect(() => {
+    setWorklistUi((current) => {
+      if (current.open === worklistInUrl) return current;
+      if (worklistInUrl) {
+        return current.open
+          ? { ...current, open: true }
+          : { ...createWorklistUiState(profile?.role, true), tab: current.tab, search: current.search, showAll: current.showAll };
+      }
+      return { ...current, open: false };
+    });
+  }, [profile?.role, worklistInUrl]);
+
+  const openWorklist = useCallback(() => {
+    const next = createWorklistUiState(profile?.role, true);
+    setWorklistUi(next);
+    if (worklistInUrl) return;
+    navigate({ pathname: "/dashboard", search: withWorklistParam(searchParams, true) });
+  }, [navigate, profile?.role, searchParams, worklistInUrl]);
+
+  const closeWorklist = useCallback(() => {
+    setWorklistUi((current) => ({ ...current, open: false }));
+    if (!worklistInUrl) return;
+    if (canGoBack) {
+      goBack();
+      return;
+    }
+    navigate({ pathname: "/dashboard", search: withWorklistParam(searchParams, false) }, { replace: true });
+  }, [canGoBack, goBack, navigate, searchParams, worklistInUrl]);
   const [pairedMetricsHeight, setPairedMetricsHeight] = useState<number | null>(null);
   const [fgMonthTasksHeight, setFgMonthTasksHeight] = useState<number | null>(null);
   const [notificationsPanelHeight, setNotificationsPanelHeight] = useState<number | null>(null);
@@ -316,7 +380,7 @@ export function DashboardPage() {
           onBrowseOverdue={() => drillToDatabase({ final_status: "OPEN", due_window: "overdue" })}
           onNewSupport={() => navigate(appendReturnToDashboard("/support-activities?new=1"))}
           onNewCnf={() => navigate(appendReturnToDashboard("/cnf-tracker?new=1"))}
-          onOpenWorklist={() => setWorklistOpen(true)}
+          onOpenWorklist={openWorklist}
         />
       ) : null}
 
@@ -567,13 +631,19 @@ export function DashboardPage() {
 
       {data ? (
         <WorklistModal
-          open={worklistOpen}
-          onClose={() => setWorklistOpen(false)}
+          open={worklistUi.open}
+          onClose={closeWorklist}
           role={profile?.role}
           processItems={data.worklist}
           supportItems={data.supportWorklist ?? []}
+          tab={worklistUi.tab}
+          search={worklistUi.search}
+          showAll={worklistUi.showAll}
+          onTabChange={(tab) => setWorklistUi((current) => ({ ...current, tab }))}
+          onSearchChange={(search) => setWorklistUi((current) => ({ ...current, search }))}
+          onShowAllChange={(showAll) => setWorklistUi((current) => ({ ...current, showAll }))}
           onOpenProject={(projectId) => {
-            setWorklistOpen(false);
+            // Leave ?worklist=1 in history so Back/Forward restore the popup.
             openProject(projectId);
           }}
         />

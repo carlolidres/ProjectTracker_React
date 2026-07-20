@@ -3,6 +3,7 @@ import { Button, Tooltip } from "antd";
 import { useState } from "react";
 import { AppVersionButton } from "@/components/layout/app-version-button";
 import { FeedbackChat } from "@/components/layout/feedback-chat";
+import { NavHistoryButtons } from "@/components/layout/nav-history-buttons";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import type { SidebarState } from "@/hooks/use-sidebar-state";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ export function Topbar({ sidebarState, onToggleSidebar, onOpenMobileSidebar }: T
         <p className="topbar-title-sub">An End-to-End Project Monitoring System</p>
       </div>
       <div className="topbar-actions">
+        <NavHistoryButtons />
         <AppVersionButton />
         <FeedbackChat />
         <NotificationCenter open={notificationsOpen} onOpenChange={setNotificationsOpen} />

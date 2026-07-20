@@ -124,46 +124,75 @@
   background: var(--surface, #fff);
 }
 
-.projects-db-add-row-bar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: -1px;
-  padding: 6px 10px;
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 0 0 8px 8px;
-  background: var(--surface, #fff);
-}
-
-.projects-db-page:has(.projects-db-add-row-bar) .projects-db-grid-shell {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-/* Full view: fill remaining shell height (adapts when topbar/sidebar chrome changes). */
+/* Full view: edge-to-edge within the shell; adapts to topbar/sidebar chrome. */
 .app-content:has(.projects-db-page-full) {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding: 6px 8px;
+}
+
+@media (min-width: 961px) {
+  .app-root.sidebar-collapsed .app-content:has(.projects-db-page-full) {
+    /* Keep clearance for the floating expand control; tighten other edges. */
+    padding: 6px 8px 6px var(--shell-collapsed-content-pad);
+  }
+
+  .app-root:not(.sidebar-collapsed) .app-content:has(.projects-db-page-full) {
+    padding: 6px 8px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-content:has(.projects-db-page-full) {
+    padding: 6px 8px;
+  }
+
+  .app-root.sidebar-collapsed .app-content:has(.projects-db-page-full) {
+    padding: 6px 8px 6px var(--shell-collapsed-content-pad);
+  }
+}
+
+@media (min-width: 1600px) {
+  .app-content:has(.projects-db-page-full) {
+    padding: 6px 8px;
+    max-width: none;
+    margin-inline: 0;
+    width: 100%;
+  }
+
+  .app-root.sidebar-collapsed .app-content:has(.projects-db-page-full) {
+    padding: 6px 8px 6px var(--shell-collapsed-content-pad);
+  }
 }
 
 .projects-db-page-full {
   flex: 1 1 auto;
   min-height: 0;
   height: auto;
-  gap: 8px;
+  gap: 6px;
   overflow: hidden;
+}
+
+.projects-db-page-full .projects-db-full-chrome {
+  padding: 4px 8px;
+  border-radius: 6px;
 }
 
 .projects-db-page-full .projects-db-grid-shell {
   flex: 1 1 auto;
   min-height: 0;
   height: auto;
+  border-radius: 6px;
+}
+
+.projects-db-page-full .ant-alert {
+  margin-bottom: 0 !important;
 }
 
 .projects-db-grid-shell .ag-root-wrapper {
@@ -182,6 +211,30 @@
   padding-left: 4px !important;
   padding-right: 4px !important;
   text-align: center;
+}
+
+.projects-db-cell-status {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+  overflow: visible !important;
+}
+
+.projects-db-status-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100%;
+  padding: 0 2px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.projects-db-status-cell .workflow-status-icon {
+  flex-shrink: 0;
 }
 
 .projects-db-open-cell {

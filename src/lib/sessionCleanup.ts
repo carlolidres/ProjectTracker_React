@@ -1,5 +1,7 @@
 import { clearAllFormDrafts } from "@/lib/formDraftStorage";
+import { resetNavigationHistoryForSessionClear } from "@/lib/navigationHistory";
 import { diagLog } from "@/lib/sessionDiagnostics";
+import { resetSidebarStateForSessionClear } from "@/lib/sidebarSessionState";
 
 const APP_SESSION_PREFIX = "project-tracker:";
 
@@ -32,6 +34,10 @@ export function clearAppSessionState(): void {
   collectKeys(localStorage, (key) => key.startsWith(APP_SESSION_PREFIX)).forEach((key) => {
     localStorage.removeItem(key);
   });
+
+  // Module memory is not in sessionStorage; reset so the next user gets the default shell.
+  resetSidebarStateForSessionClear();
+  resetNavigationHistoryForSessionClear();
 }
 
 /** Removes Supabase auth tokens from sessionStorage and legacy localStorage keys. */

@@ -103,6 +103,7 @@ export interface WorklistItem {
   project_id: string;
   product_name: string;
   client_name: string;
+  project_owner: string;
   po_control_no: string;
   fg_month: string;
   cnf_status: string;

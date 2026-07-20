@@ -22,6 +22,9 @@ interface CreatableNaSelectProps {
   popupClassName?: string;
   placeholder?: string;
   allowClear?: boolean;
+  /** Open the dropdown on mount (AG Grid cell editors). */
+  defaultOpen?: boolean;
+  autoFocus?: boolean;
   /** When false, omit the built-in N/A option (fixed-status fields). */
   includeNaOption?: boolean;
   sanitize?: (value: string) => string;
@@ -61,6 +64,8 @@ export function CreatableNaSelect({
   popupClassName,
   placeholder = "Select or type a new value",
   allowClear = true,
+  defaultOpen = false,
+  autoFocus = false,
   includeNaOption = true,
   sanitize = sanitizeAlphanumericInput,
   onChange,
@@ -70,7 +75,7 @@ export function CreatableNaSelect({
   const [search, setSearch] = useState("");
   const [focused, setFocused] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   const isNa = isMissingValue(value);
   const showNaGuide = isNa && !focused && !readOnly;
@@ -139,6 +144,7 @@ export function CreatableNaSelect({
       )}
       style={{ width: "100%" }}
       showSearch
+      autoFocus={autoFocus}
       open={open}
       onOpenChange={setOpen}
       allowClear={allowClear && !readOnly && !disabled}
