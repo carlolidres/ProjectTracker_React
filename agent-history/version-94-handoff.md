@@ -12,9 +12,9 @@ Document type: Configuration / release record
 | Change class | **Minor** |
 | Deployment environment | GitHub Pages (`github-pages`) via `.github/workflows/deploy.yml` |
 | Deployment status | **Pending** — update after Actions success |
-| Deploy SHA | _(set after deploy)_ |
+| Deploy SHA | `d3c4133` (release commit; confirm Actions) |
 | Actions run | _(set after deploy)_ |
-| GitHub Release | _(set after release)_ |
+| GitHub Release | https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.94.0 |
 | Rollback reference | Redeploy `e102a0d` / `0.93.0` |
 
 ---

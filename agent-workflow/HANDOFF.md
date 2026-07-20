@@ -3,12 +3,12 @@
 Last Updated: `2026-07-20`
 Version: `v0.94.0`
 Branch: `main`
-Commit: _(pending push)_
+Commit: `d3c4133`
 App version: `0.94.0`
 
 ## Current Status
 
-**v0.94.0 release in progress.** DATA_MAP and version artifacts updated; deploy via push to `main` + GitHub Release.
+**v0.94.0 release in progress** @ `d3c4133`. Push to `main` triggers GitHub Pages deploy; then publish GitHub Release `v0.94.0`.
 
 ## Recently Completed
 
