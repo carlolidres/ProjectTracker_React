@@ -1,6 +1,6 @@
 # Data Map
 
-Last Updated: `2026-07-20` (v0.94.0 release documentation)
+Last Updated: `2026-08-30` (sidebar default expanded on access)
 
 ## Purpose
 
@@ -372,7 +372,7 @@ Deploy identity: GitHub Actions `.github/workflows/deploy.yml` sets `VITE_APP_GI
 
 | Preference | Storage | Default | Notes |
 |---|---|---|---|
-| Sidebar / topbar collapse | `sessionStorage` key `pt.sidebar.state` (`expanded` \| `collapsed`) | `collapsed` | In-memory mirror survives AppShell remounts; cleared via `resetSidebarStateForSessionClear()` from `clearAppSessionState()` (same-tab user switch). Topbar hides with sidebar on desktop; sticky headers use `--app-sticky-top` / `--app-sticky-top-pad`. |
+| Sidebar / topbar collapse | In-memory only (`sidebarStateMemory`) | `expanded` | Starts expanded on load, login, and session clear. Collapse survives AppShell remounts during the SPA session only; a refresh returns to expanded. Cleared via `resetSidebarStateForSessionClear()` from `clearAppSessionState()`. Topbar hides with sidebar on desktop; sticky headers use `--app-sticky-top` / `--app-sticky-top-pad`. |
 | App Back/Forward history | In-memory (`NavigationHistoryProvider`) + view-state slots | empty on load | Cleared with session cleanup. Restores scroll + priority UI (Worklist, Project Entry chrome, Projects DB focus/full view, Support filters, CNF list tab/modal). Not persisted to Supabase. |
 | Projects DB Full View | `localStorage` `project-tracker:projects-db:full-view` | on | Column widths / row height also local-only. |
 

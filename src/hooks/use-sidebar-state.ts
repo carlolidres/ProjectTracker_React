@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  DEFAULT_SIDEBAR_STATE,
   readSidebarState,
   resetSidebarStateForSessionClear,
   SIDEBAR_STATE_RESET_EVENT,
@@ -15,8 +16,8 @@ export function useSidebarState() {
 
   useEffect(() => {
     const onReset = () => {
-      writeSidebarState("collapsed");
-      setState("collapsed");
+      writeSidebarState(DEFAULT_SIDEBAR_STATE);
+      setState(DEFAULT_SIDEBAR_STATE);
     };
     window.addEventListener(SIDEBAR_STATE_RESET_EVENT, onReset);
     return () => window.removeEventListener(SIDEBAR_STATE_RESET_EVENT, onReset);

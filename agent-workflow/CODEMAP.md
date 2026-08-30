@@ -135,8 +135,8 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/app/registry-provider.tsx` | Registry context/provider. |
 | `src/app/date-adjustment-provider.tsx` | Date adjustment provider. |
 | `src/app/meeting-view-provider.tsx` | Meeting view state provider. |
-| `src/hooks/use-sidebar-state.ts` | Sidebar state hook; default `collapsed`. |
-| `src/lib/sidebarSessionState.ts` | Sidebar session memory + `sessionStorage` `pt.sidebar.state`; reset on `clearAppSessionState()`. |
+| `src/hooks/use-sidebar-state.ts` | Sidebar state hook; default `expanded` on load, login, and session clear. |
+| `src/lib/sidebarSessionState.ts` | Sidebar in-memory preference for AppShell remounts; reset on `clearAppSessionState()`. |
 
 ## Styling
 
