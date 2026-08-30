@@ -3,15 +3,16 @@
 Last Updated: `2026-08-30`
 Version: `v0.94.0`
 Branch: `main`
-Commit: `03597e0`
+Commit: `2cc0432`
 App version: `0.94.0`
 
 ## Current Status
 
-**v0.94.0 deployed.** GitHub Pages Actions success; Release [v0.94.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.94.0) published.
+**Sidebar default expanded deployed.** GitHub Pages Actions success for `2cc0432`.
 
 ## Recently Completed
 
+- Deployed `2cc0432` — sidebar starts expanded on load, login, and session clear
 - Hard-deleted Support Activity `Tetst` (`SUP-20260719-175653-136` / `SPROJ-2026-005`)
 - Hard-deleted CNF Tracker entries `Test` (CNF-2026-001) and `DPM-CNF-2026-001` (CNF-2026-002); unlinked support CNF references
 - Hard-deleted Endorsement Tracker entries `VMP-MM-0001E` (END-2026-001) and `Test001` (END-2026-002), including items; unlinked/cleared source endorsement numbers so they cannot auto-recreate
@@ -35,7 +36,7 @@ App version: `0.94.0`
 | `npm run test:projects-db-validation` | PASSED | draft-row reconcile |
 | `npm run test:navigation-history` | PASSED | stack hygiene |
 | `npm run build` | PASSED | Vite OK |
-| GitHub Pages deploy | PASSED | [29741024111](https://github.com/carlolidres/ProjectTracker_React/actions/runs/29741024111) |
+| GitHub Pages deploy | PASSED | [33309006836](https://github.com/carlolidres/ProjectTracker_React/actions/runs/33309006836) (`2cc0432`) |
 | GitHub Release | PASSED | [v0.94.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.94.0) |
 
 ## Next Action
