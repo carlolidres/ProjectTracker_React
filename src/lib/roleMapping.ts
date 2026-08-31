@@ -33,5 +33,6 @@ export function normalizeProfile(profile: Profile): Profile {
       ? normalizeUserRole(profile.requested_role)
       : null,
     status,
+    pm_task_eligible: Boolean(profile.pm_task_eligible),
   };
 }

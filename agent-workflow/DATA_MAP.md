@@ -1,6 +1,6 @@
 # Data Map
 
-Last Updated: `2026-08-30` (sidebar default expanded on access)
+Last Updated: `2026-08-31`
 
 ## Purpose
 
@@ -58,6 +58,11 @@ A schema task is incomplete while code, types, migration records, and verificati
 | Endorsement tracker | `endorsement_tracker_records` / `endorsement_tracker_items` | Endorsement workflow header + implementation item rows | Source-linked by unique `(source_type, source_record_id)`; sync_version concurrency. |
 | Reusable options | `reusable_options` | Editable dropdown suggestions (`type_of_validation`, status fields, `support_line` / `support_material` / `support_principal` / `support_product`, `cnf_initiator`, …) | Non-view create; admin soft-remove; does not rewrite historical values. |
 | Menu permission overrides | `menu_permission_overrides` | Admin overrides for menu View/Create/Edit/Export | Defaults in `src/lib/menuPermissions.ts`; PK `(role, menu_key)`. |
+| Project Management tasks | `project_management_tasks` / assignees / comments | Monday.com-style tasks on live portfolio items | Does not duplicate `cnf_projects` or `support_activities`. |
+| Project Management overrides | `project_management_phase_overrides` | Documented execution/report gate exceptions | Unique `(source_type, source_id, gate)`; insert limited to admin/AM/VAL. |
+| AI Assistant conversations | `ai_conversations` / `ai_messages` | Per-user chat history for the AI Assistant page | RLS owner-only (`user_id = auth.uid()` + `is_active_user()`). |
+| CNF change card summary | Edge Function `summarize-change` | Shortens CNF `change_description` text for Project Management cards | Display-only; source of truth stays `cnf_entries_json` / CNF Tracker. Secret `OPENAI_API_KEY` (never `VITE_`). Local first-sentence fallback if the secret is missing. |
+| AI Assistant chat | Edge Function `ai-assistant-chat` | Grounded answers from authorized `cnf_projects` / `support_activities` / PM tasks / comments | JWT required. Planner runs controlled tools before OpenAI. Same `OPENAI_API_KEY` secret. Citations are verified internal paths only. No document/RAG index yet. |
 | Registry item | `registry` | Dropdown and lookup values | Admin-managed; also used by creatable selects (`activity_type`, `project_owner`, `client_name`, `uom`, `business_unit`, `department`, …). Soft-remove via Inactive status; historical project values unchanged. |
 | Notification | `notifications` / `pt_notifications` | System reminders and alerts | FG Month and project status driven. |
 | Audit log | `audit_logs` | Immutable critical activity history | Must remain readable and protected. |
@@ -77,11 +82,13 @@ Supabase Auth user
         -> po_instance_id
         -> project_cnf_links -> cnf_tracker_records
         -> endorsement_tracker_records (source process_validation_project)
+        -> project_management_tasks / phase_overrides
         -> audit_logs
         -> notifications
      -> support_activities
         -> optional cnf_tracker_records (cnf_tracker_record_id)
         -> endorsement_tracker_records (source non_process_support_activity)
+        -> project_management_tasks / phase_overrides
         -> audit_logs
      -> endorsement_tracker_records
         -> endorsement_tracker_items
@@ -126,17 +133,21 @@ Layers (AND): Auth/profile → menu matrix (View/Create/Edit/Export) → field-g
 Default menus for new / non-admin users (View on):
 
 1. Dashboard  
-2. Projects  
-3. Projects Database  
-4. Support Activities  
-5. CNF Tracker  
-6. Endorsement Tracker  
-7. Lessons Learned  
+2. My work (`project_management`)  
+3. Ask AI (header control, `ai_assistant`)  
+4. Projects · Entry  
+5. Projects · Spreadsheet  
+6. Support  
+7. Trackers · CNF  
+8. Trackers · Endorsement  
+9. Lessons learned  
 
-Audit Trail, Archived, Registry, User Management, Access Matrix, and Data Map are admin (or override) only.
+Sidebar groups those into Dashboard, My work, Projects, Support, Trackers, Lessons learned. Ask AI is a header button, not a sidebar row. Audit trail, Archives, Registry, Users, Access, and Schema sit under an Admin group (admin or override).
+
+Menu keys are unchanged. Hiding a child in Access Matrix hides that link; an empty group is omitted.
 
 - Code defaults: `src/lib/menuPermissions.ts`
-- Overrides table: `menu_permission_overrides` (migration `20260716140000_menu_permission_overrides`)
+- Overrides table: `menu_permission_overrides` (migrations `20260716140000_menu_permission_overrides`, `20260830120000_project_management_menu_key`)
 - Kill-switch: `VITE_FEATURE_MENU_MATRIX` (default on; `false` → legacy `ROUTE_ACCESS`)
 - Rollback: `agent-workflow/MENU_MATRIX_ROLLBACK.md`
 
@@ -216,6 +227,27 @@ Key rules:
 - Support search/filter/export workflows.
 - Write audit entries for create/update/archive/status changes.
 - Schema additions: migrations `20260714110110_*`, `20260714123000_support_activity_type`, `20260714216000_*`, `20260714220000_*`, `20260714221000_*`.
+
+### Project Management portfolio (live view)
+
+Purpose: Card-first browse of active `cnf_projects` and `support_activities` without duplicating source rows, plus optional user tasks for execution tracking.
+
+Key rules:
+
+- Route `/project-management`; menu key `project_management` (create/edit for operational roles and admin; export N/A).
+- Process cards aggregate PO lines by `project_id`; support cards use `activity_id`.
+- Display groups Ongoing / Completed / Cancelled are derived from `final_status` or support `status`. They do not replace source fields.
+- Computed phases (protocol → execution → report/endorsement → closure) come from live source fields. Yellow gate banners stay informational. User tasks can be created and VAL assigned in any phase. Source execution/report completeness and documented overrides still drive the official workflow stepper.
+- User tasks live in `project_management_tasks` (+ assignees, comments, phase overrides). Source protocol/report fields remain on the project/support row.
+- Detail workspace links open Project Entry or Support Activities with `return_to=/project-management`.
+- Menu CHECK expansion: migration `20260830120000_project_management_menu_key` (local only; remote has no `menu_permission_overrides` table). Workflow tables applied remotely as `project_management_workflow`. Per-user assignee privilege `profiles.pm_task_eligible` applied remotely as `pm_task_eligible`.
+- Admin and VAL can always assign. VAL users are always assignee options at every project phase. Other roles need the User Management **PM tasks** privilege plus menu create.
+- Active users may read other active profiles for assignee pickers (`Active users can read active directory profiles`).
+- Audit module name: `Project Management`. Assignee inbox is My Tasks (the existing FG `notifications` table is not per-user).
+
+### `ai_conversations` / `ai_messages`
+
+Purpose: Per-user AI Assistant history. The Edge Function plans controlled tools (projects, tasks, comments, protocol/report readiness), retrieves with the caller's JWT/RLS, then asks OpenAI to answer only from those facts. Secret `OPENAI_API_KEY` (never `VITE_`). Citations must be verified internal paths. Uploaded protocol/report files are not indexed.
 
 ### `endorsement_tracker_records` / `endorsement_tracker_items`
 

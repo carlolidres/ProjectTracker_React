@@ -374,7 +374,7 @@ export function DataMapPage() {
   return (
     <AppShell>
       <div className="page-header data-map-page-header">
-        <Typography.Title level={3}>Data Map</Typography.Title>
+        <Typography.Title level={3}>Schema</Typography.Title>
         <Typography.Text type="secondary">
           Project Tracker — SQL Schema (adapts from current migrations)
         </Typography.Text>

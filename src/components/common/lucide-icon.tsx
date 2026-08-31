@@ -13,7 +13,12 @@ type LucideIconName =
   | "refresh-cw"
   | "download"
   | "check-circle"
-  | "clock";
+  | "clock"
+  | "chevron-left"
+  | "chevron-right"
+  | "plus"
+  | "layout-grid"
+  | "x-circle";
 
 interface LucideIconProps {
   name: LucideIconName;
@@ -102,6 +107,29 @@ const PATHS: Record<LucideIconName, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="10" />
       <path d="M12 6v6l4 2" />
+    </>
+  ),
+  "chevron-left": <path d="m15 18-6-6 6-6" />,
+  "chevron-right": <path d="m9 18 6-6-6-6" />,
+  plus: (
+    <>
+      <path d="M5 12h14" />
+      <path d="M12 5v14" />
+    </>
+  ),
+  "layout-grid": (
+    <>
+      <rect width="7" height="7" x="3" y="3" rx="1" />
+      <rect width="7" height="7" x="14" y="3" rx="1" />
+      <rect width="7" height="7" x="14" y="14" rx="1" />
+      <rect width="7" height="7" x="3" y="14" rx="1" />
+    </>
+  ),
+  "x-circle": (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m15 9-6 6" />
+      <path d="m9 9 6 6" />
     </>
   ),
 };

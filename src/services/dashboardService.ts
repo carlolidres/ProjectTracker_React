@@ -26,9 +26,11 @@ import type { DashboardData, ProjectRow, SupportActivity } from "@/types";
 
 function buildWorklistItem(row: ProjectRow) {
   const meta = getProjectPriority(row);
+  const isOpen = isOpenFinalStatus(valueOrNA(row.final_status));
   return {
     recordId: row.record_id,
     project_id: row.project_id,
+    unique_batch: row.unique_batch,
     product_name: row.product_name,
     client_name: row.client_name,
     project_owner: valueOrNA(row.project_owner),
@@ -43,6 +45,9 @@ function buildWorklistItem(row: ProjectRow) {
     incompleteCount: meta.incompleteCount,
     nextAction: meta.nextAction,
     focusGroup: meta.focusGroup,
+    protocolPending: isOpen && !isApprovedOrNotApplicableStatus(row.protocol_Status),
+    reportPending: isOpen && !isApprovedOrNotApplicableStatus(row.validation_report_status),
+    cnfPending: isOpen && valueOrNA(row.cnf_status) !== "Approved",
   };
 }
 

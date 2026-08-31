@@ -2,6 +2,8 @@ import type { UserRole } from "@/types";
 
 export type MenuKey =
   | "dashboard"
+  | "project_management"
+  | "ai_assistant"
   | "projects_entry"
   | "projects_database"
   | "support_activities"
@@ -33,9 +35,11 @@ export interface MenuPermissionOverride {
   can_export: boolean;
 }
 
-/** Seven default menus for new / non-admin users. */
+/** Default menus for new / non-admin users. */
 export const DEFAULT_USER_MENU_KEYS: readonly MenuKey[] = [
   "dashboard",
+  "project_management",
+  "ai_assistant",
   "projects_entry",
   "projects_database",
   "support_activities",
@@ -56,22 +60,26 @@ export const ALL_MENU_KEYS: readonly MenuKey[] = [
 
 export const MENU_LABELS: Record<MenuKey, string> = {
   dashboard: "Dashboard",
-  projects_entry: "Projects",
-  projects_database: "Projects Database",
-  support_activities: "Support Activities",
-  cnf_tracker: "CNF Tracker",
-  endorsement_tracker: "Endorsement Tracker",
-  lessons_learned: "Lessons Learned",
-  audit_trail: "Audit Trail",
-  archived: "Archived",
+  project_management: "My work",
+  ai_assistant: "Ask AI",
+  projects_entry: "Projects · Entry",
+  projects_database: "Projects · Spreadsheet",
+  support_activities: "Support",
+  cnf_tracker: "Trackers · CNF",
+  endorsement_tracker: "Trackers · Endorsement",
+  lessons_learned: "Lessons learned",
+  audit_trail: "Audit trail",
+  archived: "Archives",
   registry: "Registry",
-  admin_users: "User Management",
-  admin_access: "Access Matrix",
-  admin_data_map: "Data Map",
+  admin_users: "Users",
+  admin_access: "Access matrix",
+  admin_data_map: "Schema",
 };
 
 export const MENU_ROUTE: Record<MenuKey, string> = {
   dashboard: "/dashboard",
+  project_management: "/project-management",
+  ai_assistant: "/ai-assistant",
   projects_entry: "/projects",
   projects_database: "/projects/database",
   support_activities: "/support-activities",
@@ -89,6 +97,8 @@ export const MENU_ROUTE: Record<MenuKey, string> = {
 /** Capabilities that are never applicable for a menu (UI disables these cells). */
 export const MENU_NA_ACTIONS: Partial<Record<MenuKey, MenuAction[]>> = {
   dashboard: ["create", "edit", "export"],
+  project_management: ["export"],
+  ai_assistant: ["create", "edit", "export"],
   projects_entry: ["export"],
   audit_trail: ["create", "edit"],
   admin_users: ["create", "export"],
@@ -171,6 +181,7 @@ function buildNonAdminDefaults(role: UserRole): Record<MenuKey, MenuCapabilities
     base.lessons_learned = { ...full };
     base.cnf_tracker = { ...viewExport };
     base.endorsement_tracker = { ...viewExport };
+    base.project_management = { can_view: true, can_create: true, can_edit: true, can_export: false };
     return Object.fromEntries(
       ALL_MENU_KEYS.map((key) => [key, applyNa(key, base[key])]),
     ) as Record<MenuKey, MenuCapabilities>;
@@ -196,6 +207,8 @@ function buildNonAdminDefaults(role: UserRole): Record<MenuKey, MenuCapabilities
     base.endorsement_tracker = { ...viewExport };
   }
 
+  base.project_management = { can_view: true, can_create: true, can_edit: true, can_export: false };
+
   return Object.fromEntries(
     ALL_MENU_KEYS.map((key) => [key, applyNa(key, base[key])]),
   ) as Record<MenuKey, MenuCapabilities>;
@@ -205,6 +218,10 @@ function buildAdminDefaults(): Record<MenuKey, MenuCapabilities> {
   const base = Object.fromEntries(
     ALL_MENU_KEYS.map((key) => {
       if (key === "dashboard") return [key, applyNa(key, viewOnly)];
+      if (key === "project_management") {
+        return [key, applyNa(key, { can_view: true, can_create: true, can_edit: true, can_export: false })];
+      }
+      if (key === "ai_assistant") return [key, applyNa(key, viewOnly)];
       if (key === "projects_entry") return [key, applyNa(key, entryFull)];
       if (key === "audit_trail") return [key, applyNa(key, viewExport)];
       if (key === "admin_data_map") return [key, applyNa(key, viewOnly)];

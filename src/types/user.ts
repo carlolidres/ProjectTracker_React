@@ -28,6 +28,8 @@ export interface Profile {
   approved_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Admin-granted: may be assigned PM tasks, and may assign them when menu create/edit allows. */
+  pm_task_eligible?: boolean;
 }
 
 export interface NavItem {

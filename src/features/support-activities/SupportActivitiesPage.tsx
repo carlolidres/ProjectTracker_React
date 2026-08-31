@@ -484,7 +484,7 @@ export function SupportActivitiesPage() {
     <AppShell>
       <div className="page-header">
         <div>
-          <Typography.Title level={3}>Support Activities</Typography.Title>
+          <Typography.Title level={3}>Support</Typography.Title>
         </div>
         <Space>
           <Button icon={<LucideIcon name="refresh-cw" />} onClick={() => void load()} loading={loading}>

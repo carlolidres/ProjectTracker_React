@@ -5,3 +5,5 @@ export * from "./database";
 export * from "./lessonsLearned";
 export * from "./cnfTracker";
 export * from "./endorsementTracker";
+export * from "./projectManagement";
+export * from "./aiAssistant";

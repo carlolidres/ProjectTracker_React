@@ -38,6 +38,22 @@ function parseCnfEntries(row: ProjectRow): CnfEntry[] {
   return [rowAsCnfEntry(row)];
 }
 
+export function collectCnfChangeDescriptions(rows: ProjectRow[]): string {
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const row of rows) {
+    for (const entry of parseCnfEntries(row)) {
+      const text = valueOrNA(entry.change_description).trim();
+      if (isMissingValue(text)) continue;
+      const key = text.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      parts.push(text);
+    }
+  }
+  return parts.join(" ");
+}
+
 /** Case-insensitive CNF key: trim + collapse internal whitespace + uppercase. */
 export function normalizeCnfReference(value: string): string {
   return value.trim().replace(/\s+/g, " ").toUpperCase();

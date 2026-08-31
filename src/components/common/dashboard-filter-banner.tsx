@@ -8,6 +8,8 @@ interface DashboardFilterBannerProps {
   onBackToDashboard?: () => void;
   /** Keep banner visible while scrolling the drill page (R7). */
   sticky?: boolean;
+  extraActionLabel?: string;
+  onExtraAction?: () => void;
 }
 
 export function DashboardFilterBanner({
@@ -16,6 +18,8 @@ export function DashboardFilterBanner({
   title = "Filtered from Dashboard",
   onBackToDashboard,
   sticky = false,
+  extraActionLabel,
+  onExtraAction,
 }: DashboardFilterBannerProps) {
   if (!labels.length && !onBackToDashboard) return null;
   return (
@@ -53,6 +57,11 @@ export function DashboardFilterBanner({
         )}
       </Space>
       <Space wrap size={8}>
+        {onExtraAction && extraActionLabel ? (
+          <Button size="small" onClick={onExtraAction}>
+            {extraActionLabel}
+          </Button>
+        ) : null}
         {onBackToDashboard ? (
           <Button size="small" type="primary" onClick={onBackToDashboard}>
             Back to Dashboard

@@ -1,5 +1,5 @@
 import { KeyOutlined, ReloadOutlined, SaveOutlined, SearchOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message } from "antd";
+import { Alert, Button, Card, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Tooltip, Typography, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/app/auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
@@ -25,6 +25,7 @@ const STATUS_OPTIONS: { value: Profile["status"]; label: string }[] = [
 interface AccessDraft {
   role: UserRole;
   status: Profile["status"];
+  pmTaskEligible: boolean;
 }
 
 export function AdminUsersPage() {
@@ -60,6 +61,7 @@ export function AdminUsersPage() {
                 ? profile.requested_role ?? profile.role
                 : profile.role,
               status: profile.status,
+              pmTaskEligible: Boolean(profile.pm_task_eligible),
             },
           ]),
         ),
@@ -103,6 +105,7 @@ export function AdminUsersPage() {
         profile.status,
         draft?.role,
         draft?.status,
+        draft?.pmTaskEligible ? "pm task assignment" : "",
         draft?.role ? ROLE_LABELS[draft.role] : "",
         pendingResetUserIds.has(profile.id) ? "password reset requested" : "",
       ]
@@ -155,7 +158,12 @@ export function AdminUsersPage() {
     setSavingUserId(profile.id);
     setError(null);
     try {
-      await updateProfileAccess(profile.id, draft.role, draft.status);
+      await updateProfileAccess(
+        profile.id,
+        draft.role,
+        draft.status,
+        draft.role === "view" ? false : draft.pmTaskEligible,
+      );
       message.success(`Access updated for ${profile.email}`);
       await loadProfiles();
     } catch (saveError) {
@@ -182,7 +190,10 @@ export function AdminUsersPage() {
     <AppShell>
       <div className="page-header">
         <div>
-          <Typography.Title level={3}>User Management</Typography.Title>
+          <Typography.Title level={3}>Users</Typography.Title>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            Turn on PM task assignment for non-VAL users to make them available as Project Management assignees. VAL users are always assignable.
+          </Typography.Paragraph>
         </div>
         <Button icon={<ReloadOutlined />} onClick={() => void loadProfiles()} loading={loading}>
           Refresh
@@ -245,7 +256,10 @@ export function AdminUsersPage() {
                   value={drafts[profile.id]?.role}
                   options={ROLE_OPTIONS}
                   style={{ minWidth: 140 }}
-                  onChange={(role: UserRole) => updateDraft(profile.id, { role })}
+                  onChange={(role: UserRole) => updateDraft(profile.id, {
+                    role,
+                    ...(role === "view" ? { pmTaskEligible: false } : {}),
+                  })}
                 />
               ),
             },
@@ -259,6 +273,34 @@ export function AdminUsersPage() {
                   onChange={(status: Profile["status"]) => updateDraft(profile.id, { status })}
                 />
               ),
+            },
+            {
+              title: "PM tasks",
+              render: (_, profile: Profile) => {
+                const draft = drafts[profile.id];
+                const viewRole = draft?.role === "view";
+                const valRole = draft?.role === "val";
+                return (
+                  <Tooltip
+                    title={
+                      viewRole
+                        ? "View-only users cannot be assigned Project Management tasks."
+                        : valRole
+                          ? "VAL users are always assignable at every project phase."
+                          : "When on, this user can be assigned Project Management tasks and can assign tasks if their menu allows it."
+                    }
+                  >
+                    <Switch
+                      checked={!viewRole && (valRole || Boolean(draft?.pmTaskEligible))}
+                      disabled={viewRole || valRole}
+                      checkedChildren="On"
+                      unCheckedChildren="Off"
+                      onChange={(pmTaskEligible: boolean) => updateDraft(profile.id, { pmTaskEligible })}
+                      aria-label={`PM task assignment for ${getProfileShortName(profile) || profile.email}`}
+                    />
+                  </Tooltip>
+                );
+              },
             },
             {
               title: "Current",

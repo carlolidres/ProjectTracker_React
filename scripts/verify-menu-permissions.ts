@@ -48,6 +48,17 @@ assert.equal(canMenu("admin", "audit_trail", "view"), true);
 assert.equal(canMenu("admin", "admin_access", "view"), true);
 
 assert.equal(menuKeyFromPath("/projects/database"), "projects_database");
+assert.equal(menuKeyFromPath("/ai-assistant"), "ai_assistant");
+assert.equal(canMenu("view", "ai_assistant", "view"), true);
+assert.equal(canMenu("view", "ai_assistant", "create"), false);
+assert.equal(canMenu("admin", "ai_assistant", "view"), true);
+assert.equal(canMenu("view", "project_management", "view"), true);
+assert.equal(canMenu("view", "project_management", "create"), false);
+assert.equal(canMenu("am_bm_pl", "project_management", "edit"), true);
+assert.equal(canMenu("am_bm_pl", "project_management", "create"), true);
+assert.equal(canMenu("rnd", "project_management", "edit"), true);
+assert.equal(canMenu("admin", "project_management", "create"), true);
+assert.equal(canMenu("admin", "project_management", "export"), false);
 assert.equal(menuKeyFromPath("/admin/access"), "admin_access");
 assert.equal(canMenuPath("view", "/audit-trail", "view"), false);
 assert.equal(canMenuPath("admin", "/audit-trail", "view"), true);

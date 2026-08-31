@@ -50,7 +50,7 @@ export function AuditTrailPage() {
     <AppShell>
       <div className="page-header">
         <div>
-          <Typography.Title level={3}>Audit Trail</Typography.Title>
+          <Typography.Title level={3}>Audit trail</Typography.Title>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>Refresh</Button>

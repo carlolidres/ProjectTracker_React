@@ -8,6 +8,8 @@ import "@/styles/project-form.css";
 import "@/styles/projects-database.css";
 import "@/styles/cnf-tracker.css";
 import "@/styles/dashboard.css";
+import "@/styles/project-management.css";
+import "@/styles/ai-assistant.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

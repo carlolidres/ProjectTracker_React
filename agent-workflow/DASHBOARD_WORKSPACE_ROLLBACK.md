@@ -5,6 +5,16 @@ Use when dashboard workspace UX (Phase A + Phase B) causes false creates, broken
 Phase A: action strip, project quick drawer, return-to-dashboard on drills.
 Phase B: create-from-dashboard (`?new=1` + return after save), Browse vs My work labels.
 
+## PM hub kill-switch
+
+Dashboard My work tasks, slim New task, KPI filters that stay on Dashboard.
+
+```env
+VITE_FEATURE_DASHBOARD_PM_HUB=false
+```
+
+Independent of `VITE_FEATURE_DASHBOARD_WORKSPACE`. Flag off restores Phase B (Do next / worklist / Final Status quick drawer) without the task inbox or slim create-from-dashboard. No schema rollback.
+
 ## Feature flag (preferred)
 
 1. Set in GitHub Pages build env (or `.env.local`):

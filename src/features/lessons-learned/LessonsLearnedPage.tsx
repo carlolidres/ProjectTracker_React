@@ -65,7 +65,7 @@ export function LessonsLearnedPage() {
     <AppShell>
       <div className="page-header">
         <div>
-          <Typography.Title level={3}>Lessons Learned</Typography.Title>
+          <Typography.Title level={3}>Lessons learned</Typography.Title>
           <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
             Recorded reasons when users adjust dates on project and support activity forms.
           </Typography.Paragraph>

@@ -454,7 +454,7 @@ export function ProjectsDatabasePage() {
           <div className="page-header">
             <div>
               <Typography.Title level={3} style={{ marginBottom: 4 }}>
-                Projects Database
+                Spreadsheet
               </Typography.Title>
               <Typography.Text type="secondary">
                 View, edit and manage all projects in the system.
@@ -478,7 +478,7 @@ export function ProjectsDatabasePage() {
         ) : (
           <div className="projects-db-full-chrome">
             <Space size={8} wrap>
-              <Typography.Text strong>Projects Database</Typography.Text>
+              <Typography.Text strong>Spreadsheet</Typography.Text>
               {unsavedCount > 0 ? (
                 <span className="projects-db-unsaved">
                   <WarningOutlined /> Unsaved ({unsavedCount})

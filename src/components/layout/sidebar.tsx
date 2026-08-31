@@ -11,7 +11,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProfileSettingsModal } from "@/components/layout/profile-settings-modal";
 import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
-import { getVisibleSidebarNavItems } from "@/components/layout/sidebar-nav";
+import { getVisibleSidebarNavSections } from "@/components/layout/sidebar-nav";
 import { useAuth } from "@/app/auth-provider";
 import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { useAppTheme } from "@/app/theme-provider";
@@ -69,8 +69,8 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
     },
   ];
 
-  const visibleNavItems = useMemo(
-    () => getVisibleSidebarNavItems(profile?.role, overrides),
+  const visibleNavSections = useMemo(
+    () => getVisibleSidebarNavSections(profile?.role, overrides),
     [profile?.role, overrides],
   );
 
@@ -105,9 +105,34 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
       </div>
 
       <nav className="sidebar-nav" aria-label="Primary navigation">
-        {visibleNavItems.map((item) => (
-          <SidebarNavItem key={item.label} item={item} state={state} onNavigate={onCloseMobile} />
-        ))}
+        {visibleNavSections.map((section) => {
+          if (section.type === "link") {
+            return (
+              <SidebarNavItem
+                key={section.item.href}
+                item={section.item}
+                state={state}
+                onNavigate={onCloseMobile}
+              />
+            );
+          }
+          return (
+            <div key={section.id} className="sidebar-nav-group" role="group" aria-label={section.label}>
+              <p className="sidebar-nav-group-label sidebar-label">{section.label}</p>
+              <div className="sidebar-nav-group-items">
+                {section.items.map((item) => (
+                  <SidebarNavItem
+                    key={item.href}
+                    item={item}
+                    state={state}
+                    nested
+                    onNavigate={onCloseMobile}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </nav>
 
       <div className="sidebar-footer">

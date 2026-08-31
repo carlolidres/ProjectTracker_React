@@ -12,3 +12,13 @@ export function isDashboardWorkspaceEnabled(): boolean {
   const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
   return flagEnabled(env?.VITE_FEATURE_DASHBOARD_WORKSPACE, true);
 }
+
+/**
+ * Dashboard PM hub (My work tasks, slim New task, KPI stays on dashboard).
+ * Independent of the workspace flag so a hub defect can be killed without
+ * removing Phase B Do next / worklist / quick drawer.
+ */
+export function isDashboardPmHubEnabled(): boolean {
+  const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+  return flagEnabled(env?.VITE_FEATURE_DASHBOARD_PM_HUB, true);
+}

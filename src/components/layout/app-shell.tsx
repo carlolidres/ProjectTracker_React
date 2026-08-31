@@ -1,6 +1,7 @@
 import { MenuUnfoldOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 import { useEffect, useState } from "react";
+import { AskAiButton } from "@/components/layout/ask-ai-button";
 import { CollapsedNavRail } from "@/components/layout/collapsed-nav-rail";
 import { NavHistoryButtons } from "@/components/layout/nav-history-buttons";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -55,7 +56,10 @@ export function AppShell({ children }: Readonly<AppShellProps>) {
         <main className="app-content">{children}</main>
       </div>
       {isCollapsed ? (
-        <NavHistoryButtons floating className="desktop-only" />
+        <div className="collapsed-header-chrome desktop-only" role="toolbar" aria-label="Header shortcuts">
+          <AskAiButton compact />
+          <NavHistoryButtons />
+        </div>
       ) : null}
       {showExpandFab ? (
         <div

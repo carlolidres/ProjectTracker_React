@@ -1,6 +1,7 @@
 import { MenuFoldOutlined, MenuOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
 import { useState } from "react";
+import { AskAiButton } from "@/components/layout/ask-ai-button";
 import { AppVersionButton } from "@/components/layout/app-version-button";
 import { FeedbackChat } from "@/components/layout/feedback-chat";
 import { NavHistoryButtons } from "@/components/layout/nav-history-buttons";
@@ -46,6 +47,7 @@ export function Topbar({ sidebarState, onToggleSidebar, onOpenMobileSidebar }: T
         <p className="topbar-title-sub">An End-to-End Project Monitoring System</p>
       </div>
       <div className="topbar-actions">
+        <AskAiButton />
         <NavHistoryButtons />
         <AppVersionButton />
         <FeedbackChat />

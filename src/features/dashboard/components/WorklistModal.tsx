@@ -3,8 +3,14 @@ import { Button, Input, Modal, Switch, Table, Tabs, Tag, Typography } from "antd
 import type { ColumnsType } from "antd/es/table";
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { TaskTableView } from "@/features/project-management/components/TaskViews";
 import { formatAppDate, formatAppMonth } from "@/lib/date";
 import { supportActivitiesRoute } from "@/lib/dashboardDrilldown";
+import {
+  processRowMatchesWorkFilter,
+  supportRowMatchesWorkFilter,
+  type DashboardWorkFilter,
+} from "@/lib/dashboardPmHub";
 import { ROLE_LABELS } from "@/lib/constants";
 import { isMissingValue } from "@/lib/utils";
 import {
@@ -14,7 +20,7 @@ import {
   supportKindForRole,
   supportWorklistTitle,
 } from "@/lib/worklistSort";
-import type { SupportWorklistItem, UserRole, WorklistItem } from "@/types";
+import type { Profile, SupportWorklistItem, UserRole, WorkflowBoardItem, WorklistItem } from "@/types";
 
 const severityColor: Record<string, string> = {
   overdue: "red",
@@ -44,6 +50,13 @@ export interface WorklistModalProps {
   onTabChange: (tab: string) => void;
   onSearchChange: (search: string) => void;
   onShowAllChange: (showAll: boolean) => void;
+  hubEnabled?: boolean;
+  workFilter?: DashboardWorkFilter | null;
+  onClearFilter?: () => void;
+  taskItems?: WorkflowBoardItem[];
+  profiles?: Profile[];
+  currentUserId?: string;
+  onOpenTask?: (item: WorkflowBoardItem) => void;
 }
 
 export function WorklistModal({
@@ -59,6 +72,13 @@ export function WorklistModal({
   onTabChange,
   onSearchChange,
   onShowAllChange,
+  hubEnabled,
+  workFilter,
+  onClearFilter,
+  taskItems = [],
+  profiles = [],
+  currentUserId,
+  onOpenTask,
 }: WorklistModalProps) {
   const navigate = useNavigate();
 
@@ -66,7 +86,8 @@ export function WorklistModal({
   const preferredSupportKind = supportKindForRole(role);
 
   const processRows = useMemo(() => {
-    const scoped = filterAndSortProcessWorklist(processItems, role, showAll);
+    const scoped = filterAndSortProcessWorklist(processItems, role, showAll)
+      .filter((row) => processRowMatchesWorkFilter(row, workFilter ?? null));
     return scoped.filter((row) =>
       matchesSearch(
         [
@@ -85,10 +106,11 @@ export function WorklistModal({
         search,
       ),
     );
-  }, [processItems, role, showAll, search]);
+  }, [processItems, role, showAll, search, workFilter]);
 
   const supportRows = useMemo(() => {
-    const scoped = filterAndSortSupportWorklist(supportItems, role, showAll);
+    const scoped = filterAndSortSupportWorklist(supportItems, role, showAll)
+      .filter((row) => supportRowMatchesWorkFilter(row, workFilter ?? null));
     return scoped.filter((row) =>
       matchesSearch(
         [
@@ -108,7 +130,19 @@ export function WorklistModal({
         search,
       ),
     );
-  }, [supportItems, role, showAll, search]);
+  }, [supportItems, role, showAll, search, workFilter]);
+
+  const taskRows = useMemo(() => {
+    const mine = currentUserId
+      ? taskItems.filter((item) => item.assigneeIds.includes(currentUserId))
+      : [];
+    return mine.filter((row) =>
+      matchesSearch(
+        [row.title, row.sourceId, row.phase, row.status, row.instructions ?? ""],
+        search,
+      ),
+    );
+  }, [currentUserId, search, taskItems]);
 
   const roleLabel = role ? (ROLE_LABELS[role] ?? role) : "User";
   const scopeHint = showAll
@@ -143,8 +177,8 @@ export function WorklistModal({
             size="small"
             className="dashboard-worklist-open-cell"
             icon={<FormOutlined />}
-            title={`Open project form ${projectId}`}
-            aria-label={`Open project form ${projectId}`}
+            title={`Open record ${projectId}`}
+            aria-label={`Open record ${projectId}`}
             onClick={(event) => {
               event.stopPropagation();
               onOpenProject(projectId);
@@ -210,7 +244,7 @@ export function WorklistModal({
       onCancel={onClose}
       title={
         <div className="dashboard-worklist-modal-header">
-          <span className="dashboard-worklist-modal-heading">My Worklist</span>
+          <span className="dashboard-worklist-modal-heading">{hubEnabled ? "My work" : "My Worklist"}</span>
           <Input
             allowClear
             value={search}
@@ -237,11 +271,24 @@ export function WorklistModal({
         <div className="dashboard-worklist-modal-meta">
           <Typography.Text strong>{roleLabel}</Typography.Text>
           <Typography.Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 2 }}>
-            {scopeHint}
+            {workFilter ? `Filtered: ${workFilter.label}. ${scopeHint}` : scopeHint}
           </Typography.Paragraph>
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {workFilter ? (
+            <>
+              <Button size="small" onClick={() => navigate(workFilter.spreadsheetPath)}>
+                Open as spreadsheet
+              </Button>
+              {onClearFilter ? (
+                <Button size="small" onClick={onClearFilter}>
+                  Clear filter
+                </Button>
+              ) : null}
+            </>
+          ) : null}
         <label className="dashboard-worklist-all-toggle">
-          <span>All Worklist</span>
+          <span>{hubEnabled ? "All work" : "All Worklist"}</span>
           <Switch
             checked={showAll}
             onChange={onShowAllChange}
@@ -249,6 +296,7 @@ export function WorklistModal({
             unCheckedChildren="Off"
           />
         </label>
+        </div>
       </div>
 
       <Tabs
@@ -277,7 +325,7 @@ export function WorklistModal({
           },
           {
             key: "support",
-            label: `Support Activities (${supportRows.length})`,
+            label: hubEnabled ? `Support (${supportRows.length})` : `Support Activities (${supportRows.length})`,
             children: (
               <Table
                 size="small"
@@ -297,6 +345,20 @@ export function WorklistModal({
               />
             ),
           },
+          ...(hubEnabled
+            ? [{
+                key: "tasks",
+                label: `My tasks (${taskRows.length})`,
+                children: (
+                  <TaskTableView
+                    items={taskRows}
+                    profiles={profiles}
+                    currentUserId={currentUserId}
+                    onOpen={(item) => onOpenTask?.(item)}
+                  />
+                ),
+              }]
+            : []),
         ]}
       />
     </Modal>

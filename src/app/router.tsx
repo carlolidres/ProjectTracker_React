@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "@/components/common/protected-route";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
+import { ProjectManagementPage } from "@/features/project-management/ProjectManagementPage";
 import { ProjectEntryPage } from "@/features/projects/ProjectEntryPage";
 import { ProjectsDatabasePage } from "@/features/projects/ProjectsDatabasePage";
 import { SupportActivitiesPage } from "@/features/support-activities/SupportActivitiesPage";
@@ -14,6 +15,7 @@ import { AccessMatrixPage } from "@/features/admin/AccessMatrixPage";
 import { CnfTrackerPage } from "@/features/cnf-tracker/CnfTrackerPage";
 import { EndorsementTrackerPage } from "@/features/endorsement-tracker/EndorsementTrackerPage";
 import { DataMapPage } from "@/features/admin/DataMapPage";
+import { AiAssistantPage } from "@/features/ai-assistant/AiAssistantPage";
 
 export function AppRouter() {
   return (
@@ -21,6 +23,8 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+      <Route path="/project-management" element={<ProtectedRoute><ProjectManagementPage /></ProtectedRoute>} />
+      <Route path="/ai-assistant" element={<ProtectedRoute><AiAssistantPage /></ProtectedRoute>} />
       <Route path="/projects" element={<ProtectedRoute><ProjectEntryPage /></ProtectedRoute>} />
       <Route path="/projects/database" element={<ProtectedRoute><ProjectsDatabasePage /></ProtectedRoute>} />
       <Route path="/support-activities" element={<ProtectedRoute><SupportActivitiesPage /></ProtectedRoute>} />

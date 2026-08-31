@@ -1,6 +1,6 @@
 # Code Map
 
-Last Updated: `2026-07-20`
+Last Updated: `2026-08-31`
 
 ## Purpose
 
@@ -24,11 +24,24 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Module | Path | Responsibility |
 |---|---|---|
 | Auth | `src/features/auth/LoginPage.tsx` | Login flow and public entry route. |
-| Dashboard | `src/features/dashboard/DashboardPage.tsx` | KPI, meeting view. Workspace flag: action strip, quick drawer, Browse/My labels (Phase B). |
-| Dashboard action strip | `src/features/dashboard/components/DashboardActionStrip.tsx` | Role/menu-gated “Do next” create/browse actions. |
-| Worklist modal | `src/features/dashboard/components/WorklistModal.tsx` | Wide My Worklist popup (Process / Support tabs, All Worklist toggle). |
+| Dashboard | `src/features/dashboard/DashboardPage.tsx` | Primary workspace: KPIs, My work, New task, meeting view. Hub flag keeps KPI filters on Dashboard. |
+| Project Management | `src/features/project-management/ProjectManagementPage.tsx` | Portfolio / calendar / My Tasks (nav label My work); cards show product, unique batch, short CNF change. |
+| Project Management model | `src/lib/projectManagementPortfolio.ts` | Deduplicate process rows by `project_id`, map source statuses to Ongoing/Completed/Cancelled, attach unique batch and CNF change text. |
+| Project Management workflow | `src/lib/projectManagementWorkflow.ts` | Phase gates, incomplete requirements, derived source workflow items. |
+| Project Management permissions | `src/lib/projectManagementPermissions.ts` | Assign/override/reopen. VAL is always an assignee. User-task create is not phase-gated. |
+| Project Management service | `src/services/projectManagementService.ts` | Portfolio load plus tasks, comments, phase overrides (missing-table fallback until migration is applied). |
+| Project Management workspace | `src/features/project-management/components/ProjectWorkspaceDrawer.tsx` | Card click opens Tasks; click a row to edit or create the matching task. Source record stays a header button. |
+| AI Assistant | `src/features/ai-assistant/AiAssistantPage.tsx` | Grounded chat page (`#/ai-assistant`, header Ask AI); own conversations; verified internal source cards. |
+| AI Assistant helpers | `src/lib/aiAssistant.ts` | Sanitization, citations, date groups; re-exports planner from the Edge Function plan module. |
+| AI Assistant planner | `supabase/functions/ai-assistant-chat/plan.ts` | Intent, record-id extraction, controlled tool selection, Answer/Basis/Limitations format. |
+| AI Assistant Edge Function | `supabase/functions/ai-assistant-chat/` | JWT + multi-tool RLS retrieval, conversation context, OpenAI JSON, verified citations, audit. |
+| AI Assistant service | `src/services/aiAssistantService.ts` | Conversation CRUD plus `ai-assistant-chat` Edge Function invoke. |
+| Dashboard action strip | `src/features/dashboard/components/DashboardActionStrip.tsx` | Role/menu-gated Do next (New task, My work, creates). |
+| Worklist modal | `src/features/dashboard/components/WorklistModal.tsx` | My work popup (Process / Support / My tasks tabs, KPI filter, Open as spreadsheet). |
+| Dashboard PM hub | `src/lib/dashboardPmHub.ts` | KPI-to-My-work filters, default tab, slim-form helpers, source picker options. |
+| Dashboard task composer | `src/features/dashboard/components/DashboardTaskComposer.tsx` | New task from Dashboard with gate check. |
 | Worklist sort | `src/lib/worklistSort.ts` | Role-scoped process/support worklist filter and priority sort. |
-| Project quick drawer | `src/features/dashboard/components/ProjectQuickDrawer.tsx` | Summary + Final Status edit from worklist/notifications. |
+| Project quick drawer | `src/features/dashboard/components/ProjectQuickDrawer.tsx` | Project hub: summary, phase, tasks, Final Status, Ask AI. |
 | Dashboard charts block | `src/features/dashboard/components/DashboardChartsBlock.tsx` | CNF/final/department/FG/support/monthly charts. |
 | Dashboard components | `src/features/dashboard/components/` | Charts and meeting overlay pieces. |
 | Return-to helper | `src/lib/dashboardReturnTo.ts` | `return_to` append/read for dashboard create + drill loops. |
@@ -50,11 +63,12 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Lessons Learned | `src/features/lessons-learned/LessonsLearnedPage.tsx` | Lessons learned workflow. |
 | Archived | `src/features/archived/ArchivedPage.tsx` | Admin archive view. |
 | Registry | `src/features/registry/RegistryPage.tsx` | Admin registry management. |
-| Admin Users | `src/features/admin/AdminUsersPage.tsx` | Admin user/profile management and password-reset approval. |
+| Admin Users | `src/features/admin/AdminUsersPage.tsx` | Admin user/profile management, PM task assignment privilege, and password-reset approval. |
 | Access Matrix | `src/features/admin/AccessMatrixPage.tsx` | Role × menu View/Create/Edit/Export overrides UI. |
 | Password reset service | `src/services/passwordResetService.ts` | Forgot-password request + admin approve via Edge Function. |
 | Password reset Edge Function | `supabase/functions/admin-approve-password-reset/` | Issues 16-char temp password and emails via Gmail secrets. |
-| Data Map | `src/features/admin/DataMapPage.tsx` | SQL Schema canvas (migration-derived table cards + FK edges) and integrity review. |
+| CNF change summary Edge Function | `supabase/functions/summarize-change/` | Authenticated OpenAI shorten of CNF change text for portfolio cards. |
+| Data Map | `src/features/admin/DataMapPage.tsx` | SQL Schema canvas (nav label Schema): migration-derived table cards + FK edges and integrity review. |
 | Schema map parser | `src/lib/schemaMap/parseMigrations.ts` | Parses `supabase/migrations/*.sql` into tables/columns/PK-FK/indexes for Data Map. |
 
 ## Shared Components
@@ -65,8 +79,14 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/components/layout/nav-history-buttons.tsx` | Accessible Back/Forward controls for SPA history. |
 | `src/lib/navigationHistory.ts` | Pure PUSH/REPLACE/POP stack helpers + session-clear reset. |
 | `src/hooks/use-restorable-view-state.ts` | Persist/restore page UI snapshots per history entry. |
-| `src/components/layout/sidebar.tsx` | Navigation and role-aware menu structure (hidden scrollbar; collapsed icon nav). |
-| `src/components/layout/topbar.tsx` | Header controls (Back/Forward beside About); collapses with sidebar on desktop. |
+| `src/hooks/use-change-summaries.ts` | Local CNF change shorten plus optional OpenAI Edge Function upgrade. |
+| `src/lib/changeDescriptionSummary.ts` | Deterministic card-length CNF change shortener and session cache key. |
+| `src/services/changeSummaryService.ts` | Invokes `summarize-change` Edge Function for authenticated users. |
+| `src/components/layout/sidebar.tsx` | Grouped navigation (Projects, Trackers, Admin) with role-aware children. |
+| `src/components/layout/sidebar-nav.ts` | Sidebar icons mapped onto the nav tree. |
+| `src/components/layout/sidebar-nav-tree.ts` | Sidebar groups, visibility, flatten for collapsed rail; Ask AI is header-only. |
+| `src/components/layout/ask-ai-button.tsx` | Header / collapsed-chrome Ask AI control (`ai_assistant` View). |
+| `src/components/layout/topbar.tsx` | Header controls (Ask AI, Back/Forward beside About); collapses with sidebar on desktop. |
 | `src/components/common/dashboard-filter-banner.tsx` | Active dashboard/database filter chip banner. |
 | `src/components/common/workflow-status-badge.tsx` | Icon + tooltip workflow status (sort/filter labels stay text). |
 | `src/services/menuPermissionService.ts` | Load/save `menu_permission_overrides`. |
@@ -109,6 +129,7 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/services/registryService.ts` | Registry lookup and admin CRUD. |
 | `src/services/exportService.ts` | Excel/export utilities. |
 | `src/services/menuPermissionService.ts` | Load/save menu permission overrides + audit. |
+| `src/services/projectManagementService.ts` | Live portfolio load from projects + support activities. |
 
 ## State, Utilities, and Types
 
@@ -119,8 +140,8 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/lib/menuPermissions.ts` | Menu View/Create/Edit/Export defaults, resolve, path mapping, feature flag. |
 | `src/lib/dashboardDrilldown.ts` | Dashboard → list/DB route builders (appends `return_to` when workspace flag on). |
 | `src/lib/dashboardReturnTo.ts` | `return_to` param helpers for Back to Dashboard. |
-| `src/lib/featureFlags.ts` | `isDashboardWorkspaceEnabled()` kill-switch. |
-| Rollback | `agent-workflow/DASHBOARD_WORKSPACE_ROLLBACK.md` | Set `VITE_FEATURE_DASHBOARD_WORKSPACE=false` and redeploy. |
+| `src/lib/featureFlags.ts` | `isDashboardWorkspaceEnabled()` and `isDashboardPmHubEnabled()` kill-switches. |
+| Rollback | `agent-workflow/DASHBOARD_WORKSPACE_ROLLBACK.md` | Workspace and PM hub env flags. |
 | `src/lib/urlDerivedFilters.ts` | URL search-param merge for projects/support/audit/CNF list filters. |
 | `src/components/common/dashboard-filter-banner.tsx` | Active dashboard drill filter chips + clear. |
 | `src/lib/roleAccess.ts` | Route access (matrix-aware) and field-group `can*` helpers. |
@@ -145,6 +166,8 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/styles/globals.css` | Global app styles. |
 | `src/styles/project-form.css` | Project form layout/styling. |
 | `src/styles/dashboard.css` | Dashboard styling. |
+| `src/styles/project-management.css` | Project Management portfolio, workspace board/calendar, and filters. |
+| `src/styles/ai-assistant.css` | AI Assistant conversation layout (sidebar, transcript, composer). |
 | `src/styles/cnf-tracker.css` | CNF tracker styling. |
 | `src/styles/endorsement-tracker.css` | Endorsement tracker styling. |
 | `src/styles/data-map.css` | Data map/integrity page styling. |

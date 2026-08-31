@@ -29,6 +29,9 @@ export function getSandboxDashboardData(): DashboardData {
       incompleteCount: 3,
       focusGroup: "PP",
       nextAction: "Complete PP protocol fields",
+      protocolPending: true,
+      reportPending: true,
+      cnfPending: true,
     },
     {
       recordId: "sandbox-wl-2",
@@ -46,6 +49,9 @@ export function getSandboxDashboardData(): DashboardData {
       incompleteCount: 2,
       focusGroup: "TSD",
       nextAction: "Submit TSD validation package",
+      protocolPending: true,
+      reportPending: false,
+      cnfPending: true,
     },
     {
       recordId: "sandbox-wl-3",
@@ -63,6 +69,9 @@ export function getSandboxDashboardData(): DashboardData {
       incompleteCount: 4,
       focusGroup: "QC",
       nextAction: "Finalize QC checklist",
+      protocolPending: false,
+      reportPending: true,
+      cnfPending: true,
     },
     {
       recordId: "sandbox-wl-4",
@@ -80,6 +89,9 @@ export function getSandboxDashboardData(): DashboardData {
       incompleteCount: 1,
       focusGroup: "AM/BM/PL",
       nextAction: "Await client sign-off",
+      protocolPending: false,
+      reportPending: false,
+      cnfPending: false,
     },
     {
       recordId: "sandbox-wl-5",
@@ -97,6 +109,9 @@ export function getSandboxDashboardData(): DashboardData {
       incompleteCount: 0,
       focusGroup: "AM/BM/PL",
       nextAction: "Monitor project readiness",
+      protocolPending: false,
+      reportPending: false,
+      cnfPending: false,
     },
   ];
 

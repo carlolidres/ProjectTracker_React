@@ -1,6 +1,7 @@
 import {
   FileAddOutlined,
   FolderAddOutlined,
+  FormOutlined,
   ToolOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
@@ -8,24 +9,31 @@ import { Button, Space, Typography } from "antd";
 import { useMeetingViewReadOnly } from "@/app/meeting-view-provider";
 import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { useAuth } from "@/app/auth-provider";
+import { dashboardDoNextHint } from "@/lib/dashboardPmHub";
 import { canEditCnfTracker } from "@/lib/roleAccess";
 
 export interface DashboardActionStripProps {
   sandboxMode?: boolean;
+  hubEnabled?: boolean;
   onNewProject: () => void;
   onBrowseOverdue: () => void;
   onNewSupport: () => void;
   onNewCnf: () => void;
   onOpenWorklist: () => void;
+  onNewTask?: () => void;
+  onBrowsePendingProtocol?: () => void;
 }
 
 export function DashboardActionStrip({
   sandboxMode,
+  hubEnabled,
   onNewProject,
   onBrowseOverdue,
   onNewSupport,
   onNewCnf,
   onOpenWorklist,
+  onNewTask,
+  onBrowsePendingProtocol,
 }: DashboardActionStripProps) {
   const { profile } = useAuth();
   const { can } = useMenuPermissions();
@@ -36,6 +44,11 @@ export function DashboardActionStrip({
   const canCreateSupport = can("support_activities", "create") && !disabled;
   const canCreateCnf =
     can("cnf_tracker", "create") && canEditCnfTracker(profile?.role) && !disabled;
+  const canCreateTask = Boolean(hubEnabled) && can("project_management", "create") && !disabled;
+  const showPendingProtocol = Boolean(hubEnabled) && profile?.role === "val" && !sandboxMode;
+  const roleHint = hubEnabled
+    ? dashboardDoNextHint(profile?.role)
+    : "Create records or open your work. Use Browse cards above for filtered lists.";
 
   return (
     <div className="dashboard-action-strip" style={{ marginBottom: 16 }}>
@@ -43,19 +56,27 @@ export function DashboardActionStrip({
         Do next
       </Typography.Text>
       <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8, fontSize: 12 }}>
-        Create records or open your work. Use Browse cards above for filtered lists.
+        {roleHint}
       </Typography.Text>
       <Space wrap size={[8, 8]}>
+        {canCreateTask && onNewTask ? (
+          <Button type="primary" icon={<FormOutlined />} onClick={onNewTask}>
+            New task
+          </Button>
+        ) : null}
         {canCreateProject ? (
-          <Button type="primary" icon={<FolderAddOutlined />} onClick={onNewProject}>
+          <Button type={canCreateTask ? "default" : "primary"} icon={<FolderAddOutlined />} onClick={onNewProject}>
             New Project
           </Button>
         ) : null}
         <Button icon={<WarningOutlined />} onClick={onBrowseOverdue} disabled={Boolean(sandboxMode)}>
-          Browse Overdue
+          {hubEnabled ? "Browse overdue" : "Browse Overdue"}
         </Button>
+        {showPendingProtocol && onBrowsePendingProtocol ? (
+          <Button onClick={onBrowsePendingProtocol}>Pending protocol</Button>
+        ) : null}
         <Button onClick={onOpenWorklist} disabled={Boolean(sandboxMode)}>
-          My Worklist
+          {hubEnabled ? "My work" : "My Worklist"}
         </Button>
         {canCreateSupport ? (
           <Button icon={<ToolOutlined />} onClick={onNewSupport}>

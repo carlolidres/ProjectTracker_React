@@ -7,10 +7,11 @@ import type { NavItem } from "@/types";
 interface SidebarNavItemProps {
   item: NavItem;
   state: SidebarState;
+  nested?: boolean;
   onNavigate?: () => void;
 }
 
-export function SidebarNavItem({ item, state, onNavigate }: SidebarNavItemProps) {
+export function SidebarNavItem({ item, state, nested = false, onNavigate }: SidebarNavItemProps) {
   const Icon = item.icon;
   const isCollapsed = state === "collapsed";
 
@@ -20,7 +21,12 @@ export function SidebarNavItem({ item, state, onNavigate }: SidebarNavItemProps)
       end={item.href === "/projects"}
       onClick={onNavigate}
       className={({ isActive }) =>
-        cn("sidebar-nav-item", isCollapsed && "sidebar-nav-item-collapsed", isActive && "sidebar-nav-item-active")
+        cn(
+          "sidebar-nav-item",
+          nested && !isCollapsed && "sidebar-nav-item-nested",
+          isCollapsed && "sidebar-nav-item-collapsed",
+          isActive && "sidebar-nav-item-active",
+        )
       }
       aria-label={item.label}
       title={isCollapsed ? undefined : item.label}

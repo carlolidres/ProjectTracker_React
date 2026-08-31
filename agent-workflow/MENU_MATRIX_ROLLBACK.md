@@ -4,7 +4,7 @@ Use when the Access Matrix, menu gating, or dashboard drill wiring causes false 
 
 ## Triggers
 
-- Non-admin users lose the seven default menus (false View denials).
+- Non-admin users lose the default user menus (false View denials).
 - VAL/TSD/QA cannot Create/Edit work they previously could (bad defaults/overrides).
 - Dashboard drills open empty/wrong Projects Database or Support lists.
 - Auth loop or redirect storm to `/dashboard`.
@@ -51,7 +51,7 @@ supabase/migrations/20260716140000_menu_permission_overrides.down.sql
 
 - Login as `admin`, `view`, `val`, `tsd`.
 - With flag off: nav matches pre-matrix `ROUTE_ACCESS` (including Audit for admin/view).
-- With flag on after fix: seven default menus for non-admin; Admin Access Matrix editable; dashboard drills show filter banners.
+- With flag on after fix: default user menus for non-admin (including Project Management); Admin Access Matrix editable; dashboard drills show filter banners.
 - Audit Trail readable; no orphaned routes.
 - Record incident in a versioned handoff.
 

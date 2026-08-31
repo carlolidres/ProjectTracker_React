@@ -1,47 +1,44 @@
 # Current Handoff
 
-Last Updated: `2026-08-30`
-Version: `v0.94.0`
+Last Updated: `2026-08-31`
+Version: `v0.95.0`
 Branch: `main`
-Commit: `2cc0432`
-App version: `0.94.0`
+Commit: pending push
+App version: `0.95.0`
 
 ## Current Status
 
-**Sidebar default expanded deployed.** GitHub Pages Actions success for `2cc0432`.
+AI Assistant uses a query planner and several controlled, JWT/RLS database tools before OpenAI answers. Replies are Answer / Basis / Limitations plus verified internal links. Redeployed `ai-assistant-chat` on `ilaeqepjuuqzknxqnyfa`.
 
 ## Recently Completed
 
-- Deployed `2cc0432` — sidebar starts expanded on load, login, and session clear
-- Hard-deleted Support Activity `Tetst` (`SUP-20260719-175653-136` / `SPROJ-2026-005`)
-- Hard-deleted CNF Tracker entries `Test` (CNF-2026-001) and `DPM-CNF-2026-001` (CNF-2026-002); unlinked support CNF references
-- Hard-deleted Endorsement Tracker entries `VMP-MM-0001E` (END-2026-001) and `Test001` (END-2026-002), including items; unlinked/cleared source endorsement numbers so they cannot auto-recreate
-- Sidebar starts expanded on load, login, and session clear (collapse lasts for the current SPA session only)
-- Released `v0.94.0` @ `03597e0`
-- Projects Database blank draft rows + bulk create on Save
-- Compact workflow status icons; Back/Forward view-state restore
-- Worklist / Project Entry polish; sidebar session clear; dropdown editor fix
-- DATA_MAP updated for draft-row create path and release baseline
+- Clicking a My work card opens Tasks; existing tasks can be edited, source rows open or create the matching task.
+- Database-grounded intelligence: intent/tool plan, multi-step retrieval, conversation record ids, business-rule guide, citation verification
+- AI Assistant page, Ask AI from project drawers, owner-only chats
+- Project Management cards, calendar/My Tasks create, Dashboard PM hub
 
 ## Deferred
 
-- Phase C R9 Support CNF/Endorsement handoff overlays
-- Opt-in view-state restore for remaining routes (audit, registry, admin, etc.)
+- Document/RAG search (no file index). 50-question live model eval. Streaming. Helpful/not-helpful feedback.
+- Compact New Project/Support drawers (plan R10)
+- `menu_permission_overrides` table still absent on remote
+- Per-user task notifications; file-storage attachments
 
 ## Verification
 
 | Check | Status | Result |
 |---|---|---|
-| `npm run typecheck` | PASSED | clean (re-run 2026-08-30 after sidebar default) |
-| `npm run test:projects-db-validation` | PASSED | draft-row reconcile |
-| `npm run test:navigation-history` | PASSED | stack hygiene |
-| `npm run build` | PASSED | Vite OK |
-| GitHub Pages deploy | PASSED | [33309006836](https://github.com/carlolidres/ProjectTracker_React/actions/runs/33309006836) (`2cc0432`) |
-| GitHub Release | PASSED | [v0.94.0](https://github.com/carlolidres/ProjectTracker_React/releases/tag/v0.94.0) |
+| `npm run typecheck` | PASSED | clean |
+| `npm run lint` | PASSED | max-warnings 0 |
+| `npm run test:sidebar-nav` | PASSED | grouped nav; Ask AI not in sidebar; empty groups omitted |
+| `npm run test:menu-permissions` | PASSED | menu keys unchanged |
+| `npm run test:ai-assistant` | PASSED | planner, follow-up ids, citations, reply format |
+| Edge Function `ai-assistant-chat` | PASSED | redeployed with `plan.ts`; JWT on |
+| Browser smoke | NOT RUN | ask a follow-up after naming a project |
 
 ## Next Action
 
-Browser-smoke expanded sidebar on load/login. Phase C R9 when ready.
+In AI Assistant, ask “Which projects are ready for Report/Endorsement?”, then a follow-up like “What activities are incomplete?” after naming a `PROJ-…` id.
 
 ## Dumb-Zone Recovery
 

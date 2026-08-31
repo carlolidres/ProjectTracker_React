@@ -115,6 +115,10 @@ export interface WorklistItem {
   nextAction: string;
   focusGroup: string;
   fgSort?: number;
+  protocolPending?: boolean;
+  reportPending?: boolean;
+  cnfPending?: boolean;
+  unique_batch?: string;
 }
 
 export interface RecentRecord {

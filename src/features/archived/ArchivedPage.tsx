@@ -125,7 +125,7 @@ export function ArchivedPage() {
     <AppShell>
       <div className="page-header">
         <div>
-          <Typography.Title level={3}>Archived</Typography.Title>
+          <Typography.Title level={3}>Archives</Typography.Title>
         </div>
         <Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>Refresh</Button>
       </div>

@@ -33,6 +33,7 @@ The app uses `HashRouter`.
 |---|---|---|
 | Login | `/#/login` | `/ProjectTracker_React/#/login` |
 | Dashboard | `/#/dashboard` | `/ProjectTracker_React/#/dashboard` |
+| Project Management | `/#/project-management` | `/ProjectTracker_React/#/project-management` |
 | Project Entry | `/#/projects` | `/ProjectTracker_React/#/projects` |
 | Projects Database | `/#/projects/database` | `/ProjectTracker_React/#/projects/database` |
 | Support Activities | `/#/support-activities` | `/ProjectTracker_React/#/support-activities` |
@@ -45,8 +46,8 @@ The app uses `HashRouter`.
 
 ## Access matrix + dashboard hub smoke
 
-1. Login as a newly approved non-admin role → sidebar shows exactly: Dashboard, Projects, Projects Database, Support Activities, CNF Tracker, Endorsement Tracker, Lessons Learned (no Audit/Admin unless overridden).
-2. Login as `view` → same seven menus; no Export buttons; forms read-only.
+1. Login as a newly approved non-admin role → sidebar shows exactly: Dashboard, Project Management, Projects, Projects Database, Support Activities, CNF Tracker, Endorsement Tracker, Lessons Learned (no Audit/Admin unless overridden).
+2. Login as `view` → same eight menus; no Export buttons; forms read-only.
 3. Login as Admin → open `/#/admin/access`, change a role’s View for Audit Trail, save, confirm Audit appears for that role after refresh; Reset restores default; Audit Trail shows Access Matrix entries.
 4. From Dashboard: click Open / Overdue / FG On Time / Monthly Trend point → Projects Database shows filter banner and matching rows; Clear filters removes URL keys.
 5. From Dashboard: Support Overdue → Support Activities filter banner + due_window applied.

@@ -12,6 +12,8 @@ interface ImportMetaEnv {
   readonly VITE_FEATURE_MENU_MATRIX?: string;
   /** Dashboard workspace UX kill-switch. Default on; set "false" to restore read-only hub navigation. */
   readonly VITE_FEATURE_DASHBOARD_WORKSPACE?: string;
+  /** Dashboard PM hub kill-switch. Default on; set "false" to restore Phase B dashboard without task inbox. */
+  readonly VITE_FEATURE_DASHBOARD_PM_HUB?: string;
 }
 
 declare const __APP_VERSION__: string;

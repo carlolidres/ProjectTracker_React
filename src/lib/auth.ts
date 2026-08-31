@@ -94,12 +94,36 @@ export async function updateProfileAccess(
   userId: string,
   role: UserRole,
   status: Profile["status"],
+  pmTaskEligible?: boolean,
 ) {
-  const { data, error } = await supabase.rpc("admin_update_user_access", {
+  const payload: Record<string, unknown> = {
     target_user_id: userId,
     next_role: role,
     next_status: status,
-  });
+  };
+  if (pmTaskEligible !== undefined) {
+    payload.next_pm_task_eligible = role === "view" ? false : pmTaskEligible;
+  }
+
+  let { data, error } = await supabase.rpc("admin_update_user_access", payload);
+  if (error && pmTaskEligible !== undefined) {
+    const message = (error.message ?? "").toLowerCase();
+    const unknownArg = message.includes("next_pm_task_eligible")
+      || message.includes("could not find the function")
+      || message.includes("schema cache");
+    if (unknownArg) {
+      ({ data, error } = await supabase.rpc("admin_update_user_access", {
+        target_user_id: userId,
+        next_role: role,
+        next_status: status,
+      }));
+      if (!error) {
+        throw new Error(
+          "Role and status were saved, but PM task assignment requires the latest database migration. Ask an administrator to apply it, then save again.",
+        );
+      }
+    }
+  }
   if (error) throw error;
   return normalizeProfile(data as Profile);
 }

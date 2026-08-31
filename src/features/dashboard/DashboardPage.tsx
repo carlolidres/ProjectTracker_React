@@ -22,24 +22,45 @@ import { ProjectIdLink } from "@/components/common/project-id-link";
 import { AppShell } from "@/components/layout/app-shell";
 import { DashboardActionStrip } from "@/features/dashboard/components/DashboardActionStrip";
 import { DashboardChartsBlock } from "@/features/dashboard/components/DashboardChartsBlock";
+import { DashboardTaskComposer } from "@/features/dashboard/components/DashboardTaskComposer";
 import { ProjectQuickDrawer } from "@/features/dashboard/components/ProjectQuickDrawer";
 import { WorklistModal } from "@/features/dashboard/components/WorklistModal";
+import { DashboardFilterBanner } from "@/components/common/dashboard-filter-banner";
 import { getSandboxDashboardData, getSandboxNotifications } from "@/lib/dashboardSandbox";
+import { supportActivitiesRoute } from "@/lib/dashboardDrilldown";
 import {
-  pendingCnfDatabaseRoute,
-  pendingProtocolDatabaseRoute,
-  pendingReportDatabaseRoute,
-  projectsDatabaseRoute,
-  supportActivitiesRoute,
-} from "@/lib/dashboardDrilldown";
+  allProjectsWorkFilter,
+  closedProjectsWorkFilter,
+  cnfStatusWorkFilter,
+  defaultMyWorkTab,
+  deliveryStatusWorkFilter,
+  dueWindowWorkFilter,
+  fgMonthWorkFilter,
+  finalStatusWorkFilter,
+  openProjectsWorkFilter,
+  pendingCnfWorkFilter,
+  pendingProtocolWorkFilter,
+  pendingReportWorkFilter,
+  pendingRoleWorkFilter,
+  sourceOptionsFromDashboard,
+  supportWorkFilter,
+  type DashboardWorkFilter,
+} from "@/lib/dashboardPmHub";
 import { formatAppDateTime } from "@/lib/date";
 import { appendReturnToDashboard } from "@/lib/dashboardReturnTo";
-import { isDashboardWorkspaceEnabled } from "@/lib/featureFlags";
+import { isDashboardPmHubEnabled, isDashboardWorkspaceEnabled } from "@/lib/featureFlags";
+import { canAssignPmTasks } from "@/lib/projectManagementPermissions";
+import { mapUserTaskToBoardItem } from "@/lib/projectManagementWorkflow";
 import { defaultShowAllWorklist } from "@/lib/worklistSort";
 import { useRestorableViewState } from "@/hooks/use-restorable-view-state";
+import { useMenuPermissions } from "@/app/menu-permission-provider";
 import { getDashboardData } from "@/services/dashboardService";
 import { listNotifications, refreshAllNotifications } from "@/services/notificationService";
-import type { DashboardData, Notification, UserRole } from "@/types";
+import {
+  listAssignableProfiles,
+  listProjectManagementTasks,
+} from "@/services/projectManagementService";
+import type { DashboardData, Notification, Profile, ProjectManagementTask, UserRole } from "@/types";
 
 const WORKLIST_HISTORY_PARAM = "worklist";
 
@@ -82,7 +103,7 @@ const finalStatusColor: Record<string, string> = {
 };
 
 const DASHBOARD_HELP =
-  "Live project status, due-date monitoring, and department workflow visibility.";
+  "Your daily workspace: My work, New task, and browse records. KPI cards filter My work; Open as spreadsheet still reaches Projects Database.";
 
 const DASHBOARD_STACK_BREAKPOINT = 1200;
 
@@ -93,13 +114,10 @@ const cnfStatusColor: Record<string, string> = {
   Approved: "success",
 };
 
-function dbRoute(params?: Record<string, string | undefined>) {
-  return projectsDatabaseRoute(params);
-}
-
 export function DashboardPage() {
   const { message } = AntApp.useApp();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const { can } = useMenuPermissions();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { canGoBack, goBack } = useNavigationHistory();
@@ -111,7 +129,13 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [sandboxMode, setSandboxMode] = useState(false);
   const workspaceEnabled = isDashboardWorkspaceEnabled();
+  const hubEnabled = workspaceEnabled && isDashboardPmHubEnabled();
   const [quickProjectId, setQuickProjectId] = useState<string | null>(null);
+  const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
+  const [taskComposerOpen, setTaskComposerOpen] = useState(false);
+  const [workFilter, setWorkFilter] = useState<DashboardWorkFilter | null>(null);
+  const [pmTasks, setPmTasks] = useState<ProjectManagementTask[]>([]);
+  const [pmProfiles, setPmProfiles] = useState<Profile[]>([]);
   const worklistInUrl = searchParams.get(WORKLIST_HISTORY_PARAM) === "1";
   const [worklistUi, setWorklistUi] = useState<WorklistUiState>(() =>
     createWorklistUiState(profile?.role, worklistInUrl),
@@ -130,12 +154,42 @@ export function DashboardPage() {
     });
   }, [profile?.role, worklistInUrl]);
 
-  const openWorklist = useCallback(() => {
-    const next = createWorklistUiState(profile?.role, true);
-    setWorklistUi(next);
+  const assignedTaskCount = useMemo(
+    () => (user?.id ? pmTasks.filter((task) => task.assigneeIds.includes(user.id)).length : 0),
+    [pmTasks, user?.id],
+  );
+  const taskBoardItems = useMemo(() => pmTasks.map(mapUserTaskToBoardItem), [pmTasks]);
+  const canCreateTask = can("project_management", "create");
+  const canAssignTasks = canCreateTask && canAssignPmTasks(profile?.role, profile?.pm_task_eligible);
+
+  const openWorklist = useCallback((tab?: string) => {
+    const nextTab = tab ?? defaultMyWorkTab({
+      role: profile?.role,
+      assignedTaskCount,
+      filter: workFilter,
+    });
+    const next = { ...createWorklistUiState(profile?.role, true), tab: nextTab };
+    setWorklistUi((current) => ({ ...next, search: current.search, showAll: current.showAll }));
     if (worklistInUrl) return;
     navigate({ pathname: "/dashboard", search: withWorklistParam(searchParams, true) });
-  }, [navigate, profile?.role, searchParams, worklistInUrl]);
+  }, [assignedTaskCount, navigate, profile?.role, searchParams, workFilter, worklistInUrl]);
+
+  const applyHubFilter = useCallback((filter: DashboardWorkFilter) => {
+    if (sandboxMode) {
+      message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
+      return;
+    }
+    if (!hubEnabled) {
+      navigate(filter.spreadsheetPath);
+      return;
+    }
+    setWorkFilter(filter);
+    const nextTab = filter.defaultTab;
+    const next = { ...createWorklistUiState(profile?.role, true), tab: nextTab };
+    setWorklistUi((current) => ({ ...next, search: current.search, showAll: current.showAll }));
+    if (worklistInUrl) return;
+    navigate({ pathname: "/dashboard", search: withWorklistParam(searchParams, true) });
+  }, [hubEnabled, message, navigate, profile?.role, sandboxMode, searchParams, worklistInUrl]);
 
   const closeWorklist = useCallback(() => {
     setWorklistUi((current) => ({ ...current, open: false }));
@@ -163,18 +217,22 @@ export function DashboardPage() {
     setError(null);
     try {
       await refreshAllNotifications().catch(() => undefined);
-      const [dashboard, notifRows] = await Promise.all([
+      const [dashboard, notifRows, tasks, profiles] = await Promise.all([
         getDashboardData(),
         listNotifications().catch(() => []),
+        hubEnabled ? listProjectManagementTasks().catch(() => []) : Promise.resolve([]),
+        hubEnabled ? listAssignableProfiles().catch(() => []) : Promise.resolve([]),
       ]);
       setData(dashboard);
       setNotifications(notifRows.slice(0, 6));
+      setPmTasks(tasks);
+      setPmProfiles(profiles);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hubEnabled]);
 
   const refreshDashboard = useCallback(async () => {
     setSandboxMode(false);
@@ -245,14 +303,14 @@ export function DashboardPage() {
     if (!data) return [];
     const { cards } = data;
     return [
-      { label: "Projects", browseLabel: "Browse all projects", value: cards.totalProjects, icon: <FolderOpenOutlined />, color: "#2563eb", route: dbRoute() },
-      { label: "PO Lines", browseLabel: "Browse all PO lines", value: cards.totalRecords, icon: <DatabaseOutlined />, color: "#0891b2", route: dbRoute() },
-      { label: "Open", browseLabel: "Browse open projects", value: cards.totalOpen, icon: <ClockCircleOutlined />, color: "#2563eb", route: dbRoute({ final_status: "OPEN" }) },
-      { label: "Closed", browseLabel: "Browse closed projects", value: cards.totalClosed, icon: <CheckCircleOutlined />, color: "#16a34a", route: dbRoute({ final_status: "CLOSED" }) },
-      { label: "Overdue", browseLabel: "Browse overdue open projects", value: cards.overdue, icon: <ExclamationCircleOutlined />, color: "#dc2626", route: dbRoute({ final_status: "OPEN", due_window: "overdue" }) },
-      { label: "Pending CNF", browseLabel: "Browse pending CNF", value: cards.pendingCnf, icon: <FileTextOutlined />, color: "#d97706", route: pendingCnfDatabaseRoute() },
-      { label: "Pending Protocol", browseLabel: "Browse pending protocol", value: cards.pendingProtocol, icon: <AlertOutlined />, color: "#7c3aed", route: pendingProtocolDatabaseRoute() },
-      { label: "Pending Report", browseLabel: "Browse pending report", value: cards.pendingReport, icon: <BarChartOutlined />, color: "#0d9488", route: pendingReportDatabaseRoute() },
+      { label: "Projects", browseLabel: "Browse all projects", value: cards.totalProjects, icon: <FolderOpenOutlined />, color: "#2563eb", filter: allProjectsWorkFilter() },
+      { label: "PO Lines", browseLabel: "Browse all PO lines", value: cards.totalRecords, icon: <DatabaseOutlined />, color: "#0891b2", filter: allProjectsWorkFilter() },
+      { label: "Open", browseLabel: "Browse open projects", value: cards.totalOpen, icon: <ClockCircleOutlined />, color: "#2563eb", filter: openProjectsWorkFilter() },
+      { label: "Closed", browseLabel: "Browse closed projects", value: cards.totalClosed, icon: <CheckCircleOutlined />, color: "#16a34a", filter: closedProjectsWorkFilter() },
+      { label: "Overdue", browseLabel: "Browse overdue open projects", value: cards.overdue, icon: <ExclamationCircleOutlined />, color: "#dc2626", filter: dueWindowWorkFilter("overdue", "Overdue open") },
+      { label: "Pending CNF", browseLabel: "Browse pending CNF", value: cards.pendingCnf, icon: <FileTextOutlined />, color: "#d97706", filter: pendingCnfWorkFilter() },
+      { label: "Pending Protocol", browseLabel: "Browse pending protocol", value: cards.pendingProtocol, icon: <AlertOutlined />, color: "#7c3aed", filter: pendingProtocolWorkFilter() },
+      { label: "Pending Report", browseLabel: "Browse pending report", value: cards.pendingReport, icon: <BarChartOutlined />, color: "#0d9488", filter: pendingReportWorkFilter() },
     ];
   }, [data]);
 
@@ -297,12 +355,13 @@ export function DashboardPage() {
     [data],
   );
 
-  const openProject = (projectId: string) => {
+  const openProject = (projectId: string, taskId?: string) => {
     if (sandboxMode) {
       message.info("Sandbox records are demonstration data and cannot be opened.");
       return;
     }
     if (workspaceEnabled) {
+      setFocusTaskId(taskId ?? null);
       setQuickProjectId(projectId);
       return;
     }
@@ -311,15 +370,8 @@ export function DashboardPage() {
 
   const openProjectFull = (projectId: string) => {
     setQuickProjectId(null);
+    setFocusTaskId(null);
     navigate(`/projects?projectId=${encodeURIComponent(projectId)}`);
-  };
-
-  const drillToDatabase = (params?: Record<string, string | undefined>) => {
-    if (sandboxMode) {
-      message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
-      return;
-    }
-    navigate(dbRoute(params));
   };
 
   return (
@@ -373,14 +425,27 @@ export function DashboardPage() {
 
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
 
+      {hubEnabled && workFilter ? (
+        <DashboardFilterBanner
+          title="My work filter"
+          labels={[workFilter.label]}
+          onClear={() => setWorkFilter(null)}
+          extraActionLabel="Open as spreadsheet"
+          onExtraAction={() => navigate(workFilter.spreadsheetPath)}
+        />
+      ) : null}
+
       {workspaceEnabled && data ? (
         <DashboardActionStrip
           sandboxMode={sandboxMode}
+          hubEnabled={hubEnabled}
           onNewProject={() => navigate(appendReturnToDashboard("/projects?new=1"))}
-          onBrowseOverdue={() => drillToDatabase({ final_status: "OPEN", due_window: "overdue" })}
+          onBrowseOverdue={() => applyHubFilter(dueWindowWorkFilter("overdue", "Overdue open"))}
+          onBrowsePendingProtocol={() => applyHubFilter(pendingProtocolWorkFilter())}
           onNewSupport={() => navigate(appendReturnToDashboard("/support-activities?new=1"))}
           onNewCnf={() => navigate(appendReturnToDashboard("/cnf-tracker?new=1"))}
-          onOpenWorklist={openWorklist}
+          onOpenWorklist={() => openWorklist()}
+          onNewTask={() => setTaskComposerOpen(true)}
         />
       ) : null}
 
@@ -393,7 +458,7 @@ export function DashboardPage() {
               <div className="dashboard-primary-top" ref={primaryTopRef}>
               {workspaceEnabled ? (
                 <Typography.Text type="secondary" className="dashboard-zone-label">
-                  Browse
+                  {hubEnabled ? "Browse records" : "Browse"}
                 </Typography.Text>
               ) : null}
               <div className="dashboard-kpi-grid">
@@ -408,7 +473,7 @@ export function DashboardPage() {
                         message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
                         return;
                       }
-                      navigate(metric.route);
+                      applyHubFilter(metric.filter);
                     }}
                   >
                     <div className="dashboard-kpi-card-top">
@@ -433,7 +498,7 @@ export function DashboardPage() {
                         type="button"
                         key={metric.window}
                         className={`due-date-action due-date-action--${metric.tone}`}
-                        onClick={() => drillToDatabase({ final_status: "OPEN", due_window: metric.window })}
+                        onClick={() => applyHubFilter(dueWindowWorkFilter(metric.window, metric.label))}
                       >
                         <span>{metric.label}</span>
                         <strong>{metric.value}</strong>
@@ -453,41 +518,29 @@ export function DashboardPage() {
                 fgDeliveryPanelRef={fgDeliveryPanelRef}
                 supportActivitiesPanelRef={supportActivitiesPanelRef}
                 monthlyTrendPanelRef={monthlyTrendPanelRef}
-                onDrillCnf={(status) => drillToDatabase({ cnf_status: status })}
-                onDrillFinal={(status) => drillToDatabase({ final_status: status })}
-                onDrillPending={(pendingRole) =>
-                  drillToDatabase({ final_status: "OPEN", pending_role: pendingRole })
-                }
+                onDrillCnf={(status) => applyHubFilter(cnfStatusWorkFilter(status))}
+                onDrillFinal={(status) => applyHubFilter(finalStatusWorkFilter(status))}
+                onDrillPending={(pendingRole) => applyHubFilter(pendingRoleWorkFilter(pendingRole))}
                 onSelectDelivery={(delivery_status) => {
                   if (sandboxMode) {
                     message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
                     return;
                   }
-                  navigate(dbRoute({
-                    final_status: "CLOSED",
-                    delivery_status,
-                    sort: "fg_month",
-                    order: "asc",
-                  }));
+                  applyHubFilter(deliveryStatusWorkFilter(delivery_status));
                 }}
                 onSupportNavigate={(params) => {
                   if (sandboxMode) {
                     message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
                     return;
                   }
-                  navigate(supportActivitiesRoute(params));
+                  applyHubFilter(supportWorkFilter(params));
                 }}
                 onMonthClick={(monthKey) => {
                   if (sandboxMode) {
                     message.info("Sandbox mode is for layout preview only. Use Refresh to return to live data.");
                     return;
                   }
-                  navigate(dbRoute({
-                    fg_month: monthKey,
-                    final_status: "CLOSED",
-                    sort: "fg_month",
-                    order: "asc",
-                  }));
+                  applyHubFilter(fgMonthWorkFilter(monthKey));
                 }}
               />
             </div>
@@ -505,7 +558,7 @@ export function DashboardPage() {
                         type="button"
                         key={item.window}
                         className={`due-date-action due-date-action--${item.tone}`}
-                        onClick={() => drillToDatabase({ final_status: "OPEN", due_window: item.window })}
+                        onClick={() => applyHubFilter(dueWindowWorkFilter(item.window, item.label))}
                       >
                         <span>{item.label}</span>
                         <strong className={item.tone === "overdue" ? "danger-text" : undefined}>
@@ -605,7 +658,7 @@ export function DashboardPage() {
                   key: "action",
                   render: (_: unknown, record: { project_id: string }) => (
                     <Button type="link" size="small" onClick={() => openProject(record.project_id)}>
-                      Edit
+                      Open
                     </Button>
                   ),
                 },
@@ -623,9 +676,20 @@ export function DashboardPage() {
         <ProjectQuickDrawer
           open={Boolean(quickProjectId)}
           projectId={quickProjectId}
-          onClose={() => setQuickProjectId(null)}
+          onClose={() => {
+            setQuickProjectId(null);
+            setFocusTaskId(null);
+          }}
           onOpenFull={openProjectFull}
           onSaved={() => void refreshDashboard()}
+          hubEnabled={hubEnabled}
+          canCreateTask={canCreateTask}
+          canAssignTasks={canAssignTasks}
+          assignmentEligible={Boolean(profile?.pm_task_eligible)}
+          profiles={pmProfiles}
+          userId={user?.id}
+          role={profile?.role}
+          focusTaskId={focusTaskId}
         />
       ) : null}
 
@@ -646,6 +710,31 @@ export function DashboardPage() {
             // Leave ?worklist=1 in history so Back/Forward restore the popup.
             openProject(projectId);
           }}
+          hubEnabled={hubEnabled}
+          workFilter={workFilter}
+          onClearFilter={() => setWorkFilter(null)}
+          taskItems={taskBoardItems}
+          profiles={pmProfiles}
+          currentUserId={user?.id}
+          onOpenTask={(item) => {
+            if (item.sourceType === "support") {
+              navigate(supportActivitiesRoute({ activityId: item.sourceId }));
+              return;
+            }
+            openProject(item.sourceId, item.origin === "user" ? item.id : undefined);
+          }}
+        />
+      ) : null}
+
+      {hubEnabled && data ? (
+        <DashboardTaskComposer
+          open={taskComposerOpen}
+          sourceOptions={sourceOptionsFromDashboard(data)}
+          profiles={pmProfiles}
+          canAssign={canAssignTasks}
+          role={profile?.role}
+          onClose={() => setTaskComposerOpen(false)}
+          onSaved={() => void refreshDashboard()}
         />
       ) : null}
     </AppShell>
