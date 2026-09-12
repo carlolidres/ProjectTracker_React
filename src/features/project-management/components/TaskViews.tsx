@@ -1,4 +1,4 @@
-import { Button, Empty, Table, Tag } from "antd";
+import { Button, DatePicker, Empty, Select, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { useMemo, useState } from "react";
@@ -7,19 +7,21 @@ import { formatAppDate, parseAppDateValue } from "@/lib/date";
 import { getProfileDisplayName } from "@/lib/profileName";
 import {
   isOverdueTask,
+  MY_TASK_SECTION_LABELS,
+  MY_TASK_SECTION_ORDER,
+  myTaskSection,
   PM_TASK_STATUS_COLORS,
   PM_TASK_STATUSES,
 } from "@/lib/projectManagementWorkflow";
-import type { Profile, WorkflowBoardItem } from "@/types";
+import type { PmTaskPriority, PmTaskStatus, Profile, WorkflowBoardItem } from "@/types";
 
-function assigneeLabel(ids: string[], profiles: Profile[]): string {
-  if (ids.length === 0) return "Unassigned";
-  return ids
-    .map((id) => {
-      const profile = profiles.find((row) => row.id === id);
-      return profile ? getProfileDisplayName(profile) || profile.email : id;
-    })
-    .join(", ");
+export interface CalendarMilestone {
+  id: string;
+  title: string;
+  date: string;
+  sourceType: string;
+  sourceId: string;
+  kind: "task" | "project";
 }
 
 interface SharedViewProps {
@@ -29,11 +31,29 @@ interface SharedViewProps {
   onOpen: (item: WorkflowBoardItem) => void;
   canCreate?: boolean;
   onCreate?: (date?: string) => void;
+  projectTitles?: Record<string, string>;
+  canEditTasks?: boolean;
+  onPatchTask?: (item: WorkflowBoardItem, patch: Partial<Pick<WorkflowBoardItem, "status" | "priority" | "targetDate" | "percentComplete">>) => void;
+  milestones?: CalendarMilestone[];
+  onOpenMilestone?: (item: CalendarMilestone) => void;
 }
 
-export function TaskTableView({ items, profiles, onOpen }: SharedViewProps) {
+export function TaskTableView({
+  items,
+  profiles,
+  onOpen,
+  projectTitles,
+  canEditTasks,
+  onPatchTask,
+}: SharedViewProps) {
   const columns: ColumnsType<WorkflowBoardItem> = [
-    { title: "Title", dataIndex: "title", ellipsis: true },
+    { title: "Task", dataIndex: "title", ellipsis: true },
+    {
+      title: "Project",
+      key: "project",
+      ellipsis: true,
+      render: (_, row) => projectTitles?.[`${row.sourceType}:${row.sourceId}`] || row.sourceId,
+    },
     {
       title: "Origin",
       dataIndex: "origin",
@@ -43,25 +63,74 @@ export function TaskTableView({ items, profiles, onOpen }: SharedViewProps) {
     {
       title: "Status",
       dataIndex: "status",
+      width: 150,
+      render: (status: WorkflowBoardItem["status"], row) => {
+        if (canEditTasks && onPatchTask && row.origin === "user") {
+          return (
+            <Select
+              size="small"
+              value={status}
+              options={PM_TASK_STATUSES.map((value) => ({ label: value, value }))}
+              onClick={(event) => event.stopPropagation()}
+              onChange={(next: PmTaskStatus) => onPatchTask(row, { status: next })}
+              style={{ width: 130 }}
+            />
+          );
+        }
+        return (
+          <Tag color={isOverdueTask(row) && status !== "Done" ? "red" : PM_TASK_STATUS_COLORS[status]}>
+            {isOverdueTask(row) && status !== "Done" ? "Overdue" : status}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: "Priority",
+      dataIndex: "priority",
       width: 120,
-      render: (status: WorkflowBoardItem["status"], row) => (
-        <Tag color={isOverdueTask(row) && status !== "Done" ? "red" : PM_TASK_STATUS_COLORS[status]}>
-          {isOverdueTask(row) && status !== "Done" ? "Overdue" : status}
-        </Tag>
-      ),
+      render: (priority: WorkflowBoardItem["priority"], row) => {
+        if (canEditTasks && onPatchTask && row.origin === "user") {
+          return (
+            <Select
+              size="small"
+              value={priority}
+              options={["High", "Medium", "Low"].map((value) => ({ label: value, value }))}
+              onClick={(event) => event.stopPropagation()}
+              onChange={(next: PmTaskPriority) => onPatchTask(row, { priority: next })}
+              style={{ width: 100 }}
+            />
+          );
+        }
+        return priority;
+      },
     },
     { title: "Phase", dataIndex: "phase", width: 120, render: (phase: string) => phase.replace(/_/g, " ") },
-    { title: "Category", dataIndex: "category", width: 140 },
     {
-      title: "Assignees",
-      dataIndex: "assigneeIds",
-      render: (ids: string[]) => assigneeLabel(ids, profiles),
+      title: "Assigned By",
+      key: "createdBy",
+      render: (_, row) => {
+        const profile = profiles.find((entry) => entry.id === row.createdBy);
+        return profile ? getProfileDisplayName(profile) || profile.email : row.createdBy || "—";
+      },
     },
     {
-      title: "Target",
+      title: "Due Date",
       dataIndex: "targetDate",
-      width: 130,
-      render: (value: string) => (value ? formatAppDate(value) : "—"),
+      width: 150,
+      render: (value: string, row) => {
+        if (canEditTasks && onPatchTask && row.origin === "user") {
+          return (
+            <DatePicker
+              size="small"
+              value={parseAppDateValue(value)}
+              onClick={(event) => event.stopPropagation()}
+              onChange={(next) => onPatchTask(row, { targetDate: next ? next.format("YYYY-MM-DD") : "" })}
+              allowClear
+            />
+          );
+        }
+        return value ? formatAppDate(value) : "—";
+      },
     },
     {
       title: "%",
@@ -120,7 +189,14 @@ export function TaskBoardView({ items, onOpen }: SharedViewProps) {
   );
 }
 
-export function TaskCalendarView({ items, onOpen, canCreate, onCreate }: SharedViewProps) {
+export function TaskCalendarView({
+  items,
+  onOpen,
+  canCreate,
+  onCreate,
+  milestones = [],
+  onOpenMilestone,
+}: SharedViewProps) {
   const [month, setMonth] = useState(() => dayjs().startOf("month"));
   const today = dayjs();
   const weeks = useMemo(() => {
@@ -182,6 +258,7 @@ export function TaskCalendarView({ items, onOpen, canCreate, onCreate }: SharedV
               const target = parseAppDateValue(item.targetDate);
               return Boolean(start?.isSame(day, "day") || target?.isSame(day, "day"));
             });
+            const dayMilestones = milestones.filter((item) => parseAppDateValue(item.date)?.isSame(day, "day"));
             const noteClass = (item: WorkflowBoardItem) => {
               if (isOverdueTask(item) && item.status !== "Done") return "is-overdue";
               if (item.status === "In-process") return "is-in-process";
@@ -221,8 +298,22 @@ export function TaskCalendarView({ items, onOpen, canCreate, onCreate }: SharedV
                     {item.title}
                   </button>
                 ))}
-                {dayItems.length > 3 ? (
-                  <span className="pm-calendar-more">+{dayItems.length - 3} more</span>
+                {dayMilestones.slice(0, 2).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="pm-calendar-note is-milestone"
+                    title={item.title}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onOpenMilestone?.(item);
+                    }}
+                  >
+                    {item.title}
+                  </button>
+                ))}
+                {dayItems.length + dayMilestones.length > 5 ? (
+                  <span className="pm-calendar-more">+{dayItems.length + dayMilestones.length - 5} more</span>
                 ) : null}
               </div>
             );
@@ -233,8 +324,23 @@ export function TaskCalendarView({ items, onOpen, canCreate, onCreate }: SharedV
   );
 }
 
-export function MyTasksView({ items, profiles, currentUserId, onOpen, canCreate, onCreate }: SharedViewProps) {
-  const mine = items.filter((item) => currentUserId && item.assigneeIds.includes(currentUserId));
+export function MyTasksView({
+  items,
+  profiles,
+  currentUserId,
+  onOpen,
+  canCreate,
+  onCreate,
+  projectTitles,
+  canEditTasks,
+  onPatchTask,
+}: SharedViewProps) {
+  const mine = items.filter((item) => currentUserId && item.assigneeIds.includes(currentUserId) && item.origin === "user");
+  const sections = MY_TASK_SECTION_ORDER.map((section) => ({
+    section,
+    rows: mine.filter((item) => myTaskSection(item) === section),
+  })).filter((group) => group.rows.length > 0);
+
   return (
     <section className="pm-my-tasks" aria-label="My tasks">
       <div className="pm-my-tasks-toolbar">
@@ -251,7 +357,23 @@ export function MyTasksView({ items, profiles, currentUserId, onOpen, canCreate,
       {mine.length === 0 ? (
         <Empty description="No tasks assigned to you. Add one and pick a Projects Database or Support Activities record." />
       ) : (
-        <TaskTableView items={mine} profiles={profiles} currentUserId={currentUserId} onOpen={onOpen} />
+        sections.map((group) => (
+          <section key={group.section} className="pm-task-section" aria-label={MY_TASK_SECTION_LABELS[group.section]}>
+            <h3 className="pm-status-heading">
+              {MY_TASK_SECTION_LABELS[group.section]}
+              <span className="pm-status-count">{group.rows.length}</span>
+            </h3>
+            <TaskTableView
+              items={group.rows}
+              profiles={profiles}
+              currentUserId={currentUserId}
+              onOpen={onOpen}
+              projectTitles={projectTitles}
+              canEditTasks={canEditTasks}
+              onPatchTask={onPatchTask}
+            />
+          </section>
+        ))
       )}
     </section>
   );

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   buildCreatableOptionsFromValues,
+  editableCnfTitleActivityName,
   mergeTrackerWithProjectSnapshot,
   normalizeOptionalToNa,
   projectSnapshotForTrackerSync,
@@ -98,6 +99,14 @@ assert.equal(normalizeOptionalToNa(""), "N/A");
 assert.equal(normalizeOptionalToNa("  "), "N/A");
 assert.equal(normalizeOptionalToNa("na"), "N/A");
 assert.equal(normalizeOptionalToNa("Product X"), "Product X");
+
+const longTitle =
+  "Film-coated tablet procedure and filling equipment affected by this CNF, including batch-specific notes that exceed fifty characters.";
+assert.ok(longTitle.length > 50);
+assert.equal(editableCnfTitleActivityName(longTitle), longTitle);
+assert.equal(editableCnfTitleActivityName("N/A"), "");
+assert.equal(editableCnfTitleActivityName("CNF details title", "Support overlay title"), "Support overlay title");
+assert.equal(editableCnfTitleActivityName("CNF details title", "N/A"), "CNF details title");
 
 // Creatable option dedupe (case-insensitive)
 const options = buildCreatableOptionsFromValues(["Alpha", "alpha", "Beta", "N/A", ""]);

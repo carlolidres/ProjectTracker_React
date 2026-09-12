@@ -1,22 +1,26 @@
-import { Typography } from "antd";
 import { LucideIcon } from "@/components/common/lucide-icon";
 import type { PortfolioSummary } from "@/types";
 
-const ITEMS: Array<{ key: keyof PortfolioSummary; label: string; icon: "layers" | "file-text" | "clipboard-list" | "clock" | "check-circle" | "x-circle" }> = [
-  { key: "total", label: "Total", icon: "layers" },
-  { key: "process", label: "Projects", icon: "file-text" },
-  { key: "support", label: "Support", icon: "clipboard-list" },
+const ITEMS: Array<{
+  key: keyof PortfolioSummary;
+  label: string;
+  icon: "clock" | "file-text" | "alert-triangle" | "check-circle" | "clipboard-list" | "x-circle" | "layers";
+}> = [
   { key: "ongoing", label: "Ongoing", icon: "clock" },
+  { key: "forReview", label: "For Review", icon: "file-text" },
+  { key: "atRisk", label: "At Risk", icon: "alert-triangle" },
   { key: "completed", label: "Completed", icon: "check-circle" },
+  { key: "myTasks", label: "My Tasks", icon: "clipboard-list" },
   { key: "cancelled", label: "Cancelled", icon: "x-circle" },
 ];
 
 interface PortfolioSummaryProps {
   summary: PortfolioSummary;
   variant?: "cards" | "tooltip";
+  onSelect?: (key: keyof PortfolioSummary) => void;
 }
 
-export function PortfolioSummary({ summary, variant = "cards" }: PortfolioSummaryProps) {
+export function PortfolioSummary({ summary, variant = "cards", onSelect }: PortfolioSummaryProps) {
   if (variant === "tooltip") {
     return (
       <div className="pm-summary-tooltip" role="group" aria-label="Portfolio summary">
@@ -26,7 +30,6 @@ export function PortfolioSummary({ summary, variant = "cards" }: PortfolioSummar
             <strong>{summary[item.key]}</strong>
           </div>
         ))}
-        <p className="pm-summary-tooltip-hint">Click to pin or hide these counts.</p>
       </div>
     );
   }
@@ -34,13 +37,18 @@ export function PortfolioSummary({ summary, variant = "cards" }: PortfolioSummar
   return (
     <div className="pm-summary" role="group" aria-label="Portfolio summary">
       {ITEMS.map((item) => (
-        <div key={item.key} className={`pm-summary-card pm-summary-card-${item.key}`}>
+        <button
+          key={item.key}
+          type="button"
+          className={`pm-summary-card pm-summary-card-${item.key}`}
+          onClick={onSelect ? () => onSelect(item.key) : undefined}
+        >
           <span className="pm-summary-card-icon" aria-hidden="true">
             <LucideIcon name={item.icon} size={14} />
           </span>
-          <Typography.Text className="pm-summary-card-label">{item.label}</Typography.Text>
+          <span className="pm-summary-card-label">{item.label}</span>
           <span className="pm-summary-card-value">{summary[item.key]}</span>
-        </div>
+        </button>
       ))}
     </div>
   );

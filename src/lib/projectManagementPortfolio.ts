@@ -1,17 +1,23 @@
 import { collectCnfChangeDescriptions } from "@/lib/cnfTrackerAggregation";
+import { parseAppDateValue } from "@/lib/date";
 import { parseFgDeliveryDate } from "@/lib/fgUrgency";
 import { deriveWorkflowSnapshot, WORKFLOW_PHASE_LABELS } from "@/lib/projectManagementWorkflow";
 import { isMissingValue, valueOrNA } from "@/lib/utils";
 import type {
   PhaseOverrideRecord,
+  PmTaskPriority,
+  PortfolioBoardStatus,
   PortfolioFilters,
   PortfolioItem,
+  PortfolioSortKey,
   PortfolioStatusGroup,
   PortfolioSummary,
   Profile,
+  ProjectManagementPageView,
   ProjectManagementTask,
   ProjectRow,
   SupportActivity,
+  WorkflowPhase,
 } from "@/types";
 
 export const PORTFOLIO_STATUS_ORDER: readonly PortfolioStatusGroup[] = [
@@ -21,6 +27,94 @@ export const PORTFOLIO_STATUS_ORDER: readonly PortfolioStatusGroup[] = [
 ];
 
 export const PORTFOLIO_RETURN_PATH = "/project-management";
+
+export const BOARD_STATUS_ORDER: readonly PortfolioBoardStatus[] = [
+  "Ongoing",
+  "For Review",
+  "At Risk",
+  "Blocked",
+  "Completed",
+  "Cancelled",
+];
+
+export const BOARD_STATUS_COLORS: Record<PortfolioBoardStatus, string> = {
+  Ongoing: "blue",
+  "For Review": "purple",
+  "At Risk": "orange",
+  Blocked: "red",
+  Completed: "green",
+  Cancelled: "default",
+};
+
+const REVIEW_PHASES = new Set<WorkflowPhase>(["protocol_review", "report_review"]);
+const PRIORITY_RANK: Record<PmTaskPriority, number> = { High: 3, Medium: 2, Low: 1 };
+
+export function isPortfolioOverdue(
+  item: Pick<PortfolioItem, "statusGroup" | "targetDate">,
+  today = new Date(),
+): boolean {
+  if (item.statusGroup === "Completed" || item.statusGroup === "Cancelled") return false;
+  const parsed = parseAppDateValue(item.targetDate) ?? parseFgDeliveryDate(item.targetDate);
+  if (!parsed) return false;
+  const end = new Date(today);
+  end.setHours(0, 0, 0, 0);
+  return parsed.valueOf() < end.valueOf();
+}
+
+export function deriveBoardStatus(
+  item: Pick<PortfolioItem, "statusGroup" | "incompleteCount" | "phase" | "targetDate">,
+  tasks: Array<Pick<ProjectManagementTask, "status">> = [],
+  today = new Date(),
+): PortfolioBoardStatus {
+  if (item.statusGroup === "Cancelled") return "Cancelled";
+  if (item.statusGroup === "Completed") return "Completed";
+  if (tasks.some((task) => task.status === "Blocked")) return "Blocked";
+  if (isPortfolioOverdue(item, today)) return "At Risk";
+  if (item.incompleteCount > 0 || REVIEW_PHASES.has(item.phase)) return "For Review";
+  return "Ongoing";
+}
+
+export function derivePortfolioPriority(
+  tasks: Array<Pick<ProjectManagementTask, "priority" | "status">> = [],
+): PmTaskPriority | "" {
+  const open = tasks.filter((task) => task.status !== "Done");
+  const pool = open.length > 0 ? open : tasks;
+  let best: PmTaskPriority | "" = "";
+  let rank = 0;
+  for (const task of pool) {
+    const next = PRIORITY_RANK[task.priority] ?? 0;
+    if (next > rank) {
+      rank = next;
+      best = task.priority;
+    }
+  }
+  return best;
+}
+
+export function derivePortfolioProgress(
+  item: Pick<PortfolioItem, "protocolComplete" | "executionComplete" | "reportComplete">,
+  tasks: Array<Pick<ProjectManagementTask, "percentComplete">> = [],
+): number {
+  if (tasks.length > 0) {
+    const total = tasks.reduce((sum, task) => sum + Math.min(100, Math.max(0, task.percentComplete || 0)), 0);
+    return Math.round(total / tasks.length);
+  }
+  const done = [item.protocolComplete, item.executionComplete, item.reportComplete].filter(Boolean).length;
+  return Math.round((done / 3) * 100);
+}
+
+export function parseProjectManagementView(value: string | null | undefined): ProjectManagementPageView {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "tasks" || normalized === "my_tasks") return "my_tasks";
+  if (normalized === "board") return "board";
+  if (normalized === "calendar") return "calendar";
+  return "portfolio";
+}
+
+export function projectManagementViewParam(view: ProjectManagementPageView): string | null {
+  if (view === "portfolio") return null;
+  return view === "my_tasks" ? "tasks" : view;
+}
 
 export function mapSourceStatusToGroup(status: string): PortfolioStatusGroup {
   const normalized = valueOrNA(status).toLowerCase();
@@ -108,18 +202,35 @@ function overridesFor(
   return all.filter((row) => row.sourceType === sourceType && row.sourceId === sourceId);
 }
 
-function tasksFor(
-  all: Array<Pick<ProjectManagementTask, "sourceType" | "sourceId" | "phase" | "status">>,
-  sourceType: PortfolioItem["sourceType"],
-  sourceId: string,
-) {
+type LinkedTask = Pick<
+  ProjectManagementTask,
+  "sourceType" | "sourceId" | "phase" | "status" | "priority" | "percentComplete"
+>;
+
+function tasksFor(all: LinkedTask[], sourceType: PortfolioItem["sourceType"], sourceId: string) {
   return all.filter((row) => row.sourceType === sourceType && row.sourceId === sourceId);
+}
+
+function withBoardMetrics(
+  item: Omit<PortfolioItem, "boardStatus" | "priority" | "progress">,
+  tasks: LinkedTask[],
+): PortfolioItem {
+  const next: PortfolioItem = {
+    ...item,
+    boardStatus: "Ongoing",
+    priority: "",
+    progress: 0,
+  };
+  next.boardStatus = deriveBoardStatus(next, tasks);
+  next.priority = derivePortfolioPriority(tasks);
+  next.progress = derivePortfolioProgress(next, tasks);
+  return next;
 }
 
 function aggregateProcessProjects(
   rows: ProjectRow[],
   overrides: Array<Pick<PhaseOverrideRecord, "sourceType" | "sourceId" | "gate">>,
-  tasks: Array<Pick<ProjectManagementTask, "sourceType" | "sourceId" | "phase" | "status">>,
+  tasks: LinkedTask[],
 ): PortfolioItem[] {
   const byProject = new Map<string, ProjectRow[]>();
   for (const row of rows) {
@@ -138,13 +249,14 @@ function aggregateProcessProjects(
       const bMs = Date.parse(b.updated_at) || 0;
       return bMs - aMs;
     })[0];
+    const linked = tasksFor(tasks, "process", projectId);
     const snapshot = deriveWorkflowSnapshot({
       sourceType: "process",
       projectRows: groupRows,
       overrides: overridesFor(overrides, "process", projectId),
-      userTasks: tasksFor(tasks, "process", projectId),
+      userTasks: linked,
     });
-    items.push({
+    items.push(withBoardMetrics({
       id: `process:${projectId}`,
       sourceType: "process",
       sourceId: projectId,
@@ -167,7 +279,7 @@ function aggregateProcessProjects(
       protocolComplete: snapshot.protocolComplete,
       executionComplete: snapshot.executionComplete,
       reportComplete: snapshot.reportComplete,
-    });
+    }, linked));
   }
   return items;
 }
@@ -175,20 +287,21 @@ function aggregateProcessProjects(
 function mapSupportActivity(
   row: SupportActivity,
   overrides: Array<Pick<PhaseOverrideRecord, "sourceType" | "sourceId" | "gate">>,
-  tasks: Array<Pick<ProjectManagementTask, "sourceType" | "sourceId" | "phase" | "status">>,
+  tasks: LinkedTask[],
 ): PortfolioItem {
   const title = !isMissingValue(row.non_process_description)
     ? valueOrNA(row.non_process_description)
     : !isMissingValue(row.Product)
       ? valueOrNA(row.Product)
       : displayText(row.Material, displayText(row.activity_kind));
+  const linked = tasksFor(tasks, "support", row.activity_id);
   const snapshot = deriveWorkflowSnapshot({
     sourceType: "support",
     support: row,
     overrides: overridesFor(overrides, "support", row.activity_id),
-    userTasks: tasksFor(tasks, "support", row.activity_id),
+    userTasks: linked,
   });
-  return {
+  return withBoardMetrics({
     id: `support:${row.activity_id}`,
     sourceType: "support",
     sourceId: row.activity_id,
@@ -211,14 +324,14 @@ function mapSupportActivity(
     protocolComplete: snapshot.protocolComplete,
     executionComplete: snapshot.executionComplete,
     reportComplete: snapshot.reportComplete,
-  };
+  }, linked);
 }
 
 export function buildPortfolioItems(
   projects: ProjectRow[],
   support: SupportActivity[],
   overrides: Array<Pick<PhaseOverrideRecord, "sourceType" | "sourceId" | "gate">> = [],
-  tasks: Array<Pick<ProjectManagementTask, "sourceType" | "sourceId" | "phase" | "status">> = [],
+  tasks: LinkedTask[] = [],
 ): PortfolioItem[] {
   return [
     ...aggregateProcessProjects(projects, overrides, tasks),
@@ -234,7 +347,10 @@ export function filterPortfolioItems(
   return items.filter((item) => {
     if (filters.sourceType !== "all" && item.sourceType !== filters.sourceType) return false;
     if (filters.statusGroup !== "all" && item.statusGroup !== filters.statusGroup) return false;
+    if ((filters.boardStatus ?? "all") !== "all" && item.boardStatus !== filters.boardStatus) return false;
     if ((filters.phase ?? "all") !== "all" && item.phase !== filters.phase) return false;
+    if ((filters.owner ?? "all") && filters.owner !== "all" && item.owner !== filters.owner) return false;
+    if ((filters.priority ?? "all") !== "all" && item.priority !== filters.priority) return false;
     if (!search) return true;
     const haystack = [
       item.title,
@@ -255,14 +371,18 @@ export function filterPortfolioItems(
   });
 }
 
-export function summarizePortfolio(items: PortfolioItem[]): PortfolioSummary {
+export function summarizePortfolio(items: PortfolioItem[], myTaskCount = 0): PortfolioSummary {
   const summary: PortfolioSummary = {
     total: items.length,
     process: 0,
     support: 0,
     ongoing: 0,
+    forReview: 0,
+    atRisk: 0,
+    blocked: 0,
     completed: 0,
     cancelled: 0,
+    myTasks: myTaskCount,
   };
   for (const item of items) {
     if (item.sourceType === "process") summary.process += 1;
@@ -270,6 +390,9 @@ export function summarizePortfolio(items: PortfolioItem[]): PortfolioSummary {
     if (item.statusGroup === "Ongoing") summary.ongoing += 1;
     else if (item.statusGroup === "Completed") summary.completed += 1;
     else summary.cancelled += 1;
+    if (item.boardStatus === "For Review") summary.forReview += 1;
+    if (item.boardStatus === "At Risk") summary.atRisk += 1;
+    if (item.boardStatus === "Blocked") summary.blocked += 1;
   }
   return summary;
 }
@@ -296,6 +419,59 @@ export function groupPortfolioItems(
   return grouped;
 }
 
+export function groupPortfolioByBoardStatus(
+  items: PortfolioItem[],
+): Record<PortfolioBoardStatus, PortfolioItem[]> {
+  const grouped = Object.fromEntries(BOARD_STATUS_ORDER.map((status) => [status, [] as PortfolioItem[]])) as Record<
+    PortfolioBoardStatus,
+    PortfolioItem[]
+  >;
+  for (const item of items) {
+    grouped[item.boardStatus ?? deriveBoardStatus(item)].push(item);
+  }
+  return grouped;
+}
+
+export function sortPortfolioItems(
+  items: PortfolioItem[],
+  key: PortfolioSortKey = "updated",
+  direction: "asc" | "desc" = "desc",
+): PortfolioItem[] {
+  const sign = direction === "asc" ? 1 : -1;
+  const dueMs = (item: PortfolioItem) => {
+    const parsed = parseAppDateValue(item.targetDate) ?? parseFgDeliveryDate(item.targetDate);
+    return parsed ? parsed.valueOf() : Number.POSITIVE_INFINITY;
+  };
+  const priorityRank = (item: PortfolioItem) => (item.priority ? PRIORITY_RANK[item.priority] : 0);
+  const statusRank = (item: PortfolioItem) => BOARD_STATUS_ORDER.indexOf(item.boardStatus);
+  return [...items].sort((a, b) => {
+    let cmp = 0;
+    if (key === "project") cmp = a.title.localeCompare(b.title);
+    else if (key === "priority") cmp = priorityRank(a) - priorityRank(b);
+    else if (key === "status") cmp = statusRank(a) - statusRank(b);
+    else if (key === "phase") cmp = WORKFLOW_PHASE_LABELS[a.phase].localeCompare(WORKFLOW_PHASE_LABELS[b.phase]);
+    else if (key === "owner") cmp = a.owner.localeCompare(b.owner);
+    else if (key === "progress") cmp = a.progress - b.progress;
+    else if (key === "due") cmp = dueMs(a) - dueMs(b);
+    else cmp = (Date.parse(a.updatedAt) || 0) - (Date.parse(b.updatedAt) || 0);
+    if (cmp !== 0) return cmp * sign;
+    return a.identifier.localeCompare(b.identifier);
+  });
+}
+
+export function dueDateTone(item: Pick<PortfolioItem, "statusGroup" | "targetDate" | "boardStatus">): "overdue" | "today" | "soon" | "done" | "neutral" {
+  if (item.statusGroup === "Completed" || item.boardStatus === "Completed") return "done";
+  const parsed = parseAppDateValue(item.targetDate) ?? parseFgDeliveryDate(item.targetDate);
+  if (!parsed) return "neutral";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((parsed.startOf("day").valueOf() - today.valueOf()) / 86_400_000);
+  if (days < 0) return "overdue";
+  if (days === 0) return "today";
+  if (days <= 7) return "soon";
+  return "neutral";
+}
+
 export function portfolioSourcePath(item: PortfolioItem): string {
   const params = new URLSearchParams();
   if (item.sourceType === "process") params.set("projectId", item.sourceId);
@@ -306,7 +482,27 @@ export function portfolioSourcePath(item: PortfolioItem): string {
 }
 
 export function emptyPortfolioFilters(): PortfolioFilters {
-  return { search: "", sourceType: "all", statusGroup: "all", phase: "all" };
+  return {
+    search: "",
+    sourceType: "all",
+    statusGroup: "all",
+    boardStatus: "all",
+    phase: "all",
+    owner: "all",
+    priority: "all",
+  };
+}
+
+export function portfolioFiltersAreActive(filters: PortfolioFilters): boolean {
+  return (
+    Boolean(filters.search.trim())
+    || filters.sourceType !== "all"
+    || filters.statusGroup !== "all"
+    || filters.boardStatus !== "all"
+    || filters.phase !== "all"
+    || filters.owner !== "all"
+    || filters.priority !== "all"
+  );
 }
 
 export function portfolioAssigneeKey(sourceType: string, sourceId: string): string {

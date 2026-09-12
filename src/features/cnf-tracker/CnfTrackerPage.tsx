@@ -19,7 +19,7 @@ import { useRestorableViewState } from "@/hooks/use-restorable-view-state";
 import { CnfReferencePickerModal } from "@/features/cnf-tracker/CnfReferencePickerModal";
 import { CnfTrackerDetailModal, type CnfTrackerDetailFormState } from "@/features/cnf-tracker/CnfTrackerDetailModal";
 import { CnfTrackerListTable } from "@/features/cnf-tracker/CnfTrackerListTable";
-import { normalizeOptionalToNa } from "@/lib/cnfTrackerSync";
+import { editableCnfTitleActivityName, normalizeOptionalToNa } from "@/lib/cnfTrackerSync";
 import {
   aggregateCnfTrackerView,
   collectRegisteredCnfReferences,
@@ -103,7 +103,7 @@ function formFromRecord(record: CnfTrackerRecord): CnfTrackerDetailFormState {
     change_description: String(record.change_description ?? ""),
     tracker_status: record.tracker_status === "Closed" ? "Closed" : "Open",
     record_id: record.record_id,
-    title_activity_name: "",
+    title_activity_name: editableCnfTitleActivityName(record.cnf_details),
     activity_type: "",
     details_tab: classification,
   };
@@ -198,7 +198,10 @@ export function CnfTrackerPage() {
           setLinkedSupportActivityId(linked.activity_id);
           // Keep details_tab from cnf_classification; only prefill Non-Process fields on that tab.
           if (nextForm.details_tab === "non_process") {
-            nextForm.title_activity_name = String(linked.non_process_description ?? "").slice(0, 50);
+            nextForm.title_activity_name = editableCnfTitleActivityName(
+              nextForm.cnf_details,
+              linked.non_process_description,
+            );
             nextForm.activity_type = String(
               linked.type_of_validation || linked.activity_type || "",
             );
@@ -331,7 +334,7 @@ export function CnfTrackerPage() {
           if (supportActivityId) {
             try {
               const linkedSupport = await getSupportActivityById(supportActivityId);
-              titlePrefill = String(linkedSupport?.non_process_description ?? "").slice(0, 50);
+              titlePrefill = editableCnfTitleActivityName("", linkedSupport?.non_process_description);
               activityTypePrefill = String(
                 linkedSupport?.type_of_validation || linkedSupport?.activity_type || "",
               );
@@ -541,7 +544,7 @@ export function CnfTrackerPage() {
           qrmr_no: normalizeOptionalToNa(form.qrmr_no),
           unique_batch_no: normalizeOptionalToNa(form.unique_batch_no),
           change_description: normalizeOptionalToNa(form.change_description),
-          cnf_details: normalizeOptionalToNa(form.cnf_details),
+          cnf_details: normalizeOptionalToNa(form.title_activity_name ?? form.cnf_details),
           cnf_classification: form.details_tab === "non_process" ? "non_process" : "process",
           allowProbableDuplicate,
         },
@@ -570,7 +573,7 @@ export function CnfTrackerPage() {
             setLinkedSupportActivityId(synced.activity_id);
             setForm({
               ...formFromRecord(saved),
-              title_activity_name: String(synced.non_process_description ?? titleToSync).slice(0, 50),
+              title_activity_name: editableCnfTitleActivityName(titleToSync, synced.non_process_description),
               activity_type: String(
                 synced.type_of_validation || synced.activity_type || activityTypeToSync,
               ),

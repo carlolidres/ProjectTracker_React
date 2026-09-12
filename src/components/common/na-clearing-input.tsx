@@ -80,6 +80,7 @@ interface NaClearingTextAreaProps {
   disabled?: boolean;
   readOnly?: boolean;
   rows?: number;
+  autoSize?: boolean | { minRows?: number; maxRows?: number };
   onChange: (value: string) => void;
 }
 
@@ -89,6 +90,7 @@ export function NaClearingTextArea({
   disabled = false,
   readOnly = false,
   rows = 3,
+  autoSize,
   onChange,
 }: NaClearingTextAreaProps) {
   const [focused, setFocused] = useState(false);
@@ -104,6 +106,7 @@ export function NaClearingTextArea({
     <Input.TextArea
       id={id}
       rows={rows}
+      autoSize={autoSize}
       className={showNaGuide ? naGuideClass : undefined}
       value={focused ? draftValue : showNaGuide ? NA_VALUE : value}
       disabled={disabled}

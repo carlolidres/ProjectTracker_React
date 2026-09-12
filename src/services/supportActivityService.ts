@@ -465,7 +465,7 @@ export async function syncNonProcessFieldsFromCnf(options: {
   activityType?: string;
   userEmail: string;
 }): Promise<SupportActivity | null> {
-  const title = sanitizeAlphanumericInput(String(options.titleActivityName ?? "")).slice(0, 50).trim();
+  const title = String(options.titleActivityName ?? "").replace(/[<>]/g, "").trim();
   const activityType = normalizeOptionalNaForSubmit(
     sanitizeAlphanumericInput(String(options.activityType ?? "")).trim(),
   );

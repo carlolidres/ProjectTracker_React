@@ -1,44 +1,44 @@
 # Current Handoff
 
-Last Updated: `2026-08-31`
+Last Updated: `2026-09-12`
 Version: `v0.95.0`
 Branch: `main`
-Commit: pending push
+Commit: pending push to `origin/main` (My Work Monday upgrade + layout fix)
 App version: `0.95.0`
 
 ## Current Status
 
-AI Assistant uses a query planner and several controlled, JWT/RLS database tools before OpenAI answers. Replies are Answer / Basis / Limitations plus verified internal links. Redeployed `ai-assistant-chat` on `ilaeqepjuuqzknxqnyfa`.
+`#/project-management` (My work) is a Monday-style workspace on existing CNF/support portfolio rows and `project_management_tasks`. No parallel project table. Sidebar route unchanged.
+
+Layout: summary cards wrap with `auto-fit` instead of a forced 6-column viewport grid, so an ~868px content column (sidebar still open) no longer stacks card labels on top of each other. Portfolio table scroll width was raised so cells do not compress into overlapping text.
 
 ## Recently Completed
 
-- Clicking a My work card opens Tasks; existing tasks can be edited, source rows open or create the matching task.
-- Database-grounded intelligence: intent/tool plan, multi-step retrieval, conversation record ids, business-rule guide, citation verification
-- AI Assistant page, Ask AI from project drawers, owner-only chats
-- Project Management cards, calendar/My Tasks create, Dashboard PM hub
+- Always-on summary cards, grouped Portfolio table, Board kanban, expanded filters/sort
+- New Project → `#/projects?return_to=/project-management`; New task unchanged
+- My Tasks grouped Overdue/Today/This Week/Later/Completed with inline task edits
+- Calendar shows project due dates; day click still creates a task
+- Drawer Activity tab from `audit_logs`; source edits stay confirmation-gated
 
 ## Deferred
 
-- Document/RAG search (no file index). 50-question live model eval. Streaming. Helpful/not-helpful feedback.
-- Compact New Project/Support drawers (plan R10)
-- `menu_permission_overrides` table still absent on remote
-- Per-user task notifications; file-storage attachments
+- `@dnd-kit` and persisted sort_order overlay (native drag + confirmation only)
+- Mentions, attachments, websockets
+- Quick-add blank project rows
 
 ## Verification
 
 | Check | Status | Result |
 |---|---|---|
 | `npm run typecheck` | PASSED | clean |
-| `npm run lint` | PASSED | max-warnings 0 |
-| `npm run test:sidebar-nav` | PASSED | grouped nav; Ask AI not in sidebar; empty groups omitted |
-| `npm run test:menu-permissions` | PASSED | menu keys unchanged |
-| `npm run test:ai-assistant` | PASSED | planner, follow-up ids, citations, reply format |
-| Edge Function `ai-assistant-chat` | PASSED | redeployed with `plan.ts`; JWT on |
-| Browser smoke | NOT RUN | ask a follow-up after naming a project |
+| `npm run test:project-management-portfolio` | PASSED | derived board status + grouping |
+| `npm run test:project-management-workflow` | PASSED | My Tasks section buckets |
+| `npm run test:dashboard-pm-hub` | PASSED | stub portfolio fields |
+| Browser smoke | NOT RUN | no browser automation in this session |
 
 ## Next Action
 
-In AI Assistant, ask “Which projects are ready for Report/Endorsement?”, then a follow-up like “What activities are incomplete?” after naming a `PROJ-…` id.
+Refresh `#/project-management` at ~1150px window width (sidebar open, ~868px content). Confirm summary labels, header actions, filters, and table cells no longer overlap. Then switch Portfolio / My Tasks / Board / Calendar and confirm a card click still opens the workspace drawer.
 
 ## Dumb-Zone Recovery
 

@@ -13,6 +13,7 @@ import {
   deriveWorkflowSnapshot,
   findUserTaskForBoardItem,
   mergeWorkflowBoardItems,
+  myTaskSection,
   taskPhaseAllowed,
   taskPhaseFromWorkflowPhase,
   toPmTaskPhase,
@@ -359,5 +360,9 @@ assert.equal(canUpdateAssignedPmTask("view", "u1", ["u1"]), false);
 assert.equal(canUpdateAssignedPmTask("qc", "u1", ["u1"]), true);
 assert.equal(canUpdateAssignedPmTask("qc", "u2", ["u1"]), false);
 assert.equal(canUpdateAssignedPmTask("qc", "u2", ["u1"], true), true);
+
+assert.equal(myTaskSection({ status: "Done", targetDate: "2020-01-01" }), "completed");
+assert.equal(myTaskSection({ status: "Planned", targetDate: "2020-01-01" }, new Date("2026-09-12")), "overdue");
+assert.equal(myTaskSection({ status: "Planned", targetDate: "2026-09-12" }, new Date("2026-09-12")), "today");
 
 console.log("verify-project-management-workflow: PASS");

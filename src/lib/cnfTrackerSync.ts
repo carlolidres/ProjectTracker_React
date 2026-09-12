@@ -6,6 +6,7 @@ import {
 } from "@/lib/cnfProjectIntegration";
 import { isBlankOrNaCnfValue, normalizeCnfTextKey } from "@/lib/cnfTrackerAggregation";
 import { NA_VALUE } from "@/lib/constants";
+import { toEditableNaField } from "@/lib/naField";
 import { isMissingValue, valueOrNA } from "@/lib/utils";
 import type { CnfTrackerRecord } from "@/types/cnfTracker";
 import type { ProjectHierarchy } from "@/types";
@@ -24,6 +25,13 @@ export function normalizeOptionalToNa(value: string | undefined | null): string 
     return NA_VALUE;
   }
   return trimmed;
+}
+
+/** Title / Activity Name: Process persists on `cnf_details`; Non-Process may overlay the linked support title. */
+export function editableCnfTitleActivityName(cnfDetails: unknown, supportTitle?: unknown): string {
+  const fromSupport = toEditableNaField(supportTitle);
+  if (fromSupport) return fromSupport;
+  return toEditableNaField(cnfDetails);
 }
 
 export function displayNaGuide(value: string | undefined | null): boolean {

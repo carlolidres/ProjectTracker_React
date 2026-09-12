@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import {
   assigneesByPortfolioSource,
   buildPortfolioItems,
+  deriveBoardStatus,
   emptyPortfolioFilters,
   filterPortfolioItems,
+  groupPortfolioByBoardStatus,
   groupPortfolioItems,
   mapSourceStatusToGroup,
+  parseProjectManagementView,
   portfolioSourcePath,
   summarizePortfolio,
 } from "../src/lib/projectManagementPortfolio";
@@ -183,6 +186,21 @@ assert.equal(summary.support, 2);
 assert.equal(summary.ongoing, 2);
 assert.equal(summary.completed, 1);
 assert.equal(summary.cancelled, 1);
+assert.ok(summary.forReview >= 0);
+assert.equal(summary.myTasks, 0);
+assert.equal(parseProjectManagementView("tasks"), "my_tasks");
+assert.equal(parseProjectManagementView("board"), "board");
+assert.ok(["Ongoing", "For Review", "At Risk"].includes(openProject.boardStatus));
+assert.equal(deriveBoardStatus({ ...cancelledProject, incompleteCount: 0 }, []), "Cancelled");
+assert.equal(
+  deriveBoardStatus({ statusGroup: "Ongoing", incompleteCount: 2, phase: "protocol_review", targetDate: "2099-12-31" }, []),
+  "For Review",
+);
+assert.equal(
+  deriveBoardStatus({ statusGroup: "Ongoing", incompleteCount: 0, phase: "execution", targetDate: "2099-12-31" }, [{ status: "Blocked" }]),
+  "Blocked",
+);
+assert.equal(groupPortfolioByBoardStatus(items).Cancelled.length, 1);
 
 const grouped = groupPortfolioItems(items);
 assert.equal(grouped.Ongoing.length, 2);

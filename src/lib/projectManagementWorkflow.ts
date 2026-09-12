@@ -545,6 +545,63 @@ export function buildDerivedWorkflowItems(input: {
   ];
 }
 
+export function toProjectManagementTaskInput(task: ProjectManagementTask): ProjectManagementTaskInput {
+  return {
+    sourceType: task.sourceType,
+    sourceId: task.sourceId,
+    parentTaskId: task.parentTaskId,
+    title: task.title,
+    instructions: task.instructions,
+    phase: task.phase,
+    status: task.status,
+    priority: task.priority,
+    percentComplete: task.percentComplete,
+    startDate: task.startDate,
+    targetDate: task.targetDate,
+    actualDate: task.actualDate,
+    category: task.category,
+    dependsOnTaskId: task.dependsOnTaskId,
+    attachmentUrl: task.attachmentUrl,
+    assigneeIds: task.assigneeIds,
+  };
+}
+
+export type MyTaskSection = "overdue" | "today" | "week" | "later" | "completed";
+
+export const MY_TASK_SECTION_ORDER: readonly MyTaskSection[] = [
+  "overdue",
+  "today",
+  "week",
+  "later",
+  "completed",
+];
+
+export const MY_TASK_SECTION_LABELS: Record<MyTaskSection, string> = {
+  overdue: "Overdue",
+  today: "Today",
+  week: "This Week",
+  later: "Later",
+  completed: "Completed",
+};
+
+export function myTaskSection(
+  item: Pick<WorkflowBoardItem, "status" | "targetDate">,
+  today = new Date(),
+): MyTaskSection {
+  if (item.status === "Done") return "completed";
+  if (isOverdueTask(item, today)) return "overdue";
+  const parsed = parseAppDateValue(item.targetDate);
+  if (!parsed) return "later";
+  const start = new Date(today);
+  start.setHours(0, 0, 0, 0);
+  if (parsed.isSame(start, "day")) return "today";
+  const weekEnd = new Date(start);
+  weekEnd.setDate(weekEnd.getDate() + (7 - weekEnd.getDay()));
+  weekEnd.setHours(23, 59, 59, 999);
+  if (parsed.valueOf() <= weekEnd.valueOf()) return "week";
+  return "later";
+}
+
 export function mapUserTaskToBoardItem(task: ProjectManagementTask): WorkflowBoardItem {
   return {
     id: task.id,
@@ -563,6 +620,7 @@ export function mapUserTaskToBoardItem(task: ProjectManagementTask): WorkflowBoa
     actualDate: task.actualDate,
     category: task.category,
     assigneeIds: task.assigneeIds,
+    createdBy: task.createdBy,
     dependsOnTaskId: task.dependsOnTaskId,
     attachmentUrl: task.attachmentUrl,
     locked: false,

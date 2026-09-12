@@ -475,5 +475,8 @@ export function stubPortfolioItem(sourceType: PortfolioSourceType, sourceId: str
     protocolComplete: false,
     executionComplete: false,
     reportComplete: false,
+    boardStatus: "Ongoing" as const,
+    priority: "" as const,
+    progress: 0,
   };
 }

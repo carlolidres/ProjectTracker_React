@@ -2,6 +2,24 @@ export type PortfolioSourceType = "process" | "support";
 
 export type PortfolioStatusGroup = "Ongoing" | "Completed" | "Cancelled";
 
+export type PortfolioBoardStatus =
+  | "Ongoing"
+  | "For Review"
+  | "At Risk"
+  | "Blocked"
+  | "Completed"
+  | "Cancelled";
+
+export type PortfolioSortKey =
+  | "project"
+  | "priority"
+  | "status"
+  | "phase"
+  | "owner"
+  | "progress"
+  | "due"
+  | "updated";
+
 export type WorkflowPhase =
   | "protocol_prep"
   | "protocol_review"
@@ -71,13 +89,19 @@ export interface PortfolioItem {
   protocolComplete: boolean;
   executionComplete: boolean;
   reportComplete: boolean;
+  boardStatus: PortfolioBoardStatus;
+  priority: PmTaskPriority | "";
+  progress: number;
 }
 
 export interface PortfolioFilters {
   search: string;
   sourceType: "all" | PortfolioSourceType;
   statusGroup: "all" | PortfolioStatusGroup;
+  boardStatus: "all" | PortfolioBoardStatus;
   phase: "all" | WorkflowPhase;
+  owner: string;
+  priority: "all" | PmTaskPriority;
 }
 
 export interface PortfolioSummary {
@@ -85,8 +109,12 @@ export interface PortfolioSummary {
   process: number;
   support: number;
   ongoing: number;
+  forReview: number;
+  atRisk: number;
+  blocked: number;
   completed: number;
   cancelled: number;
+  myTasks: number;
 }
 
 export interface PhaseOverrideRecord {
@@ -148,6 +176,7 @@ export interface WorkflowBoardItem {
   actualDate: string;
   category: PmTaskCategory;
   assigneeIds: string[];
+  createdBy?: string;
   dependsOnTaskId: string | null;
   attachmentUrl: string;
   locked: boolean;
@@ -173,4 +202,4 @@ export interface ProjectManagementTaskInput {
   assigneeIds: string[];
 }
 
-export type ProjectManagementPageView = "portfolio" | "my_tasks" | "calendar";
+export type ProjectManagementPageView = "portfolio" | "my_tasks" | "board" | "calendar";

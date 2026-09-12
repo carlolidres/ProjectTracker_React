@@ -24,6 +24,39 @@ const TRACKER_STATUS_OPTIONS: { label: string; value: CnfTrackerStatus }[] = [
   { label: "Closed", value: "Closed" },
 ];
 
+function stripUnsafeMarkup(value: string): string {
+  return value.replace(/[<>]/g, "");
+}
+
+function CnfTitleActivityNameField({
+  id,
+  value,
+  readOnly,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  readOnly: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className={cn("cnf-tracker-field project-field cnf-tracker-field-span-2", readOnly && "project-field-view-only")}>
+      <label className="cnf-tracker-field-label project-field-label" htmlFor={id}>
+        <span className="project-field-label-text">Title / Activity Name</span>
+        <FieldHelpIcon title="Enter the product, procedure, system, or equipment affected by the CNF." />
+      </label>
+      <NaClearingTextArea
+        id={id}
+        rows={4}
+        autoSize={{ minRows: 3, maxRows: 8 }}
+        value={value}
+        readOnly={readOnly}
+        onChange={(next) => onChange(stripUnsafeMarkup(next))}
+      />
+    </div>
+  );
+}
+
 export type CnfDetailsTab = "process" | "non_process";
 
 export interface CnfTrackerDetailFormState {
@@ -352,22 +385,12 @@ export function CnfTrackerDetailModal({
                         label: "Process",
                         children: (
                           <div className="cnf-tracker-form-grid project-form-grid cnf-tracker-details-grid">
-                            <div className={cn("cnf-tracker-field project-field cnf-tracker-field-span-2", viewOnly && "project-field-view-only")}>
-                              <label className="cnf-tracker-field-label project-field-label">
-                                <span className="project-field-label-text">Title / Activity Name</span>
-                                <FieldHelpIcon title="Enter the product, procedure, system, or equipment affected by the CNF." />
-                              </label>
-                              <NaClearingInput
-                                value={form.title_activity_name ?? ""}
-                                readOnly={viewOnly}
-                                sanitize={(value) => sanitizeAlphanumericInput(value).slice(0, 50)}
-                                onChange={(value) =>
-                                  onFormChange({
-                                    title_activity_name: sanitizeAlphanumericInput(value).slice(0, 50),
-                                  })
-                                }
-                              />
-                            </div>
+                            <CnfTitleActivityNameField
+                              id="cnf-tracker-title-activity-name-process"
+                              value={form.title_activity_name ?? ""}
+                              readOnly={viewOnly}
+                              onChange={(title_activity_name) => onFormChange({ title_activity_name })}
+                            />
                             <div className={cn("cnf-tracker-field project-field cnf-tracker-field-span-2", fieldsReadOnly && "project-field-view-only")}>
                               <label className="cnf-tracker-field-label project-field-label">
                                 Description of Change{isCreateMode ? " *" : ""}
@@ -376,7 +399,7 @@ export function CnfTrackerDetailModal({
                                 rows={3}
                                 value={changeDisplay}
                                 readOnly={fieldsReadOnly}
-                                onChange={(value) => onFormChange({ change_description: value.replace(/[<>]/g, "") })}
+                                onChange={(value) => onFormChange({ change_description: stripUnsafeMarkup(value) })}
                               />
                             </div>
                             <div className={cn("cnf-tracker-field project-field", fieldsReadOnly && "project-field-view-only")}>
@@ -396,22 +419,12 @@ export function CnfTrackerDetailModal({
                         label: "Non-Process",
                         children: (
                           <div className="cnf-tracker-form-grid project-form-grid cnf-tracker-details-grid">
-                            <div className={cn("cnf-tracker-field project-field", viewOnly && "project-field-view-only")}>
-                              <label className="cnf-tracker-field-label project-field-label">
-                                <span className="project-field-label-text">Title / Activity Name</span>
-                                <FieldHelpIcon title="Enter the product, procedure, system, or equipment affected by the CNF." />
-                              </label>
-                              <NaClearingInput
-                                value={form.title_activity_name ?? ""}
-                                readOnly={viewOnly}
-                                sanitize={(value) => sanitizeAlphanumericInput(value).slice(0, 50)}
-                                onChange={(value) =>
-                                  onFormChange({
-                                    title_activity_name: sanitizeAlphanumericInput(value).slice(0, 50),
-                                  })
-                                }
-                              />
-                            </div>
+                            <CnfTitleActivityNameField
+                              id="cnf-tracker-title-activity-name-non-process"
+                              value={form.title_activity_name ?? ""}
+                              readOnly={viewOnly}
+                              onChange={(title_activity_name) => onFormChange({ title_activity_name })}
+                            />
                             <div className={cn("cnf-tracker-field project-field", viewOnly && "project-field-view-only")}>
                               <label className="cnf-tracker-field-label project-field-label">Activity Type</label>
                               <CreatableNaSelect
@@ -433,7 +446,7 @@ export function CnfTrackerDetailModal({
                                 rows={3}
                                 value={changeDisplay}
                                 readOnly={fieldsReadOnly}
-                                onChange={(value) => onFormChange({ change_description: value.replace(/[<>]/g, "") })}
+                                onChange={(value) => onFormChange({ change_description: stripUnsafeMarkup(value) })}
                               />
                             </div>
                             <div className={cn("cnf-tracker-field project-field", fieldsReadOnly && "project-field-view-only")}>

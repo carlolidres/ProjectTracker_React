@@ -7,7 +7,16 @@
 
 .project-management-page .page-header {
   margin-bottom: 0;
-  align-items: center;
+  align-items: flex-start;
+}
+
+.pm-header-copy {
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.pm-header-actions {
+  flex: 0 1 auto;
 }
 
 .pm-title-row {
@@ -46,6 +55,7 @@
   margin-bottom: 0 !important;
   max-width: 52ch;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .pm-summary-tooltip {
@@ -74,22 +84,34 @@
 
 .pm-summary {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
   gap: 10px;
 }
 
 .pm-summary-card {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto;
   column-gap: 10px;
   row-gap: 2px;
   align-items: center;
+  appearance: none;
+  font: inherit;
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: 12px;
   padding: 12px 14px;
   min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.pm-summary-card:hover,
+.pm-summary-card:focus-visible {
+  border-color: var(--primary);
+  outline: none;
 }
 
 .pm-summary-card-icon {
@@ -119,15 +141,37 @@
   background: color-mix(in srgb, #dc2626 12%, var(--surface));
 }
 
+.pm-summary-card-forReview .pm-summary-card-icon {
+  color: #722ed1;
+  background: color-mix(in srgb, #722ed1 12%, var(--surface));
+}
+
+.pm-summary-card-atRisk .pm-summary-card-icon {
+  color: #d46b08;
+  background: color-mix(in srgb, #d46b08 12%, var(--surface));
+}
+
+.pm-summary-card-myTasks .pm-summary-card-icon {
+  color: #1677ff;
+  background: color-mix(in srgb, #1677ff 12%, var(--surface));
+}
+
 .pm-summary-card-label {
-  display: block;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pm-summary-card-value {
-  display: block;
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
   font-size: 20px;
   font-weight: 650;
   line-height: 1.2;
@@ -139,6 +183,13 @@
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+  min-width: 0;
+}
+
+.pm-view-bar .ant-segmented {
+  flex: 1 1 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .pm-view-option {
@@ -156,7 +207,8 @@
 
 .pm-filters .ant-input-affix-wrapper,
 .pm-filters .ant-select {
-  min-width: 180px;
+  min-width: 0;
+  flex: 1 1 160px;
 }
 
 .pm-filters-search {
@@ -573,19 +625,12 @@
 }
 
 @media (max-width: 1100px) {
-  .pm-summary {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .pm-board {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 720px) {
-  .pm-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
   .pm-form-grid,
   .pm-board {
@@ -615,5 +660,164 @@
     min-width: 100%;
     max-width: none;
     flex: 1 1 100%;
+  }
+}
+
+.pm-board-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.pm-board-table-wrap .ant-table-cell {
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.pm-board-table-wrap .ant-progress {
+  max-width: 100%;
+  margin-inline-end: 0;
+}
+
+.pm-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pm-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.pm-group-marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.pm-group-ongoing .pm-group-marker { background: #1677ff; }
+.pm-group-for-review .pm-group-marker { background: #722ed1; }
+.pm-group-at-risk .pm-group-marker { background: #d46b08; }
+.pm-group-blocked .pm-group-marker { background: #cf1322; }
+.pm-group-completed .pm-group-marker { background: #16a34a; }
+.pm-group-cancelled .pm-group-marker { background: #8c8c8c; }
+
+.pm-board-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pm-board-link strong,
+.pm-board-link span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-board-link span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pm-due-overdue { color: #cf1322; font-weight: 600; }
+.pm-due-today { color: #d46b08; font-weight: 600; }
+.pm-due-soon { color: #d48806; }
+.pm-due-done { color: #16a34a; }
+
+.pm-kanban {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.pm-kanban-column {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.pm-kanban-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel, var(--surface));
+}
+
+.pm-kanban-card-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pm-mobile-cards {
+  display: none;
+}
+
+.pm-task-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pm-calendar-note.is-milestone {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+@media (max-width: 900px) {
+  .pm-board-table-wrap {
+    display: none;
+  }
+
+  .pm-mobile-cards {
+    display: block;
+  }
+
+  .pm-kanban {
+    grid-template-columns: repeat(2, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .pm-kanban {
+    grid-template-columns: 1fr;
   }
 }

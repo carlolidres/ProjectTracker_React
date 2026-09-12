@@ -25,8 +25,8 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 |---|---|---|
 | Auth | `src/features/auth/LoginPage.tsx` | Login flow and public entry route. |
 | Dashboard | `src/features/dashboard/DashboardPage.tsx` | Primary workspace: KPIs, My work, New task, meeting view. Hub flag keeps KPI filters on Dashboard. |
-| Project Management | `src/features/project-management/ProjectManagementPage.tsx` | Portfolio / calendar / My Tasks (nav label My work); cards show product, unique batch, short CNF change. |
-| Project Management model | `src/lib/projectManagementPortfolio.ts` | Deduplicate process rows by `project_id`, map source statuses to Ongoing/Completed/Cancelled, attach unique batch and CNF change text. |
+| Project Management | `src/features/project-management/ProjectManagementPage.tsx` | My work: grouped Portfolio table, Board kanban, My Tasks date groups, Calendar; New Project returns to this page. |
+| Project Management model | `src/lib/projectManagementPortfolio.ts` | Portfolio rows plus derived board status (For Review / At Risk / Blocked), progress, filters, and grouping. |
 | Project Management workflow | `src/lib/projectManagementWorkflow.ts` | Phase gates, incomplete requirements, derived source workflow items. |
 | Project Management permissions | `src/lib/projectManagementPermissions.ts` | Assign/override/reopen. VAL is always an assignee. User-task create is not phase-gated. |
 | Project Management service | `src/services/projectManagementService.ts` | Portfolio load plus tasks, comments, phase overrides (missing-table fallback until migration is applied). |
@@ -55,7 +55,7 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | Projects Database grid interaction | `src/lib/projectsDatabaseGridInteraction.ts` | Ignore drag-select mousedown over dropdown/editors. |
 | Role colors | `src/lib/roleColors.ts`, `src/styles/role-colors.css` | Shared form + spreadsheet role palette. |
 | Spreadsheet save | `src/services/projectsDatabaseService.ts` | Patch edits → `updateProject` + emit sync. |
-| CNF Tracker | `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF tracker list, New CNF, detail modal, Unique Batch navigation. |
+| CNF Tracker | `src/features/cnf-tracker/CnfTrackerPage.tsx` | CNF tracker list, New CNF, detail modal; Process Title / Activity Name is a textarea persisted on `cnf_details`. |
 | CNF select modal | `src/features/cnf-tracker/CnfTrackerSelectModal.tsx` | Insert CNF picker for Projects; New CNF opens `CnfTrackerDetailModal` via `/cnf-tracker?new=1`. |
 | Endorsement Tracker | `src/features/endorsement-tracker/EndorsementTrackerPage.tsx` | Endorsement list, detail modal, independent create, item rows, QA-only edit. |
 | Support Activities | `src/features/support-activities/SupportActivitiesPage.tsx` | Support activity form and database view. Styles: `src/styles/support-activities.css` (sticky Add/Edit card head). Icons: `src/components/common/lucide-icon.tsx`. |

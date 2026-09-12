@@ -1,4 +1,4 @@
-import { Alert, Button, Descriptions, Drawer, Input, List, Space, Spin, Steps, Tabs, Tag, Typography, message } from "antd";
+import { Alert, Button, Descriptions, Drawer, Input, List, Modal, Space, Spin, Steps, Tabs, Tag, Typography, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { WorkflowStatusBadge } from "@/components/common/workflow-status-badge";
@@ -21,6 +21,7 @@ import {
   WORKFLOW_PHASE_LABELS,
   WORKFLOW_PHASES,
 } from "@/lib/projectManagementWorkflow";
+import { listAuditLogs } from "@/services/auditService";
 import {
   addTaskComment,
   createProjectManagementTask,
@@ -47,6 +48,7 @@ import type {
   ProjectRow,
   SupportActivity,
   UserRole,
+  AuditLog,
   WorkflowBoardItem,
   WorkflowGate,
 } from "@/types";
@@ -108,6 +110,7 @@ export function ProjectWorkspaceDrawer({
   const [commentTask, setCommentTask] = useState<ProjectManagementTask | null>(null);
   const [comments, setComments] = useState<ProjectManagementComment[]>([]);
   const [commentBody, setCommentBody] = useState("");
+  const [activity, setActivity] = useState<AuditLog[]>([]);
 
   const load = useCallback(async () => {
     if (!item) return;
@@ -119,6 +122,12 @@ export function ProjectWorkspaceDrawer({
       setOverrides(workspace.overrides);
       setProjectRows(workspace.projectRows);
       setSupport(workspace.support);
+      const logs = await listAuditLogs({ project_id: item.sourceId }).catch(() => []);
+      setActivity(logs.filter((row) => {
+        const haystack = `${row.project_id} ${row.record_id} ${row.remarks}`.toLowerCase();
+        return haystack.includes(item.sourceId.toLowerCase())
+          || workspace.tasks.some((task) => row.record_id === task.id);
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load workspace");
     } finally {
@@ -290,7 +299,17 @@ export function ProjectWorkspaceDrawer({
               <Button onClick={() => setOverrideOpen(true)}>Override gate</Button>
             ) : null}
             {canOpenSource ? (
-              <Button type="primary" onClick={() => onOpenSource(portfolioSourcePath(item))}>
+              <Button
+                type="primary"
+                onClick={() => {
+                  Modal.confirm({
+                    title: `Edit ${sourceLabel.toLowerCase()}?`,
+                    content: "Owner, due date, client, and official status are saved on the source record.",
+                    okText: `Open ${sourceLabel}`,
+                    onOk: () => onOpenSource(portfolioSourcePath(item)),
+                  });
+                }}
+              >
                 Open {sourceLabel}
               </Button>
             ) : null}
@@ -347,7 +366,14 @@ export function ProjectWorkspaceDrawer({
                     <Descriptions.Item label="Unique batch">{item.uniqueBatch}</Descriptions.Item>
                     <Descriptions.Item label="Change">{item.changeLabel}</Descriptions.Item>
                     <Descriptions.Item label="Category">{item.category}</Descriptions.Item>
-                    <Descriptions.Item label="Owner">{item.owner}</Descriptions.Item>
+                    <Descriptions.Item label="Owner">
+                      {item.owner}
+                      {canOpenSource ? (
+                        <Button type="link" size="small" onClick={() => onOpenSource(portfolioSourcePath(item))}>
+                          Edit on source
+                        </Button>
+                      ) : null}
+                    </Descriptions.Item>
                     <Descriptions.Item label="Target date">{formatTargetDate(item)}</Descriptions.Item>
                     <Descriptions.Item label="Current phase">{WORKFLOW_PHASE_LABELS[snapshot.phase]}</Descriptions.Item>
                     <Descriptions.Item label="Protocol">{snapshot.protocolStatus}</Descriptions.Item>
@@ -417,6 +443,25 @@ export function ProjectWorkspaceDrawer({
                     profiles={profiles}
                     currentUserId={userId}
                     onOpen={openUserTask}
+                  />
+                ),
+              },
+              {
+                key: "activity",
+                label: "Activity",
+                children: (
+                  <List
+                    size="small"
+                    dataSource={activity}
+                    locale={{ emptyText: "No activity recorded for this record yet." }}
+                    renderItem={(row) => (
+                      <List.Item>
+                        <List.Item.Meta
+                          title={`${row.user_email} ${row.action.toLowerCase()} ${row.field_name.replace(/_/g, " ")}`}
+                          description={`${row.old_value || "—"} → ${row.new_value || "—"} · ${row.timestamp}${row.remarks ? ` · ${row.remarks}` : ""}`}
+                        />
+                      </List.Item>
+                    )}
                   />
                 ),
               },
