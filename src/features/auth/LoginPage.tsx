@@ -7,6 +7,7 @@ import { signIn, signOut, signUp } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
 import { loginPasswordRules, newPasswordRules } from "@/lib/passwordValidation";
 import { requestPasswordReset } from "@/services/passwordResetService";
+import { LoginShowcase } from "@/features/auth/LoginShowcase";
 import type { UserRole } from "@/types";
 
 export function LoginPage() {
@@ -42,6 +43,8 @@ export function LoginPage() {
     const isPending = profile.status === "pending";
     return (
       <div className="login-page">
+        <LoginShowcase />
+        <div className="login-panel">
         <Card className="login-card">
           <Result
             status={isPending ? "info" : "warning"}
@@ -58,6 +61,7 @@ export function LoginPage() {
             }
           />
         </Card>
+        </div>
       </div>
     );
   }
@@ -114,6 +118,8 @@ export function LoginPage() {
 
   return (
     <div className="login-page">
+      <LoginShowcase />
+      <div className="login-panel">
       <Card className="login-card">
         <Typography.Title level={3}>Project Tracker</Typography.Title>
         {isSigningUp ? (
@@ -183,6 +189,7 @@ export function LoginPage() {
           </Button>
         </Space>
       </Card>
+      </div>
 
       <Modal
         title="Request password reset"

@@ -14,6 +14,7 @@ Last Updated: `2026-09-26`
 - Main table: add-column menu, timeline range on a subitem, expandable subitems, group summary bars. No custom text, file, or formula columns.
 - Simpler path: Your tasks returns to the main table, the drawer opens on This step, extra views and filters are tucked away, execution dates are a checklist, and New Project describes the four steps.
 - Gantt is under More views. Each project charts Protocol, Execution, Report, and Endorsement from its subitem dates.
+- Sign-in keeps the same form. A carousel on the left advances every few seconds through four product slides.
 - Main table columns share one width, so project rows, subitems, and the group summary line up. Group titles, counts, selection, and expanded rows use that group’s color. Timeline chips stay on one line, and owners show as colored initials.
 - Gantt timeline matches the task panel: expandable steps, start date, duration, week or month zoom, dependency arrows, a today line, and draggable task bars. Bars and arrows stay clipped to the calendar and cannot cover Task, Start date, or Duration while scrolling. Admin, AM/BM/PL, and VAL can still delete a subtask.
 - Sidebar groups are an accordion: opening one closes the others. The current page’s section opens on navigation. Drag grips are removed. A previously saved menu order still applies.
