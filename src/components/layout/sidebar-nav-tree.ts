@@ -94,3 +94,24 @@ export function getVisibleSidebarNavLeaves(
 export function canViewAskAi(role: UserRole | undefined, overrides: MenuPermissionOverride[]): boolean {
   return sidebarLeafVisible(AI_ASSISTANT_NAV_LEAF, role, overrides);
 }
+
+export function moveSidebarKey(order: string[], from: string, to: string): string[] {
+  if (!from || from === to || !order.includes(from) || !order.includes(to)) return order;
+  const next = order.filter((key) => key !== from);
+  const index = next.indexOf(to);
+  if (index < 0) return order;
+  next.splice(index, 0, from);
+  return next;
+}
+
+export function applySidebarOrder<T>(sections: T[], saved: string[], keyOf: (section: T) => string): T[] {
+  const index = new Map(sections.map((section, position) => [keyOf(section), position]));
+  const rank = new Map(saved.map((key, position) => [key, position]));
+  return [...sections].sort((left, right) => {
+    const leftKey = keyOf(left);
+    const rightKey = keyOf(right);
+    const leftRank = rank.has(leftKey) ? rank.get(leftKey)! : saved.length + (index.get(leftKey) ?? 0);
+    const rightRank = rank.has(rightKey) ? rank.get(rightKey)! : saved.length + (index.get(rightKey) ?? 0);
+    return leftRank - rightRank;
+  });
+}

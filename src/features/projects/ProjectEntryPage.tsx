@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { readReturnToPath } from "@/lib/dashboardReturnTo";
+import { returnPathWithRecord } from "@/lib/urlDerivedFilters";
 import {
   clearProjectEntryDraft,
   loadProjectEntryDraft,
@@ -972,7 +973,7 @@ export function ProjectEntryPage() {
           });
           navigate(`/endorsement-tracker?${params.toString()}`);
         } else if (isNew && returnToPath) {
-          navigate(returnToPath);
+          navigate(returnPathWithRecord(returnToPath, "projectId", savedProjectId));
         }
       }
     } catch (err) {

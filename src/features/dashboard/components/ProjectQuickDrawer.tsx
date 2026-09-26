@@ -248,6 +248,7 @@ export function ProjectQuickDrawer({
       else await createProjectManagementTask(payload);
       setTaskModalOpen(false);
       setEditingTask(null);
+      setTaskDraft(null);
       if (projectId) await load(projectId);
       onSaved?.();
       message.success("Task saved.");

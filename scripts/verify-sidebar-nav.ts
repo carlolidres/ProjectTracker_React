@@ -6,6 +6,8 @@ import {
   filterSidebarNavSections,
   flattenSidebarNavLeaves,
   getVisibleSidebarNavLeaves,
+  applySidebarOrder,
+  moveSidebarKey,
 } from "../src/components/layout/sidebar-nav-tree";
 import type { MenuPermissionOverride } from "../src/lib/menuPermissions";
 
@@ -98,5 +100,15 @@ const hideAskAi: MenuPermissionOverride[] = [{
   can_export: false,
 }];
 assert.equal(canViewAskAi("view", hideAskAi), false);
+assert.deepEqual(moveSidebarKey(["dashboard", "projects", "admin"], "admin", "projects"), ["dashboard", "admin", "projects"]);
+assert.deepEqual(moveSidebarKey(["dashboard", "projects"], "dashboard", "dashboard"), ["dashboard", "projects"]);
+assert.deepEqual(
+  applySidebarOrder(
+    [{ id: "dashboard" }, { id: "projects" }, { id: "support" }],
+    ["support", "dashboard"],
+    (section) => section.id,
+  ).map((section) => section.id),
+  ["support", "dashboard", "projects"],
+);
 
 console.log("verify-sidebar-nav: PASS");

@@ -1,39 +1,43 @@
-import { Alert, App, Button, Empty, Modal, Segmented, Skeleton, Space, Typography } from "antd";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, App, Button, Dropdown, Empty, Modal, Skeleton } from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/app/auth-provider";
 import { useMenuPermissions } from "@/app/menu-permission-provider";
-import { LucideIcon } from "@/components/common/lucide-icon";
 import { AppShell } from "@/components/layout/app-shell";
 import { DashboardTaskComposer } from "@/features/dashboard/components/DashboardTaskComposer";
 import { PortfolioCardGrid } from "@/features/project-management/components/PortfolioCardGrid";
 import { PortfolioKanban } from "@/features/project-management/components/PortfolioKanban";
-import { PortfolioFiltersBar } from "@/features/project-management/components/PortfolioFilters";
-import { PortfolioSummary } from "@/features/project-management/components/PortfolioSummary";
-import { ProjectBoardTable } from "@/features/project-management/components/ProjectBoardTable";
+import { ProjectBoardTable, type PortfolioOptionalColumn } from "@/features/project-management/components/ProjectBoardTable";
 import { ProjectWorkspaceDrawer } from "@/features/project-management/components/ProjectWorkspaceDrawer";
+import { WorkBoardToolbar, NewProjectMenu } from "@/features/project-management/components/WorkBoardToolbar";
+import { ProjectGantt } from "@/features/project-management/components/ProjectGantt";
 import { MyTasksView, TaskCalendarView } from "@/features/project-management/components/TaskViews";
 import { useChangeSummaries } from "@/hooks/use-change-summaries";
 import { useRestorableViewState } from "@/hooks/use-restorable-view-state";
+import { newSupportActivityPath } from "@/lib/urlDerivedFilters";
 import { sourceOptionsFromPortfolio } from "@/lib/dashboardPmHub";
 import { parseAppDateValue } from "@/lib/date";
-import { canAssignPmTasks } from "@/lib/projectManagementPermissions";
+import { canAssignPmTasks, canDeletePmTask } from "@/lib/projectManagementPermissions";
+import { getProfileDisplayName } from "@/lib/profileName";
 import {
-  assigneesByPortfolioSource,
   emptyPortfolioFilters,
   filterPortfolioItems,
   groupPortfolioItems,
+  assigneesByPortfolioSource,
   parseProjectManagementView,
   portfolioFiltersAreActive,
   portfolioSourcePath,
   projectManagementViewParam,
-  summarizePortfolio,
+  type PortfolioGroupBy,
 } from "@/lib/projectManagementPortfolio";
 import {
   mapUserTaskToBoardItem,
+  taskPhaseFromWorkflowPhase,
   toProjectManagementTaskInput,
 } from "@/lib/projectManagementWorkflow";
 import {
+  createProjectManagementTask,
+  deleteProjectManagementTask,
   listAssignableProfiles,
   listProjectManagementPortfolio,
   listProjectManagementTasks,
@@ -44,7 +48,6 @@ import type {
   PortfolioFilters,
   PortfolioItem,
   PortfolioSortKey,
-  PortfolioSummary as PortfolioSummaryModel,
   ProjectManagementPageView,
   ProjectManagementTask,
   WorkflowBoardItem,
@@ -66,14 +69,21 @@ export function ProjectManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerDate, setComposerDate] = useState<string>("");
+  const [composerStart, setComposerStart] = useState<string>("");
+  const [composerSource, setComposerSource] = useState<Pick<PortfolioItem, "sourceType" | "sourceId"> | null>(null);
   const [composerAssigneeIds, setComposerAssigneeIds] = useState<string[]>([]);
+  const [composerTitle, setComposerTitle] = useState("");
   const [sortKey, setSortKey] = useState<PortfolioSortKey>("updated");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [hiddenColumns, setHiddenColumns] = useState<PortfolioOptionalColumn[]>(["date", "source", "phase", "client", "progress"]);
+  const [groupBy, setGroupBy] = useState<PortfolioGroupBy>("status");
 
   useRestorableViewState("project-management.filters", filters, setFilters);
   useRestorableViewState("project-management.selectedId", selectedId, setSelectedId);
   useRestorableViewState("project-management.pageView", pageView, setPageView);
   useRestorableViewState("project-management.sortKey", sortKey, setSortKey);
+  useRestorableViewState("project-management.hiddenColumns", hiddenColumns, setHiddenColumns);
+  useRestorableViewState("project-management.groupBy", groupBy, setGroupBy);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -124,11 +134,6 @@ export function ProjectManagementPage() {
     ...filters,
   }), [filters, items]);
   const grouped = useMemo(() => groupPortfolioItems(visibleItems), [visibleItems]);
-  const myTaskCount = useMemo(
-    () => tasks.filter((task) => user?.id && task.assigneeIds.includes(user.id)).length,
-    [tasks, user?.id],
-  );
-  const summary = useMemo(() => summarizePortfolio(items, myTaskCount), [items, myTaskCount]);
   const assigneesBySource = useMemo(() => assigneesByPortfolioSource(tasks, profiles), [profiles, tasks]);
   const changeSummaries = useChangeSummaries(visibleItems);
   const selected = useMemo(
@@ -145,6 +150,18 @@ export function ProjectManagementPage() {
     () => [...new Set(items.map((item) => item.owner).filter((owner) => owner && owner !== "N/A"))].sort(),
     [items],
   );
+  const ownerDefaulted = useRef(false);
+  useEffect(() => {
+    if (ownerDefaulted.current || items.length === 0 || !profile || filters.owner !== "all") return;
+    const names = new Set(
+      [getProfileDisplayName(profile), profile.full_name, profile.email]
+        .map((value) => value?.trim().toLowerCase())
+        .filter((value): value is string => Boolean(value)),
+    );
+    const owned = items.find((item) => names.has(item.owner.trim().toLowerCase()));
+    ownerDefaulted.current = true;
+    if (owned) setFilters((current) => (current.owner === "all" ? { ...current, owner: owned.owner } : current));
+  }, [filters.owner, items, profile]);
   const milestones = useMemo(
     () => items.flatMap((item) => {
       const date = parseAppDateValue(item.targetDate);
@@ -172,12 +189,53 @@ export function ProjectManagementPage() {
   const canCreate = can("project_management", "create");
   const canEdit = can("project_management", "edit");
   const canCreateProject = can("projects_entry", "create");
+  const canCreateSupport = can("support_activities", "create");
   const canAssignTasks = canCreate && canAssignPmTasks(profile?.role, profile?.pm_task_eligible);
+  const canDeleteTask = canDeletePmTask(profile?.role);
   const sourceOptions = useMemo(() => sourceOptionsFromPortfolio(items), [items]);
 
   const openCreateTask = (date?: string, assignSelf = false) => {
+    setComposerSource(null);
+    setComposerStart("");
     setComposerDate(date ?? "");
+    setComposerTitle("");
     setComposerAssigneeIds(assignSelf && user?.id ? [user.id] : []);
+    setComposerOpen(true);
+  };
+
+  const openSubtask = (item: PortfolioItem, start = "", end = "") => {
+    setComposerSource({ sourceType: item.sourceType, sourceId: item.sourceId });
+    setComposerStart(start);
+    setComposerDate(end);
+    setComposerTitle("");
+    setComposerAssigneeIds(user?.id ? [user.id] : []);
+    setComposerOpen(true);
+  };
+
+  const deleteSubtask = (task: ProjectManagementTask) => {
+    Modal.confirm({
+      title: `Delete "${task.title}"?`,
+      content: "This removes the subtask. Protocol, report, and execution status stay on the project record.",
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await deleteProjectManagementTask(task);
+          setTasks((current) => current.filter((row) => row.id !== task.id));
+          message.success("Subtask deleted.");
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : "Could not delete the subtask.");
+        }
+      },
+    });
+  };
+
+  const openExecutionSubtask = (item: PortfolioItem, title: string) => {
+    setComposerSource({ sourceType: item.sourceType, sourceId: item.sourceId });
+    setComposerStart("");
+    setComposerDate("");
+    setComposerTitle(title);
+    setComposerAssigneeIds(user?.id ? [user.id] : []);
     setComposerOpen(true);
   };
 
@@ -201,12 +259,10 @@ export function ProjectManagementPage() {
     }
   };
 
-  const handlePatchTask = async (
-    item: WorkflowBoardItem,
-    patch: Partial<Pick<WorkflowBoardItem, "status" | "priority" | "targetDate" | "percentComplete">>,
+  const patchTaskRecord = async (
+    task: ProjectManagementTask,
+    patch: Partial<Pick<ProjectManagementTask, "status" | "priority" | "targetDate" | "startDate" | "percentComplete" | "title" | "assigneeIds">>,
   ) => {
-    const task = tasks.find((row) => row.id === item.id);
-    if (!task) return;
     const previous = tasks;
     setTasks((current) => current.map((row) => (row.id === task.id ? { ...row, ...patch } : row)));
     try {
@@ -214,6 +270,57 @@ export function ProjectManagementPage() {
     } catch (err) {
       setTasks(previous);
       message.error(err instanceof Error ? err.message : "Could not update the task. Your previous value has been restored.");
+    }
+  };
+
+  const handlePatchTask = async (
+    item: WorkflowBoardItem,
+    patch: Partial<Pick<WorkflowBoardItem, "status" | "priority" | "targetDate" | "startDate" | "percentComplete">>,
+  ) => {
+    const task = tasks.find((row) => row.id === item.id);
+    if (!task) return;
+    await patchTaskRecord(task, patch);
+  };
+
+  const handleSetTimeline = async (item: PortfolioItem, start: string, end: string) => {
+    const linked = tasks.filter((task) => task.sourceType === item.sourceType && task.sourceId === item.sourceId);
+    if (linked.length > 1) {
+      message.info("This project has several subitems. Set the due date on a subitem.");
+      return;
+    }
+    if (linked.length === 1) {
+      const task = linked[0];
+      if (!task) return;
+      await patchTaskRecord(task, { startDate: start, targetDate: end || start });
+      return;
+    }
+    if (!start && !end) return;
+    if (!canCreate) {
+      message.info("You can't add a subitem on this project.");
+      return;
+    }
+    try {
+      const created = await createProjectManagementTask({
+        sourceType: item.sourceType,
+        sourceId: item.sourceId,
+        parentTaskId: null,
+        title: "Timeline",
+        instructions: "",
+        phase: taskPhaseFromWorkflowPhase(item.phase),
+        status: "Planned",
+        priority: "Medium",
+        percentComplete: 0,
+        startDate: start,
+        targetDate: end || start,
+        actualDate: "",
+        category: item.category,
+        dependsOnTaskId: null,
+        attachmentUrl: "",
+        assigneeIds: user?.id ? [user.id] : [],
+      });
+      setTasks((current) => [...current, created]);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Could not save the timeline.");
     }
   };
 
@@ -232,62 +339,90 @@ export function ProjectManagementPage() {
     openWorkspace(item);
   };
 
-  const handleSummarySelect = (key: keyof PortfolioSummaryModel) => {
-    if (key === "ongoing") setFilters((current) => ({ ...current, statusGroup: "Ongoing", boardStatus: "all" }));
-    if (key === "forReview") setFilters((current) => ({ ...current, boardStatus: "For Review", statusGroup: "all" }));
-    if (key === "atRisk") setFilters((current) => ({ ...current, boardStatus: "At Risk", statusGroup: "all" }));
-    if (key === "completed") setFilters((current) => ({ ...current, statusGroup: "Completed", boardStatus: "all" }));
-    if (key === "cancelled") setFilters((current) => ({ ...current, statusGroup: "Cancelled", boardStatus: "all" }));
-    if (key === "myTasks") changeView("my_tasks");
+  const handleStatusIntent = (item: PortfolioItem) => {
+    const canView = item.sourceType === "process" ? can("projects_entry", "view") : can("support_activities", "view");
+    if (!canView) {
+      message.info("This status is derived from the project record.");
+      return;
+    }
+    Modal.confirm({
+      title: `${item.boardStatus} is derived`,
+      content: "Official protocol, report, and final status stay on the source record.",
+      okText: item.sourceType === "process" ? "Open project record" : "Open support activity",
+      onOk: () => openSource(item),
+    });
   };
+
+  const moreViews: Array<{ value: ProjectManagementPageView; label: string }> = [
+    { value: "board", label: "Board" },
+    { value: "calendar", label: "Calendar" },
+    { value: "my_tasks", label: "My Tasks" },
+    { value: "gantt", label: "Gantt" },
+  ];
+  const activeMoreView = moreViews.find((view) => view.value === pageView);
 
   return (
     <AppShell>
       <div className="project-management-page">
-        <div className="page-header">
-          <div className="pm-header-copy">
-            <Typography.Title level={3} className="pm-page-title">My work</Typography.Title>
-            <Typography.Paragraph type="secondary" className="pm-page-subtitle">
-              Manage validation projects, support work, milestones, responsibilities, due dates, and project status.
-            </Typography.Paragraph>
+        <div className="pm-board-shell">
+          <div className="pm-board-head">
+            <div>
+              <h1 className="pm-page-title">My work</h1>
+              <div className="pm-view-tabs" role="tablist" aria-label="My work views">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={pageView === "portfolio"}
+                  className={`pm-view-tab${pageView === "portfolio" ? " is-active" : ""}`}
+                  onClick={() => changeView("portfolio")}
+                >
+                  Main table
+                </button>
+                <Dropdown
+                  trigger={["click"]}
+                  menu={{
+                    selectable: true,
+                    selectedKeys: activeMoreView ? [activeMoreView.value] : [],
+                    items: moreViews.map((view) => ({ key: view.value, label: view.label })),
+                    onClick: ({ key }) => changeView(key as ProjectManagementPageView),
+                  }}
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={Boolean(activeMoreView)}
+                    className={`pm-view-tab${activeMoreView ? " is-active" : ""}`}
+                  >
+                    {activeMoreView ? activeMoreView.label : "More views"}
+                  </button>
+                </Dropdown>
+              </div>
+            </div>
           </div>
-          <Space wrap className="pm-header-actions">
-            <Button icon={<LucideIcon name="refresh-cw" />} onClick={() => void load()} loading={loading}>
-              Refresh
-            </Button>
-            {canCreate ? (
-              <Button icon={<LucideIcon name="plus" />} onClick={() => openCreateTask(undefined, true)}>
-                New task
-              </Button>
-            ) : null}
-            {canCreateProject ? (
-              <Button type="primary" icon={<LucideIcon name="plus" />} onClick={() => navigate("/projects?return_to=/project-management")}>
-                New Project
-              </Button>
-            ) : null}
-          </Space>
+          <WorkBoardToolbar
+            filters={{ ...emptyPortfolioFilters(), ...filters }}
+            owners={owners}
+            sortKey={sortKey}
+            hiddenColumns={hiddenColumns}
+            groupBy={groupBy}
+            showTableTools={pageView === "portfolio" || pageView === "board" || pageView === "gantt"}
+            showColumnTools={pageView === "portfolio"}
+            canCreate={canCreate}
+            canCreateProject={canCreateProject}
+            canCreateSupport={canCreateSupport}
+            loading={loading}
+            onFiltersChange={setFilters}
+            onSortChange={handleSortChange}
+            onHiddenChange={setHiddenColumns}
+            onGroupByChange={setGroupBy}
+            onNewTask={() => openCreateTask(undefined, true)}
+            onNewProject={() => navigate("/projects?return_to=/project-management")}
+            onNewSupport={(kind) => navigate(newSupportActivityPath(kind))}
+            onRefresh={() => void load()}
+          />
         </div>
 
         {error ? <Alert type="error" showIcon message={error} /> : null}
-
-        <PortfolioSummary summary={summary} onSelect={handleSummarySelect} />
-        <div className="pm-view-bar" role="toolbar" aria-label="My work views">
-          <Segmented
-            block
-            aria-label="My work view"
-            value={pageView}
-            onChange={(value) => changeView(value as ProjectManagementPageView)}
-            options={[
-              { label: <span className="pm-view-option"><LucideIcon name="layout-grid" size={14} />Portfolio</span>, value: "portfolio" },
-              { label: <span className="pm-view-option"><LucideIcon name="clipboard-list" size={14} />My Tasks</span>, value: "my_tasks" },
-              { label: <span className="pm-view-option"><LucideIcon name="columns" size={14} />Board</span>, value: "board" },
-              { label: <span className="pm-view-option"><LucideIcon name="calendar" size={14} />Calendar</span>, value: "calendar" },
-            ]}
-          />
-        </div>
-        {pageView === "portfolio" || pageView === "board" ? (
-          <PortfolioFiltersBar filters={{ ...emptyPortfolioFilters(), ...filters }} owners={owners} onChange={setFilters} />
-        ) : null}
 
         {loading ? (
           <div className="pm-loading" aria-live="polite">
@@ -295,16 +430,18 @@ export function ProjectManagementPage() {
           </div>
         ) : items.length === 0 ? (
           <Empty
-            description="Create your first project or change the current filters."
+            description="Create a validation project or a TSD, RnD, or Non-Process support activity."
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
-            {canCreateProject ? (
-              <Button type="primary" onClick={() => navigate("/projects?return_to=/project-management")}>
-                New Project
-              </Button>
-            ) : null}
+            <NewProjectMenu
+              type="primary"
+              canCreateProject={canCreateProject}
+              canCreateSupport={canCreateSupport}
+              onNewProject={() => navigate("/projects?return_to=/project-management")}
+              onNewSupport={(kind) => navigate(newSupportActivityPath(kind))}
+            />
           </Empty>
-        ) : visibleItems.length === 0 && portfolioFiltersAreActive({ ...emptyPortfolioFilters(), ...filters }) && (pageView === "portfolio" || pageView === "board") ? (
+        ) : visibleItems.length === 0 && portfolioFiltersAreActive({ ...emptyPortfolioFilters(), ...filters }) && (pageView === "portfolio" || pageView === "board" || pageView === "gantt") ? (
           <Empty description="No projects match the selected filters.">
             <Button onClick={() => setFilters(emptyPortfolioFilters())}>Clear filters</Button>
           </Empty>
@@ -319,6 +456,7 @@ export function ProjectManagementPage() {
             projectTitles={projectTitles}
             canEditTasks={canCreate || canEdit}
             onPatchTask={(item, patch) => void handlePatchTask(item, patch)}
+            onBackToTable={() => changeView("portfolio")}
           />
         ) : pageView === "calendar" ? (
           <TaskCalendarView
@@ -334,17 +472,40 @@ export function ProjectManagementPage() {
               if (match) openWorkspace(match);
             }}
           />
+        ) : pageView === "gantt" ? (
+          <ProjectGantt
+            items={visibleItems}
+            tasks={tasks}
+            onOpen={openWorkspace}
+            canAddSubtask={canCreate}
+            onAddExecutionSubtask={openExecutionSubtask}
+            canDeleteSubtask={canDeleteTask}
+            onDeleteSubtask={deleteSubtask}
+            canSchedule={canCreate || canEdit}
+            onScheduleChange={(task, start, end) => void patchTaskRecord(task, { startDate: start, targetDate: end })}
+          />
         ) : pageView === "board" ? (
           <PortfolioKanban items={visibleItems} onOpen={openWorkspace} onMove={handleBoardMove} />
         ) : (
           <>
             <ProjectBoardTable
               items={visibleItems}
+              tasks={tasks}
+              profiles={profiles}
               sortKey={sortKey}
               sortDirection={sortDirection}
+              hiddenColumns={hiddenColumns}
+              groupBy={groupBy}
+              canEditTasks={canCreate || canEdit}
+              canCreate={canCreate}
               onSortChange={handleSortChange}
+              onHiddenChange={setHiddenColumns}
               onOpen={openWorkspace}
               onOpenSource={openSource}
+              onStatusIntent={handleStatusIntent}
+              onSetTimeline={(item, start, end) => void handleSetTimeline(item, start, end)}
+              onPatchTask={(task, patch) => void patchTaskRecord(task, patch)}
+              onAddSubtask={(item) => openSubtask(item)}
               canOpenSource={can("projects_entry", "view") || can("support_activities", "view")}
             />
             <div className="pm-mobile-cards">
@@ -380,10 +541,16 @@ export function ProjectManagementPage() {
           canAssign={canAssignTasks}
           role={profile?.role}
           initialTargetDate={composerDate}
+          initialStartDate={composerStart}
+          initialSource={composerSource}
+          initialTitle={composerTitle}
           initialAssigneeIds={composerAssigneeIds}
           onClose={() => {
             setComposerOpen(false);
             setComposerDate("");
+            setComposerStart("");
+            setComposerSource(null);
+            setComposerTitle("");
             setComposerAssigneeIds([]);
           }}
           onSaved={() => void load()}

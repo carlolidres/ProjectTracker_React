@@ -1,6 +1,6 @@
 import { formatAppMonth, parseFgMonthValue } from "@/lib/date";
 import type { ProjectFilters } from "@/types/project";
-import type { SupportActivityFilters } from "@/types/supportActivity";
+import type { ActivityKind, SupportActivityFilters } from "@/types/supportActivity";
 import type { AuditFilters } from "@/types";
 
 const PROJECT_URL_FILTER_KEYS = [
@@ -60,6 +60,30 @@ export function projectFiltersFromSearchParams(
     delete manual[key];
   }
   return { ...manual, ...urlFilters };
+}
+
+export function parseActivityKind(value: string | null | undefined): ActivityKind | null {
+  if (value === "TSD" || value === "RnD" || value === "Non-Process") return value;
+  return null;
+}
+
+export function returnPathWithRecord(path: string, key: "projectId" | "activityId", id: string): string {
+  const recordId = id.trim();
+  if (!recordId || recordId === "N/A") return path;
+  const splitAt = path.indexOf("?");
+  const base = splitAt === -1 ? path : path.slice(0, splitAt);
+  const params = new URLSearchParams(splitAt === -1 ? "" : path.slice(splitAt + 1));
+  params.set(key, recordId);
+  return `${base}?${params.toString()}`;
+}
+
+export function newSupportActivityPath(kind: ActivityKind, returnTo = "/project-management"): string {
+  const params = new URLSearchParams({
+    new: "1",
+    activity_kind: kind,
+    return_to: returnTo,
+  });
+  return `/support-activities?${params.toString()}`;
 }
 
 export function supportFiltersFromSearchParams(

@@ -12,7 +12,7 @@ import {
   createProjectManagementTask,
   loadProjectManagementWorkspace,
 } from "@/services/projectManagementService";
-import type { Profile, ProjectManagementTaskInput, UserRole } from "@/types";
+import type { PortfolioSourceType, Profile, ProjectManagementTaskInput, UserRole } from "@/types";
 
 interface DashboardTaskComposerProps {
   open: boolean;
@@ -21,6 +21,9 @@ interface DashboardTaskComposerProps {
   canAssign: boolean;
   role: UserRole | undefined;
   initialTargetDate?: string;
+  initialStartDate?: string;
+  initialSource?: { sourceType: PortfolioSourceType; sourceId: string } | null;
+  initialTitle?: string;
   initialAssigneeIds?: string[];
   onClose: () => void;
   onSaved: () => void;
@@ -33,6 +36,9 @@ export function DashboardTaskComposer({
   canAssign,
   role,
   initialTargetDate,
+  initialStartDate,
+  initialSource,
+  initialTitle,
   initialAssigneeIds,
   onClose,
   onSaved,
@@ -47,8 +53,12 @@ export function DashboardTaskComposer({
       category: "Other" as const,
       assigneeIds: initialAssigneeIds ?? [],
       targetDate: initialTargetDate ?? "",
+      startDate: initialStartDate ?? "",
+      title: initialTitle ?? "",
+      sourceType: initialSource?.sourceType,
+      sourceId: initialSource?.sourceId,
     }),
-    [initialAssigneeIds, initialTargetDate],
+    [initialAssigneeIds, initialSource, initialStartDate, initialTargetDate, initialTitle],
   );
 
   const handleSubmit = async (input: ProjectManagementTaskInput, options?: { reopenReason?: string }) => {

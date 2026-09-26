@@ -7,8 +7,9 @@ import {
 } from "@ant-design/icons";
 import { Avatar, Button, Drawer, Dropdown, Tooltip, Typography } from "antd";
 import type { MenuProps } from "antd";
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { LucideIcon } from "@/components/common/lucide-icon";
 import { ProfileSettingsModal } from "@/components/layout/profile-settings-modal";
 import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
 import { getVisibleSidebarNavSections } from "@/components/layout/sidebar-nav";
@@ -20,6 +21,33 @@ import { signOut } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/constants";
 import { getProfileDisplayName, getProfileInitials } from "@/lib/profileName";
 import { cn } from "@/lib/utils";
+import { applySidebarOrder, type SidebarNavLeaf } from "@/components/layout/sidebar-nav-tree";
+import type { SidebarNavSection } from "@/components/layout/sidebar-nav";
+
+const SIDEBAR_ORDER_KEY = "project-tracker:sidebar-nav-order";
+
+function sectionKey(section: SidebarNavSection): string {
+  return section.type === "link" ? section.item.href : section.id;
+}
+
+function readSidebarOrder(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(SIDEBAR_ORDER_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function groupContainsPath(items: SidebarNavLeaf[], pathname: string): boolean {
+  return items.some((item) => (
+    item.href === "/projects"
+      ? pathname === "/projects"
+      : pathname === item.href || pathname.startsWith(`${item.href}/`)
+  ));
+}
 
 interface SidebarProps {
   state: SidebarState;
@@ -29,6 +57,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }: SidebarProps) {
+  const location = useLocation();
   const { profile, user } = useAuth();
   const { overrides } = useMenuPermissions();
   const { appTheme, toggleTheme } = useAppTheme();
@@ -73,6 +102,19 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
     () => getVisibleSidebarNavSections(profile?.role, overrides),
     [profile?.role, overrides],
   );
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [menuOrder] = useState<string[]>(readSidebarOrder);
+  const orderedSections = useMemo(
+    () => applySidebarOrder(visibleNavSections, menuOrder, sectionKey),
+    [menuOrder, visibleNavSections],
+  );
+
+  useEffect(() => {
+    const active = visibleNavSections.find(
+      (section) => section.type === "group" && groupContainsPath(section.items, location.pathname),
+    );
+    setOpenGroups(active?.type === "group" ? { [active.id]: true } : {});
+  }, [location.pathname, visibleNavSections]);
 
   const content = (
     <div className="sidebar-inner">
@@ -105,7 +147,7 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
       </div>
 
       <nav className="sidebar-nav" aria-label="Primary navigation">
-        {visibleNavSections.map((section) => {
+        {orderedSections.map((section) => {
           if (section.type === "link") {
             return (
               <SidebarNavItem
@@ -116,9 +158,18 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
               />
             );
           }
+          const open = Boolean(openGroups[section.id]);
           return (
-            <div key={section.id} className="sidebar-nav-group" role="group" aria-label={section.label}>
-              <p className="sidebar-nav-group-label sidebar-label">{section.label}</p>
+            <div key={section.id} className={cn("sidebar-nav-group", open && "is-open")} role="group" aria-label={section.label}>
+              <button
+                type="button"
+                className="sidebar-nav-group-label"
+                aria-expanded={open}
+                onClick={() => setOpenGroups((current) => (current[section.id] ? {} : { [section.id]: true }))}
+              >
+                <span>{section.label}</span>
+                <LucideIcon name="chevron-right" size={16} className="sidebar-nav-chevron" aria-hidden />
+              </button>
               <div className="sidebar-nav-group-items">
                 {section.items.map((item) => (
                   <SidebarNavItem

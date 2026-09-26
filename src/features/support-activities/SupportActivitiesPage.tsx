@@ -27,6 +27,8 @@ import { DUE_WINDOW_FILTER_OPTIONS } from "@/lib/fgUrgency";
 import { formatAppDate } from "@/lib/date";
 import {
   clearSupportUrlFilterParams,
+  parseActivityKind,
+  returnPathWithRecord,
   supportFilterBannerLabels,
   supportFiltersFromSearchParams,
 } from "@/lib/urlDerivedFilters";
@@ -259,11 +261,17 @@ export function SupportActivitiesPage() {
 
   useEffect(() => {
     if (createNewParam !== "1" || activityIdParam) return;
-    clearForm();
+    const kind = parseActivityKind(searchParams.get("activity_kind")) ?? "TSD";
+    const cleared = { ...emptyActivity(), activity_kind: kind };
+    baselineFormRef.current = cleared;
+    setForm(cleared);
+    setFilters((current) => ({ ...current, activity_kind: kind }));
+    if (user?.id) clearSupportActivityDraft(user.id);
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current);
         next.delete("new");
+        next.set("activity_kind", kind);
         return next;
       },
       { replace: true },
@@ -274,7 +282,7 @@ export function SupportActivitiesPage() {
       );
       first?.focus();
     });
-  }, [createNewParam, activityIdParam, setSearchParams, user?.id]);
+  }, [createNewParam, activityIdParam, searchParams, setSearchParams, user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -425,7 +433,7 @@ export function SupportActivitiesPage() {
         });
         navigate(`/endorsement-tracker?${params.toString()}`);
       } else if (returnToPath) {
-        navigate(returnToPath);
+        navigate(returnPathWithRecord(returnToPath, "activityId", savedActivityId ?? ""));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");

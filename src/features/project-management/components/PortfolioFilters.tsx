@@ -15,6 +15,7 @@ import type {
 interface PortfolioFiltersBarProps {
   filters: PortfolioFilters;
   owners: string[];
+  showSearch?: boolean;
   onChange: (next: PortfolioFilters) => void;
 }
 
@@ -48,7 +49,7 @@ const PHASE_OPTIONS: Array<{ label: string; value: PortfolioFilters["phase"] }> 
   ...WORKFLOW_PHASES.map((phase) => ({ label: WORKFLOW_PHASE_LABELS[phase], value: phase })),
 ];
 
-export function PortfolioFiltersBar({ filters, owners, onChange }: PortfolioFiltersBarProps) {
+export function PortfolioFiltersBar({ filters, owners, showSearch = true, onChange }: PortfolioFiltersBarProps) {
   const [search, setSearch] = useState(filters.search);
   useEffect(() => {
     setSearch(filters.search);
@@ -62,15 +63,17 @@ export function PortfolioFiltersBar({ filters, owners, onChange }: PortfolioFilt
 
   return (
     <div className="pm-filters project-management-toolbar" role="search">
-      <Input.Search
-        className="pm-filters-search"
-        allowClear
-        placeholder="Search projects..."
-        aria-label="Search portfolio"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        onSearch={(value) => onChange({ ...filters, search: value })}
-      />
+      {showSearch ? (
+        <Input.Search
+          className="pm-filters-search"
+          allowClear
+          placeholder="Search projects..."
+          aria-label="Search portfolio"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          onSearch={(value) => onChange({ ...filters, search: value })}
+        />
+      ) : null}
       <Select
         aria-label="Filter by source"
         value={filters.sourceType}

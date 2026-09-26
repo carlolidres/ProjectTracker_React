@@ -1,4 +1,4 @@
-import { Button, DatePicker, Empty, Select, Table, Tag } from "antd";
+import { Button, DatePicker, Dropdown, Empty, Select, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { useMemo, useState } from "react";
@@ -10,7 +10,6 @@ import {
   MY_TASK_SECTION_LABELS,
   MY_TASK_SECTION_ORDER,
   myTaskSection,
-  PM_TASK_STATUS_COLORS,
   PM_TASK_STATUSES,
 } from "@/lib/projectManagementWorkflow";
 import type { PmTaskPriority, PmTaskStatus, Profile, WorkflowBoardItem } from "@/types";
@@ -34,8 +33,10 @@ interface SharedViewProps {
   projectTitles?: Record<string, string>;
   canEditTasks?: boolean;
   onPatchTask?: (item: WorkflowBoardItem, patch: Partial<Pick<WorkflowBoardItem, "status" | "priority" | "targetDate" | "percentComplete">>) => void;
+  onSourceStatus?: (item: WorkflowBoardItem) => void;
   milestones?: CalendarMilestone[];
   onOpenMilestone?: (item: CalendarMilestone) => void;
+  onBackToTable?: () => void;
 }
 
 export function TaskTableView({
@@ -45,6 +46,7 @@ export function TaskTableView({
   projectTitles,
   canEditTasks,
   onPatchTask,
+  onSourceStatus,
 }: SharedViewProps) {
   const columns: ColumnsType<WorkflowBoardItem> = [
     { title: "Task", dataIndex: "title", ellipsis: true },
@@ -63,24 +65,45 @@ export function TaskTableView({
     {
       title: "Status",
       dataIndex: "status",
-      width: 150,
+      width: 140,
+      className: "pm-fill-col",
+      onCell: () => ({ className: "pm-fill-col" }),
       render: (status: WorkflowBoardItem["status"], row) => {
+        const slug = status.toLowerCase().replace(/\s+/g, "-");
         if (canEditTasks && onPatchTask && row.origin === "user") {
           return (
-            <Select
-              size="small"
-              value={status}
-              options={PM_TASK_STATUSES.map((value) => ({ label: value, value }))}
-              onClick={(event) => event.stopPropagation()}
-              onChange={(next: PmTaskStatus) => onPatchTask(row, { status: next })}
-              style={{ width: 130 }}
-            />
+            <Dropdown
+              trigger={["click"]}
+              menu={{
+                items: PM_TASK_STATUSES.map((value) => ({ key: value, label: value })),
+                onClick: ({ key, domEvent }) => {
+                  domEvent.stopPropagation();
+                  onPatchTask(row, { status: key as PmTaskStatus });
+                },
+              }}
+            >
+              <button
+                type="button"
+                className={`pm-fill-cell pm-task-${slug}`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                {status}
+              </button>
+            </Dropdown>
           );
         }
         return (
-          <Tag color={isOverdueTask(row) && status !== "Done" ? "red" : PM_TASK_STATUS_COLORS[status]}>
+          <button
+            type="button"
+            className={`pm-fill-cell pm-task-${slug}${isOverdueTask(row) && status !== "Done" ? " is-overdue" : ""}`}
+            title="This status comes from the project record"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSourceStatus?.(row);
+            }}
+          >
             {isOverdueTask(row) && status !== "Done" ? "Overdue" : status}
-          </Tag>
+          </button>
         );
       },
     },
@@ -334,6 +357,7 @@ export function MyTasksView({
   projectTitles,
   canEditTasks,
   onPatchTask,
+  onBackToTable,
 }: SharedViewProps) {
   const mine = items.filter((item) => currentUserId && item.assigneeIds.includes(currentUserId) && item.origin === "user");
   const sections = MY_TASK_SECTION_ORDER.map((section) => ({
@@ -345,17 +369,19 @@ export function MyTasksView({
     <section className="pm-my-tasks" aria-label="My tasks">
       <div className="pm-my-tasks-toolbar">
         <div>
-          <h2 className="pm-panel-title">Assigned to you</h2>
-          <p className="pm-panel-copy">Tasks you own stay here. Source work still lives on Projects Database and Support Activities.</p>
+          <h2 className="pm-panel-title">Your tasks</h2>
+          <p className="pm-panel-copy">Tasks assigned to you, grouped by when they are due.</p>
         </div>
-        {canCreate && onCreate ? (
+        {mine.length > 0 && canCreate && onCreate ? (
           <Button type="primary" icon={<LucideIcon name="plus" size={14} />} onClick={() => onCreate()}>
             New task
           </Button>
         ) : null}
       </div>
       {mine.length === 0 ? (
-        <Empty description="No tasks assigned to you. Add one and pick a Projects Database or Support Activities record." />
+        <Empty description="No tasks assigned to you.">
+          {onBackToTable ? <Button type="primary" onClick={onBackToTable}>Main table</Button> : null}
+        </Empty>
       ) : (
         sections.map((group) => (
           <section key={group.section} className="pm-task-section" aria-label={MY_TASK_SECTION_LABELS[group.section]}>

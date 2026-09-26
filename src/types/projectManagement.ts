@@ -202,4 +202,4 @@ export interface ProjectManagementTaskInput {
   assigneeIds: string[];
 }
 
-export type ProjectManagementPageView = "portfolio" | "my_tasks" | "board" | "calendar";
+export type ProjectManagementPageView = "portfolio" | "my_tasks" | "board" | "calendar" | "gantt";

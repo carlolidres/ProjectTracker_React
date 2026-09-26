@@ -1,5 +1,5 @@
 import { collectCnfChangeDescriptions } from "@/lib/cnfTrackerAggregation";
-import { parseAppDateValue } from "@/lib/date";
+import { formatAppDate, parseAppDateValue } from "@/lib/date";
 import { parseFgDeliveryDate } from "@/lib/fgUrgency";
 import { deriveWorkflowSnapshot, WORKFLOW_PHASE_LABELS } from "@/lib/projectManagementWorkflow";
 import { isMissingValue, valueOrNA } from "@/lib/utils";
@@ -108,6 +108,7 @@ export function parseProjectManagementView(value: string | null | undefined): Pr
   if (normalized === "tasks" || normalized === "my_tasks") return "my_tasks";
   if (normalized === "board") return "board";
   if (normalized === "calendar") return "calendar";
+  if (normalized === "gantt") return "gantt";
   return "portfolio";
 }
 
@@ -503,6 +504,63 @@ export function portfolioFiltersAreActive(filters: PortfolioFilters): boolean {
     || filters.owner !== "all"
     || filters.priority !== "all"
   );
+}
+
+export type PortfolioGroupBy = "status" | "owner" | "phase";
+
+export function portfolioGroupId(item: PortfolioItem, groupBy: PortfolioGroupBy): string {
+  if (groupBy === "owner") return item.owner && item.owner !== "N/A" ? item.owner : "Unassigned";
+  if (groupBy === "phase") return item.phase;
+  return item.boardStatus;
+}
+
+export function summarizePortfolioGroup(items: PortfolioItem[]): {
+  high: number;
+  medium: number;
+  low: number;
+  dueLabel: string;
+  statusCounts: Record<PortfolioBoardStatus, number>;
+} {
+  let high = 0;
+  let medium = 0;
+  let low = 0;
+  let earliest = "";
+  let latest = "";
+  const statusCounts = Object.fromEntries(BOARD_STATUS_ORDER.map((status) => [status, 0])) as Record<PortfolioBoardStatus, number>;
+  for (const item of items) {
+    statusCounts[item.boardStatus] += 1;
+    if (item.priority === "High") high += 1;
+    else if (item.priority === "Medium") medium += 1;
+    else if (item.priority === "Low") low += 1;
+    const parsed = parseAppDateValue(item.targetDate) ?? parseFgDeliveryDate(item.targetDate);
+    if (!parsed) continue;
+    const iso = parsed.format("YYYY-MM-DD");
+    if (!earliest || iso < earliest) earliest = iso;
+    if (!latest || iso > latest) latest = iso;
+  }
+  const start = earliest ? formatAppDate(earliest) : "";
+  const end = latest ? formatAppDate(latest) : "";
+  const dueLabel = !start ? "—" : start === end ? start : `${start} – ${end}`;
+  return { high, medium, low, dueLabel, statusCounts };
+}
+
+export function portfolioTimeline(
+  tasks: Array<Pick<ProjectManagementTask, "startDate" | "targetDate">>,
+): { start: string; end: string; label: string } {
+  const isos: string[] = [];
+  for (const task of tasks) {
+    for (const value of [task.startDate, task.targetDate]) {
+      const parsed = parseAppDateValue(value);
+      if (parsed) isos.push(parsed.format("YYYY-MM-DD"));
+    }
+  }
+  if (isos.length === 0) return { start: "", end: "", label: "" };
+  isos.sort();
+  const start = isos[0] ?? "";
+  const end = isos[isos.length - 1] ?? start;
+  const startLabel = formatAppDate(start);
+  const endLabel = formatAppDate(end);
+  return { start, end, label: start === end ? startLabel : `${startLabel} – ${endLabel}` };
 }
 
 export function portfolioAssigneeKey(sourceType: string, sourceId: string): string {

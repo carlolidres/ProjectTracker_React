@@ -11,12 +11,15 @@ import {
   buildDerivedWorkflowItems,
   buildTaskDraftFromBoardItem,
   deriveWorkflowSnapshot,
+  executionChecklistForRows,
+  executionSubtaskTitles,
   findUserTaskForBoardItem,
   mergeWorkflowBoardItems,
   myTaskSection,
   taskPhaseAllowed,
   taskPhaseFromWorkflowPhase,
   toPmTaskPhase,
+  workStepFromPhase,
 } from "../src/lib/projectManagementWorkflow";
 import type { ProjectRow, SupportActivity } from "../src/types";
 
@@ -297,12 +300,50 @@ const linkedTask = {
 const protocolRow = derived.find((item) => item.title === "Protocol approval");
 assert.ok(protocolRow);
 assert.equal(findUserTaskForBoardItem(protocolRow, [linkedTask])?.id, "task-1");
-assert.equal(mergeWorkflowBoardItems(derived, [linkedTask])[0]?.origin, "user");
+const sameTitleLaterPhase = {
+  ...linkedTask,
+  id: "task-later",
+  phase: "execution" as const,
+  status: "Done" as const,
+};
+assert.equal(findUserTaskForBoardItem(protocolRow, [sameTitleLaterPhase]), null);
+const protocolDraftFromRow = buildTaskDraftFromBoardItem(protocolRow, "process", "PROJ-2026-001");
+assert.equal(protocolDraftFromRow.status, protocolRow.status === "Done" ? "Planned" : protocolRow.status);
+const merged = mergeWorkflowBoardItems(derived, [sameTitleLaterPhase, linkedTask]);
+assert.equal(merged.find((item) => item.origin === "system" && item.title === "Protocol approval"), undefined);
+assert.equal(merged.find((item) => item.origin === "user" && item.phase === "protocol")?.status, "Planned");
+assert.equal(merged.find((item) => item.origin === "user" && item.phase === "protocol")?.id, "task-1");
+const mergedUnlinked = mergeWorkflowBoardItems(derived, [sameTitleLaterPhase]);
+assert.equal(mergedUnlinked[0]?.origin, "system");
+assert.equal(mergedUnlinked[0]?.title, "Protocol approval");
+const protocolIndexes = merged.flatMap((item, index) => toPmTaskPhase(item.phase) === "protocol" ? [index] : []);
+const executionIndexes = merged.flatMap((item, index) => toPmTaskPhase(item.phase) === "execution" ? [index] : []);
+assert.ok(Math.max(...protocolIndexes) < Math.min(...executionIndexes));
 assert.equal(buildTaskDraftFromBoardItem(protocolRow, "process", "PROJ-2026-001").phase, "protocol");
 
 assert.equal(taskPhaseFromWorkflowPhase("protocol_prep"), "protocol");
 assert.equal(taskPhaseFromWorkflowPhase("execution_planning"), "execution");
 assert.equal(taskPhaseFromWorkflowPhase("report_review"), "report");
+assert.equal(derived.some((item) => item.title === "Manufacturing start week"), false);
+const checks = executionChecklistForRows([project({
+  manufacturing_start_week: "2026-W10",
+  mo_bmr_po_activation_date: "N/A",
+  ar_availability_date: "",
+  packaging_schedule: "N/A",
+})]);
+assert.equal(checks.length, 4);
+assert.equal(checks[0]?.label, "Manufacturing start week");
+assert.equal(checks[0]?.complete, true);
+assert.equal(checks[1]?.complete, false);
+assert.deepEqual(executionSubtaskTitles("process"), [
+  "Manufacturing start week",
+  "MO/BMR/PO activation date",
+  "AR availability date",
+  "Packaging schedule",
+]);
+assert.deepEqual(executionSubtaskTitles("support"), ["Support execution"]);
+assert.equal(workStepFromPhase("protocol_review"), "protocol");
+assert.equal(workStepFromPhase("closure"), "endorsement");
 
 const protocolSnapshot = deriveWorkflowSnapshot({
   sourceType: "process",

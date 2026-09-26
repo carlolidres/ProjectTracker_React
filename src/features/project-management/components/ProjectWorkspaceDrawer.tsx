@@ -1,4 +1,4 @@
-import { Alert, Button, Descriptions, Drawer, Input, List, Modal, Space, Spin, Steps, Tabs, Tag, Typography, message } from "antd";
+import { Alert, Button, Descriptions, Drawer, Empty, Input, List, Modal, Space, Spin, Steps, Tabs, Tag, Typography, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { WorkflowStatusBadge } from "@/components/common/workflow-status-badge";
@@ -18,8 +18,13 @@ import {
   deriveWorkflowSnapshot,
   findUserTaskForBoardItem,
   mergeWorkflowBoardItems,
+  executionChecklistForRows,
+  executionSubtaskTitles,
+  toProjectManagementTaskInput,
+  WORK_STEP_LABELS,
+  WORK_STEPS,
   WORKFLOW_PHASE_LABELS,
-  WORKFLOW_PHASES,
+  workStepFromPhase,
 } from "@/lib/projectManagementWorkflow";
 import { listAuditLogs } from "@/services/auditService";
 import {
@@ -33,9 +38,6 @@ import {
 import { OverridePhaseModal } from "@/features/project-management/components/OverridePhaseModal";
 import { TaskFormModal } from "@/features/project-management/components/TaskFormModal";
 import {
-  MyTasksView,
-  TaskBoardView,
-  TaskCalendarView,
   TaskTableView,
 } from "@/features/project-management/components/TaskViews";
 import type {
@@ -106,7 +108,7 @@ export function ProjectWorkspaceDrawer({
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ProjectManagementTask | null>(null);
   const [taskDraft, setTaskDraft] = useState<Partial<ProjectManagementTaskInput> | null>(null);
-  const [activeTab, setActiveTab] = useState("table");
+  const [activeTab, setActiveTab] = useState("step");
   const [commentTask, setCommentTask] = useState<ProjectManagementTask | null>(null);
   const [comments, setComments] = useState<ProjectManagementComment[]>([]);
   const [commentBody, setCommentBody] = useState("");
@@ -140,7 +142,7 @@ export function ProjectWorkspaceDrawer({
   }, [item, load, open]);
 
   useEffect(() => {
-    if (open && item) setActiveTab("table");
+    if (open && item) setActiveTab("step");
   }, [item?.id, open]);
 
   const snapshot = useMemo(
@@ -167,7 +169,13 @@ export function ProjectWorkspaceDrawer({
     );
   }, [item, projectRows, support, tasks]);
 
-  const phaseIndex = Math.max(0, WORKFLOW_PHASES.indexOf(snapshot.phase));
+  const currentStep = workStepFromPhase(snapshot.phase);
+  const stepIndex = Math.max(0, WORK_STEPS.indexOf(currentStep));
+  const nextStep = WORK_STEPS[stepIndex + 1];
+  const stepLine = nextStep
+    ? `${WORK_STEP_LABELS[currentStep]}. Next is ${WORK_STEP_LABELS[nextStep]}.`
+    : `${WORK_STEP_LABELS[currentStep]}.`;
+  const executionChecks = item?.sourceType === "process" ? executionChecklistForRows(projectRows) : [];
   const assigner = canAssignTasks;
   const canOverride = canOverridePmPhase(role);
   const canMaintainTask = canCreate || canEdit;
@@ -227,6 +235,7 @@ export function ProjectWorkspaceDrawer({
       else await createProjectManagementTask(payload);
       setTaskModalOpen(false);
       setEditingTask(null);
+      setTaskDraft(null);
       await load();
       onChanged();
       message.success("Task saved.");
@@ -267,6 +276,37 @@ export function ProjectWorkspaceDrawer({
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Failed to add comment");
     }
+  };
+
+  const handlePatchTask = async (
+    boardItem: WorkflowBoardItem,
+    patch: Partial<Pick<WorkflowBoardItem, "status" | "priority" | "targetDate" | "percentComplete">>,
+  ) => {
+    if (boardItem.origin !== "user") return;
+    const task = tasks.find((row) => row.id === boardItem.id);
+    if (!task) return;
+    const previous = tasks;
+    setTasks((current) => current.map((row) => (row.id === task.id ? { ...row, ...patch } : row)));
+    try {
+      await updateProjectManagementTask(task.id, { ...toProjectManagementTaskInput(task), ...patch });
+      onChanged();
+    } catch (err) {
+      setTasks(previous);
+      message.error(err instanceof Error ? err.message : "Could not update the task. Your previous value has been restored.");
+    }
+  };
+
+  const explainSourceStatus = () => {
+    if (!item || !canOpenSource) {
+      message.info("This status comes from the project record.");
+      return;
+    }
+    Modal.confirm({
+      title: "This status is on the project record",
+      content: "Changing a task does not update protocol, execution, or report status.",
+      okText: `Open ${sourceLabel}`,
+      onOk: () => onOpenSource(portfolioSourcePath(item)),
+    });
   };
 
   const sourceLabel = item?.sourceType === "process" ? "Project record" : "Support activity";
@@ -324,37 +364,156 @@ export function ProjectWorkspaceDrawer({
       ) : item ? (
         <Space direction="vertical" size="middle" style={{ width: "100%" }}>
           {error ? <Alert type="error" showIcon message={error} /> : null}
-          <div className="pm-phase-steps">
-            <Steps
-              size="small"
-              current={phaseIndex}
-              items={WORKFLOW_PHASES.map((phase) => ({ title: WORKFLOW_PHASE_LABELS[phase] }))}
-            />
-          </div>
-          {!snapshot.canEnterExecution ? (
-            <Alert
-              type="warning"
-              showIcon
-              message="Execution is gated until the protocol is Approved or Not Applicable."
-              description={snapshot.incompleteRequirements.map((row) => row.label).join(". ")}
-            />
-          ) : null}
-          {snapshot.canEnterExecution && !snapshot.canEnterReport ? (
-            <Alert
-              type="warning"
-              showIcon
-              message="Report/Endorsement is gated until execution requirements are complete."
-              description={snapshot.incompleteRequirements.map((row) => row.label).join(". ")}
-            />
-          ) : null}
-
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
             items={[
               {
+                key: "step",
+                label: "This step",
+                children: (
+                  <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+                    <div className="pm-phase-steps">
+                      <Steps
+                        size="small"
+                        current={stepIndex}
+                        items={WORK_STEPS.map((step) => ({ title: WORK_STEP_LABELS[step] }))}
+                      />
+                    </div>
+                    <Typography.Title level={5} style={{ margin: 0 }}>{stepLine}</Typography.Title>
+                    {!snapshot.canEnterExecution ? (
+                      <Alert
+                        type="warning"
+                        showIcon
+                        message="Execution stays closed until the protocol is Approved or Not Applicable."
+                        description={snapshot.incompleteRequirements.map((row) => row.label).join(". ") || "Protocol is still open."}
+                      />
+                    ) : null}
+                    {snapshot.canEnterExecution && !snapshot.canEnterReport ? (
+                      <Alert
+                        type="warning"
+                        showIcon
+                        message="Report stays closed until execution is complete."
+                        description={snapshot.incompleteRequirements.map((row) => row.label).join(". ") || "Execution is still open."}
+                      />
+                    ) : null}
+                    {currentStep === "execution" ? (
+                      <ul className="pm-execution-checks">
+                        {executionSubtaskTitles(item.sourceType).map((title) => {
+                          const check = executionChecks.find((row) => row.label === title);
+                          const added = tasks.some((task) => task.phase === "execution" && task.title.trim().toLowerCase() === title.toLowerCase());
+                          return (
+                            <li key={title}>
+                              {check ? (
+                                <span className={check.complete ? "is-filled" : "is-open"}>{check.complete ? "Filled" : "Still open"}</span>
+                              ) : null}
+                              <span>{title}</span>
+                              {canCreate && !added ? (
+                                <Button type="link" size="small" onClick={() => createTask({ phase: "execution", title })}>
+                                  Add subtask
+                                </Button>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                    <Space wrap>
+                      {canOpenSource ? (
+                        <Button type="primary" onClick={() => onOpenSource(portfolioSourcePath(item))}>
+                          Update this step
+                        </Button>
+                      ) : null}
+                      {canCreate ? (
+                        <Button onClick={() => createTask({ phase: currentStep })}>Add a task</Button>
+                      ) : null}
+                    </Space>
+                  </Space>
+                ),
+              },
+              {
+                key: "updates",
+                label: "Updates",
+                children: (
+                  <div className="pm-comments">
+                    <Typography.Paragraph type="secondary">
+                      Pick a task to read or write an update. Official project status stays on the source record.
+                    </Typography.Paragraph>
+                    {tasks.length === 0 ? (
+                      <Empty description="No task updates yet. Add a task from This step." />
+                    ) : (
+                      <Space wrap style={{ marginBottom: 12 }}>
+                        {tasks.map((task) => (
+                          <Button
+                            key={task.id}
+                            type={commentTask?.id === task.id ? "primary" : "default"}
+                            onClick={() => {
+                              setCommentTask(task);
+                              void listTaskComments(task.id).then(setComments).catch(() => setComments([]));
+                            }}
+                          >
+                            {task.title}
+                          </Button>
+                        ))}
+                      </Space>
+                    )}
+                    {commentTask ? (
+                      <>
+                        <Typography.Title level={5}>Updates · {commentTask.title}</Typography.Title>
+                        <List
+                          size="small"
+                          dataSource={comments}
+                          locale={{ emptyText: "No updates yet." }}
+                          renderItem={(row) => {
+                            const profile = profiles.find((entry) => entry.id === row.createdBy);
+                            return (
+                              <List.Item>
+                                <List.Item.Meta
+                                  title={getProfileDisplayName(profile) || profile?.email || "User"}
+                                  description={row.body}
+                                />
+                              </List.Item>
+                            );
+                          }}
+                        />
+                        {canEdit || canCreate || canUpdateAssignedPmTask(role, userId, commentTask.assigneeIds, assignmentEligible) ? (
+                          <Space.Compact style={{ width: "100%" }}>
+                            <Input
+                              value={commentBody}
+                              onChange={(event) => setCommentBody(event.target.value)}
+                              placeholder="Write an update"
+                              onPressEnter={() => void handleComment()}
+                            />
+                            <Button onClick={() => void handleComment()}>Post</Button>
+                          </Space.Compact>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </div>
+                ),
+              },
+              {
+                key: "activity",
+                label: "Activity",
+                children: (
+                  <List
+                    size="small"
+                    dataSource={activity}
+                    locale={{ emptyText: "No activity recorded for this record yet." }}
+                    renderItem={(row) => (
+                      <List.Item>
+                        <List.Item.Meta
+                          title={`${row.user_email} ${row.action.toLowerCase()} ${row.field_name.replace(/_/g, " ")}`}
+                          description={`${row.old_value || "—"} → ${row.new_value || "—"} · ${row.timestamp}${row.remarks ? ` · ${row.remarks}` : ""}`}
+                        />
+                      </List.Item>
+                    )}
+                  />
+                ),
+              },
+              {
                 key: "overview",
-                label: "Overview",
+                label: "Details",
                 children: (
                   <Descriptions column={1} size="small" bordered>
                     <Descriptions.Item label="Source">
@@ -399,107 +558,22 @@ export function ProjectWorkspaceDrawer({
                 children: (
                   <>
                     <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
-                      Click a task to edit it. Click a source row to open or create its task.
+                      Click a colored status to change a task. Source rows open the project record instead.
                     </Typography.Paragraph>
                     <TaskTableView
                       items={boardItems}
                       profiles={profiles}
                       currentUserId={userId}
                       onOpen={openUserTask}
+                      canEditTasks={canMaintainTask}
+                      onPatchTask={(boardItem, patch) => void handlePatchTask(boardItem, patch)}
+                      onSourceStatus={() => explainSourceStatus()}
                     />
                   </>
                 ),
               },
-              {
-                key: "board",
-                label: "Board",
-                children: (
-                  <TaskBoardView
-                    items={boardItems}
-                    profiles={profiles}
-                    currentUserId={userId}
-                    onOpen={openUserTask}
-                  />
-                ),
-              },
-              {
-                key: "calendar",
-                label: "Calendar",
-                children: (
-                  <TaskCalendarView
-                    items={boardItems}
-                    profiles={profiles}
-                    currentUserId={userId}
-                    onOpen={openUserTask}
-                  />
-                ),
-              },
-              {
-                key: "my-tasks",
-                label: "My Tasks",
-                children: (
-                  <MyTasksView
-                    items={boardItems}
-                    profiles={profiles}
-                    currentUserId={userId}
-                    onOpen={openUserTask}
-                  />
-                ),
-              },
-              {
-                key: "activity",
-                label: "Activity",
-                children: (
-                  <List
-                    size="small"
-                    dataSource={activity}
-                    locale={{ emptyText: "No activity recorded for this record yet." }}
-                    renderItem={(row) => (
-                      <List.Item>
-                        <List.Item.Meta
-                          title={`${row.user_email} ${row.action.toLowerCase()} ${row.field_name.replace(/_/g, " ")}`}
-                          description={`${row.old_value || "—"} → ${row.new_value || "—"} · ${row.timestamp}${row.remarks ? ` · ${row.remarks}` : ""}`}
-                        />
-                      </List.Item>
-                    )}
-                  />
-                ),
-              },
             ]}
           />
-
-          {commentTask ? (
-            <div className="pm-comments">
-              <Typography.Title level={5}>Comments · {commentTask.title}</Typography.Title>
-              <List
-                size="small"
-                dataSource={comments}
-                locale={{ emptyText: "No comments yet." }}
-                renderItem={(row) => {
-                  const profile = profiles.find((entry) => entry.id === row.createdBy);
-                  return (
-                    <List.Item>
-                      <List.Item.Meta
-                        title={getProfileDisplayName(profile) || profile?.email || "User"}
-                        description={row.body}
-                      />
-                    </List.Item>
-                  );
-                }}
-              />
-              {canEdit || canCreate || canUpdateAssignedPmTask(role, userId, commentTask.assigneeIds, assignmentEligible) ? (
-                <Space.Compact style={{ width: "100%" }}>
-                  <Input
-                    value={commentBody}
-                    onChange={(event) => setCommentBody(event.target.value)}
-                    placeholder="Add a comment"
-                    onPressEnter={() => void handleComment()}
-                  />
-                  <Button onClick={() => void handleComment()}>Post</Button>
-                </Space.Compact>
-              ) : null}
-            </div>
-          ) : null}
         </Space>
       ) : null}
 
@@ -517,7 +591,10 @@ export function ProjectWorkspaceDrawer({
         dependencyOptions={boardItems}
         initial={taskDraft}
         existing={editingTask}
-        onCancel={() => setTaskModalOpen(false)}
+        onCancel={() => {
+          setTaskModalOpen(false);
+          setTaskDraft(null);
+        }}
         onSubmit={handleSaveTask}
       />
       <OverridePhaseModal

@@ -25,7 +25,7 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 |---|---|---|
 | Auth | `src/features/auth/LoginPage.tsx` | Login flow and public entry route. |
 | Dashboard | `src/features/dashboard/DashboardPage.tsx` | Primary workspace: KPIs, My work, New task, meeting view. Hub flag keeps KPI filters on Dashboard. |
-| Project Management | `src/features/project-management/ProjectManagementPage.tsx` | My work: grouped Portfolio table, Board kanban, My Tasks date groups, Calendar; New Project returns to this page. |
+| Project Management | `src/features/project-management/ProjectManagementPage.tsx` | My work: main table by default, More views including a per-project Gantt timeline, This step drawer. Project status stays derived. |
 | Project Management model | `src/lib/projectManagementPortfolio.ts` | Portfolio rows plus derived board status (For Review / At Risk / Blocked), progress, filters, and grouping. |
 | Project Management workflow | `src/lib/projectManagementWorkflow.ts` | Phase gates, incomplete requirements, derived source workflow items. |
 | Project Management permissions | `src/lib/projectManagementPermissions.ts` | Assign/override/reopen. VAL is always an assignee. User-task create is not phase-gated. |
@@ -82,9 +82,9 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 | `src/hooks/use-change-summaries.ts` | Local CNF change shorten plus optional OpenAI Edge Function upgrade. |
 | `src/lib/changeDescriptionSummary.ts` | Deterministic card-length CNF change shortener and session cache key. |
 | `src/services/changeSummaryService.ts` | Invokes `summarize-change` Edge Function for authenticated users. |
-| `src/components/layout/sidebar.tsx` | Grouped navigation (Projects, Trackers, Admin) with role-aware children. |
+| `src/components/layout/sidebar.tsx` | Grouped navigation (Projects, Trackers, Admin) with role-aware children. Accordion groups. Saved menu order still applies. |
 | `src/components/layout/sidebar-nav.ts` | Sidebar icons mapped onto the nav tree. |
-| `src/components/layout/sidebar-nav-tree.ts` | Sidebar groups, visibility, flatten for collapsed rail; Ask AI is header-only. |
+| `src/components/layout/sidebar-nav-tree.ts` | Sidebar groups, visibility, flatten for collapsed rail; order helpers `moveSidebarKey` and `applySidebarOrder`. Ask AI is header-only. |
 | `src/components/layout/ask-ai-button.tsx` | Header / collapsed-chrome Ask AI control (`ai_assistant` View). |
 | `src/components/layout/topbar.tsx` | Header controls (Ask AI, Back/Forward beside About); collapses with sidebar on desktop. |
 | `src/components/common/dashboard-filter-banner.tsx` | Active dashboard/database filter chip banner. |

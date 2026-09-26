@@ -106,20 +106,20 @@ export function TaskFormModal({
     const sourceType = existing?.sourceType ?? initial?.sourceType;
     const sourceId = existing?.sourceId ?? initial?.sourceId;
     form.setFieldsValue({
-      title: initial?.title ?? existing?.title ?? "",
-      instructions: initial?.instructions ?? existing?.instructions ?? "",
-      phase: initial?.phase ?? existing?.phase ?? "execution",
-      status: initial?.status ?? existing?.status ?? "Planned",
-      priority: initial?.priority ?? existing?.priority ?? "Medium",
-      percentComplete: initial?.percentComplete ?? existing?.percentComplete ?? 0,
-      startDate: initial?.startDate ?? existing?.startDate ?? "",
-      targetDate: initial?.targetDate ?? existing?.targetDate ?? "",
-      actualDate: initial?.actualDate ?? existing?.actualDate ?? "",
-      category: initial?.category ?? existing?.category ?? "Other",
-      parentTaskId: initial?.parentTaskId ?? existing?.parentTaskId ?? null,
-      dependsOnTaskId: initial?.dependsOnTaskId ?? existing?.dependsOnTaskId ?? null,
-      attachmentUrl: initial?.attachmentUrl ?? existing?.attachmentUrl ?? "",
-      assigneeIds: initial?.assigneeIds ?? existing?.assigneeIds ?? [],
+      title: existing?.title ?? initial?.title ?? "",
+      instructions: existing?.instructions ?? initial?.instructions ?? "",
+      phase: existing?.phase ?? initial?.phase ?? "execution",
+      status: existing?.status ?? initial?.status ?? "Planned",
+      priority: existing?.priority ?? initial?.priority ?? "Medium",
+      percentComplete: existing?.percentComplete ?? initial?.percentComplete ?? 0,
+      startDate: existing?.startDate ?? initial?.startDate ?? "",
+      targetDate: existing?.targetDate ?? initial?.targetDate ?? "",
+      actualDate: existing?.actualDate ?? initial?.actualDate ?? "",
+      category: existing?.category ?? initial?.category ?? "Other",
+      parentTaskId: existing?.parentTaskId ?? initial?.parentTaskId ?? null,
+      dependsOnTaskId: existing?.dependsOnTaskId ?? initial?.dependsOnTaskId ?? null,
+      attachmentUrl: existing?.attachmentUrl ?? initial?.attachmentUrl ?? "",
+      assigneeIds: existing?.assigneeIds ?? initial?.assigneeIds ?? [],
       sourceKey: sourceType && sourceId ? sourceKey(sourceType, sourceId) : undefined,
       reopenReason: "",
     });
@@ -299,7 +299,7 @@ export function TaskFormModal({
         <Typography.Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 12 }}>
           {needsSource
             ? "Select a Projects Database or Support Activities record. Title, phase, and category fill from its current step; a calendar date stays unless you change it."
-            : "Title, phase, category, and dates come from the current workspace step. Open More details to change them."}
+            : "Saving updates this task. Official protocol, execution, and report status stay on the project record."}
         </Typography.Paragraph>
       </Form>
     </Modal>

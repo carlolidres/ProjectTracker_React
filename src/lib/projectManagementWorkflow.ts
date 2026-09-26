@@ -30,6 +30,17 @@ export const WORKFLOW_PHASES: readonly WorkflowPhase[] = [
   "closure",
 ];
 
+export const WORK_STEPS = ["protocol", "execution", "report", "endorsement"] as const;
+
+export type WorkStep = (typeof WORK_STEPS)[number];
+
+export const WORK_STEP_LABELS: Record<WorkStep, string> = {
+  protocol: "Protocol",
+  execution: "Execution",
+  report: "Report",
+  endorsement: "Endorsement",
+};
+
 export const WORKFLOW_PHASE_LABELS: Record<WorkflowPhase, string> = {
   protocol_prep: "Protocol Preparation",
   protocol_review: "Protocol Review and Revision",
@@ -433,22 +444,6 @@ export function buildDerivedWorkflowItems(input: {
         fieldKey: "protocol_Status",
       }),
     ];
-    for (const field of PROCESS_EXECUTION_FIELDS) {
-      const value = String(row[field.key as keyof ProjectRow] ?? "");
-      items.push(systemItem({
-        id: `system:${input.sourceId}:${field.key}`,
-        sourceType: "process",
-        sourceId: input.sourceId,
-        title: field.label,
-        phase: "execution",
-        status: mapTaskStatusFromField(isProjectFieldComplete(row, field.key), value, !isMissingValue(value)),
-        category,
-        startDate: "",
-        targetDate: displayText(value, ""),
-        actualDate: "",
-        fieldKey: field.key,
-      }));
-    }
     items.push(systemItem({
       id: `system:${input.sourceId}:validation_report`,
       sourceType: "process",
@@ -627,11 +622,38 @@ export function mapUserTaskToBoardItem(task: ProjectManagementTask): WorkflowBoa
   };
 }
 
+const TASK_PHASE_SEQUENCE: readonly PmTaskPhase[] = [
+  "protocol",
+  "execution",
+  "report",
+  "endorsement",
+  "other",
+];
+
+function taskPhaseRank(phase: PmTaskPhase | WorkflowPhase): number {
+  const index = TASK_PHASE_SEQUENCE.indexOf(toPmTaskPhase(phase));
+  return index === -1 ? TASK_PHASE_SEQUENCE.length : index;
+}
+
 export function mergeWorkflowBoardItems(
   derived: WorkflowBoardItem[],
   tasks: ProjectManagementTask[],
 ): WorkflowBoardItem[] {
-  return [...tasks.map(mapUserTaskToBoardItem), ...derived];
+  const userItems = tasks.map(mapUserTaskToBoardItem);
+  const coveredSourceRows = new Set(userItems.map((item) => (
+    `${item.sourceType}:${item.sourceId}:${toPmTaskPhase(item.phase)}:${item.title.trim().toLowerCase()}`
+  )));
+  const visibleDerived = derived.filter((item) => (
+    !coveredSourceRows.has(`${item.sourceType}:${item.sourceId}:${toPmTaskPhase(item.phase)}:${item.title.trim().toLowerCase()}`)
+  ));
+  const derivedOrder = new Map(visibleDerived.map((item, index) => [item.id, index]));
+  return [...userItems, ...visibleDerived].sort((left, right) => {
+    const phaseDelta = taskPhaseRank(left.phase) - taskPhaseRank(right.phase);
+    if (phaseDelta !== 0) return phaseDelta;
+    if (left.origin !== right.origin) return left.origin === "user" ? -1 : 1;
+    if (left.origin === "system") return (derivedOrder.get(left.id) ?? 0) - (derivedOrder.get(right.id) ?? 0);
+    return left.title.localeCompare(right.title);
+  });
 }
 
 export function toPmTaskPhase(phase: PmTaskPhase | WorkflowPhase): PmTaskPhase {
@@ -650,9 +672,12 @@ export function findUserTaskForBoardItem(
   }
   const title = boardItem.title.trim().toLowerCase();
   const phase = toPmTaskPhase(boardItem.phase);
-  const matches = tasks.filter((task) => task.title.trim().toLowerCase() === title);
-  if (matches.length === 1) return matches[0];
-  return matches.find((task) => task.phase === phase) ?? matches[0] ?? null;
+  return tasks.find((task) => (
+    task.sourceType === boardItem.sourceType
+    && task.sourceId === boardItem.sourceId
+    && toPmTaskPhase(task.phase) === phase
+    && task.title.trim().toLowerCase() === title
+  )) ?? null;
 }
 
 export function buildTaskDraftFromBoardItem(
@@ -678,6 +703,27 @@ export function taskPhaseAllowed(snapshot: WorkflowSnapshot, phase: PmTaskPhase)
   if (phase === "protocol" || phase === "other") return true;
   if (phase === "execution") return snapshot.canEnterExecution;
   return snapshot.canEnterReport;
+}
+
+export function workStepFromPhase(phase: WorkflowPhase): WorkStep {
+  const mapped = taskPhaseFromWorkflowPhase(phase);
+  return mapped === "other" ? "endorsement" : mapped;
+}
+
+export function executionSubtaskTitles(sourceType: PortfolioSourceType): readonly string[] {
+  return sourceType === "support"
+    ? ["Support execution"]
+    : PROCESS_EXECUTION_FIELDS.map((field) => field.label);
+}
+
+export function executionChecklistForRows(rows: ProjectRow[]): Array<{ key: string; label: string; complete: boolean }> {
+  const row = pickRepresentative(rows);
+  if (!row) return [];
+  return PROCESS_EXECUTION_FIELDS.map((field) => ({
+    key: field.key,
+    label: field.label,
+    complete: isProjectFieldComplete(row, field.key),
+  }));
 }
 
 export function taskPhaseFromWorkflowPhase(phase: WorkflowPhase): PmTaskPhase {

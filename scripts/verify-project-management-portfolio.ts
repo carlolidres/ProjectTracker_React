@@ -9,9 +9,13 @@ import {
   groupPortfolioItems,
   mapSourceStatusToGroup,
   parseProjectManagementView,
+  portfolioGroupId,
   portfolioSourcePath,
+  portfolioTimeline,
   summarizePortfolio,
+  summarizePortfolioGroup,
 } from "../src/lib/projectManagementPortfolio";
+import { ganttBandLabel, ganttBarPercent, ganttBarPx, ganttBounds, ganttColumns, ganttShiftSpan, ganttWeeks, ganttWorkflowLinks } from "../src/lib/projectGantt";
 import { shortenChangeDescription } from "../src/lib/changeDescriptionSummary";
 import type { Profile, ProjectRow, SupportActivity } from "../src/types";
 
@@ -190,6 +194,7 @@ assert.ok(summary.forReview >= 0);
 assert.equal(summary.myTasks, 0);
 assert.equal(parseProjectManagementView("tasks"), "my_tasks");
 assert.equal(parseProjectManagementView("board"), "board");
+assert.equal(parseProjectManagementView("gantt"), "gantt");
 assert.ok(["Ongoing", "For Review", "At Risk"].includes(openProject.boardStatus));
 assert.equal(deriveBoardStatus({ ...cancelledProject, incompleteCount: 0 }, []), "Cancelled");
 assert.equal(
@@ -272,5 +277,95 @@ const people = assigneesByPortfolioSource(
 );
 assert.equal(people["process:PROJ-1"]?.map((row) => row.id).join(","), "a,b,c");
 assert.equal(people["support:SUP-1"]?.[0]?.full_name, "Ann Lee");
+
+const groupedSample = {
+  id: "1",
+  sourceType: "process" as const,
+  sourceId: "PROJ-1",
+  title: "Alpha",
+  identifier: "PROJ-1",
+  owner: "N/A",
+  targetDate: "2026-09-30",
+  sourceStatus: "OPEN",
+  statusGroup: "Ongoing" as const,
+  recordCount: 1,
+  updatedAt: "2026-09-01",
+  phase: "execution" as const,
+  category: "Validation" as const,
+  changeLabel: "",
+  uniqueBatch: "UB",
+  client: "Client",
+  product: "Alpha",
+  protocolStatus: "Approved",
+  incompleteCount: 0,
+  protocolComplete: true,
+  executionComplete: false,
+  reportComplete: false,
+  boardStatus: "Ongoing" as const,
+  priority: "High" as const,
+  progress: 10,
+};
+assert.equal(portfolioGroupId(groupedSample, "status"), "Ongoing");
+assert.equal(portfolioGroupId(groupedSample, "owner"), "Unassigned");
+assert.equal(portfolioGroupId({ ...groupedSample, priority: "Low", targetDate: "2026-10-02" }, "phase"), "execution");
+const groupSummary = summarizePortfolioGroup([
+  groupedSample,
+  { ...groupedSample, id: "2", priority: "Low", targetDate: "2026-10-02" },
+]);
+assert.equal(groupSummary.high, 1);
+assert.equal(groupSummary.low, 1);
+assert.equal(groupSummary.medium, 0);
+assert.equal(groupSummary.statusCounts.Ongoing, 2);
+assert.ok(groupSummary.dueLabel.includes("–"));
+const timeline = portfolioTimeline([
+  { startDate: "2026-07-19", targetDate: "2026-07-28" },
+  { startDate: "", targetDate: "2026-08-02" },
+]);
+assert.equal(timeline.start, "2026-07-19");
+assert.equal(timeline.end, "2026-08-02");
+assert.ok(timeline.label.includes("–"));
+assert.equal(portfolioTimeline([]).label, "");
+const bounds = ganttBounds([{ start: "2026-04-15", end: "2026-04-22" }], new Date("2026-04-18T00:00:00"));
+assert.ok(bounds.start <= "2026-04-15");
+assert.ok(bounds.end >= "2026-04-22");
+const weeks = ganttWeeks(bounds.start, bounds.end);
+assert.ok(weeks.length >= 4);
+const placed = ganttBarPercent("2026-04-15", "2026-04-17", "2026-04-12", "2026-04-25");
+assert.ok(placed);
+assert.ok(placed.left > 0 && placed.width > 0);
+const columns = ganttColumns("2026-09-20", "2026-09-26", "week");
+assert.equal(columns.length, 7);
+assert.equal(columns[0]?.weekday.length > 0, true);
+assert.equal(ganttBarPx("2026-08-01", "2026-08-02", "2026-09-01", "2026-09-30", 36), null);
+const shifted = ganttShiftSpan({ start: "2026-09-22", end: "2026-09-26" }, 2, "move");
+assert.equal(shifted.start, "2026-09-24");
+assert.equal(shifted.end, "2026-09-28");
+const links = ganttWorkflowLinks(
+  [
+    { step: "protocol", taskIds: [] },
+    { step: "execution", taskIds: ["report", "block"] },
+    { step: "report", taskIds: [] },
+  ],
+  [
+    { id: "report", dependsOnTaskId: null },
+    { id: "block", dependsOnTaskId: null },
+  ],
+);
+assert.ok(links.some((link) => link.from === "phase:protocol" && link.to === "phase:execution"));
+assert.ok(links.some((link) => link.from === "phase:execution" && link.to === "task:report"));
+assert.ok(links.some((link) => link.from === "phase:execution" && link.to === "task:block"));
+assert.ok(links.some((link) => link.from === "task:report" && link.to === "phase:report"));
+assert.ok(links.some((link) => link.from === "task:block" && link.to === "phase:report"));
+const fanOut = ganttWorkflowLinks(
+  [{ step: "execution", taskIds: ["a", "b"] }],
+  [
+    { id: "a", dependsOnTaskId: "prep" },
+    { id: "b", dependsOnTaskId: "prep" },
+    { id: "prep", dependsOnTaskId: null },
+  ],
+);
+assert.equal(ganttBandLabel("August 2026", 72), "Aug");
+assert.equal(ganttBandLabel("September 2026", 360), "September 2026");
+assert.equal(ganttBandLabel("30 Aug – 5 Sep", 72), "30 Aug");
 
 console.log("verify-project-management-portfolio: PASS");

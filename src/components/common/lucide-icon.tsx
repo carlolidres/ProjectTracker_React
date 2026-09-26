@@ -20,7 +20,11 @@ type LucideIconName =
   | "layout-grid"
   | "columns"
   | "alert-triangle"
-  | "x-circle";
+  | "x-circle"
+  | "user"
+  | "filter"
+  | "arrow-up-down"
+  | "eye-off";
 
 interface LucideIconProps {
   name: LucideIconName;
@@ -146,6 +150,27 @@ const PATHS: Record<LucideIconName, ReactNode> = {
       <circle cx="12" cy="12" r="10" />
       <path d="m15 9-6 6" />
       <path d="m9 9 6 6" />
+    </>
+  ),
+  user: (
+    <>
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </>
+  ),
+  filter: <path d="M3 5h18l-7 8v6l-4-2v-4z" />,
+  "arrow-up-down": (
+    <>
+      <path d="m7 15 5 5 5-5" />
+      <path d="m7 9 5-5 5 5" />
+    </>
+  ),
+  "eye-off": (
+    <>
+      <path d="M10.7 5.1A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13 13 0 0 1-1.7 2.7" />
+      <path d="M6.6 6.6A13 13 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.4-1.6" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      <path d="m2 2 20 20" />
     </>
   ),
 };

@@ -1,5 +1,0 @@
-workflow-app/data/*
-!workflow-app/data/.gitkeep
-workflow-app/__pycache__/
-workflow-app/scripts/__pycache__/
-*.pyc
