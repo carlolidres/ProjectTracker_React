@@ -65,6 +65,7 @@ export function ProjectManagementPage() {
   const [filters, setFilters] = useState<PortfolioFilters>(emptyPortfolioFilters);
   const [pageView, setPageView] = useState<ProjectManagementPageView>(() => parseProjectManagementView(params.get("view")));
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -133,6 +134,11 @@ export function ProjectManagementPage() {
     ...emptyPortfolioFilters(),
     ...filters,
   }), [filters, items]);
+  const focusedItem = useMemo(
+    () => (focusId ? items.find((item) => item.id === focusId) ?? null : null),
+    [focusId, items],
+  );
+  const scopedItems = focusedItem && (pageView === "board" || pageView === "gantt") ? [focusedItem] : visibleItems;
   const grouped = useMemo(() => groupPortfolioItems(visibleItems), [visibleItems]);
   const assigneesBySource = useMemo(() => assigneesByPortfolioSource(tasks, profiles), [profiles, tasks]);
   const changeSummaries = useChangeSummaries(visibleItems);
@@ -354,7 +360,7 @@ export function ProjectManagementPage() {
   };
 
   const moreViews: Array<{ value: ProjectManagementPageView; label: string }> = [
-    { value: "board", label: "Board" },
+    { value: "board", label: "Kanban" },
     { value: "calendar", label: "Calendar" },
     { value: "my_tasks", label: "My Tasks" },
     { value: "gantt", label: "Gantt" },
@@ -399,13 +405,14 @@ export function ProjectManagementPage() {
               </div>
             </div>
           </div>
+          {pageView === "gantt" ? null : (
           <WorkBoardToolbar
             filters={{ ...emptyPortfolioFilters(), ...filters }}
             owners={owners}
             sortKey={sortKey}
             hiddenColumns={hiddenColumns}
             groupBy={groupBy}
-            showTableTools={pageView === "portfolio" || pageView === "board" || pageView === "gantt"}
+            showTableTools={pageView === "portfolio" || pageView === "board"}
             showColumnTools={pageView === "portfolio"}
             canCreate={canCreate}
             canCreateProject={canCreateProject}
@@ -420,6 +427,7 @@ export function ProjectManagementPage() {
             onNewSupport={(kind) => navigate(newSupportActivityPath(kind))}
             onRefresh={() => void load()}
           />
+          )}
         </div>
 
         {error ? <Alert type="error" showIcon message={error} /> : null}
@@ -460,13 +468,13 @@ export function ProjectManagementPage() {
           />
         ) : pageView === "calendar" ? (
           <TaskCalendarView
-            items={boardItems}
+            items={focusedItem ? boardItems.filter((item) => item.sourceType === focusedItem.sourceType && item.sourceId === focusedItem.sourceId) : boardItems}
             profiles={profiles}
             currentUserId={user?.id}
             onOpen={openTask}
             canCreate={canCreate}
             onCreate={openCreateTask}
-            milestones={milestones}
+            milestones={focusedItem ? milestones.filter((item) => item.sourceType === focusedItem.sourceType && item.sourceId === focusedItem.sourceId) : milestones}
             onOpenMilestone={(milestone) => {
               const match = items.find((item) => item.sourceType === milestone.sourceType && item.sourceId === milestone.sourceId);
               if (match) openWorkspace(match);
@@ -474,7 +482,7 @@ export function ProjectManagementPage() {
           />
         ) : pageView === "gantt" ? (
           <ProjectGantt
-            items={visibleItems}
+            items={scopedItems}
             tasks={tasks}
             onOpen={openWorkspace}
             canAddSubtask={canCreate}
@@ -485,7 +493,7 @@ export function ProjectManagementPage() {
             onScheduleChange={(task, start, end) => void patchTaskRecord(task, { startDate: start, targetDate: end })}
           />
         ) : pageView === "board" ? (
-          <PortfolioKanban items={visibleItems} onOpen={openWorkspace} onMove={handleBoardMove} />
+          <PortfolioKanban items={scopedItems} onOpen={openWorkspace} onMove={handleBoardMove} />
         ) : (
           <>
             <ProjectBoardTable
@@ -507,6 +515,8 @@ export function ProjectManagementPage() {
               onPatchTask={(task, patch) => void patchTaskRecord(task, patch)}
               onAddSubtask={(item) => openSubtask(item)}
               canOpenSource={can("projects_entry", "view") || can("support_activities", "view")}
+              selectedId={focusId}
+              onSelectedChange={setFocusId}
             />
             <div className="pm-mobile-cards">
               <PortfolioCardGrid grouped={grouped} changeSummaries={changeSummaries} assigneesBySource={assigneesBySource} onOpen={openWorkspace} />

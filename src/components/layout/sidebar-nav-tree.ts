@@ -13,7 +13,7 @@ export type SidebarNavSectionSpec =
   | { type: "group"; id: string; label: string; items: SidebarNavLeaf[] };
 
 const DASHBOARD: SidebarNavLeaf = { label: "Dashboard", href: "/dashboard" };
-const MY_WORK: SidebarNavLeaf = { label: "My work", href: "/project-management" };
+const MY_WORK: SidebarNavLeaf = { label: "Project Management", href: "/project-management" };
 const PROJECT_ENTRY: SidebarNavLeaf = { label: "Entry", href: "/projects" };
 const PROJECT_SPREADSHEET: SidebarNavLeaf = { label: "Spreadsheet", href: "/projects/database" };
 const SUPPORT: SidebarNavLeaf = { label: "Support", href: "/support-activities" };

@@ -60,7 +60,7 @@ export const ALL_MENU_KEYS: readonly MenuKey[] = [
 
 export const MENU_LABELS: Record<MenuKey, string> = {
   dashboard: "Dashboard",
-  project_management: "My work",
+  project_management: "Project Management",
   ai_assistant: "Ask AI",
   projects_entry: "Projects · Entry",
   projects_database: "Projects · Spreadsheet",

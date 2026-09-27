@@ -1,8 +1,9 @@
-import { Button, DatePicker, Dropdown, Empty, Select, Table } from "antd";
+import { Button, DatePicker, Dropdown, Empty, Popover, Select, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { useMemo, useState } from "react";
 import { LucideIcon } from "@/components/common/lucide-icon";
+import { ProjectGroupSection } from "@/features/project-management/components/ProjectBoardTable";
 import { formatAppDate, parseAppDateValue } from "@/lib/date";
 import { getProfileDisplayName } from "@/lib/profileName";
 import {
@@ -11,6 +12,7 @@ import {
   MY_TASK_SECTION_ORDER,
   myTaskSection,
   PM_TASK_STATUSES,
+  type MyTaskSection,
 } from "@/lib/projectManagementWorkflow";
 import type { PmTaskPriority, PmTaskStatus, Profile, WorkflowBoardItem } from "@/types";
 
@@ -347,60 +349,208 @@ export function TaskCalendarView({
   );
 }
 
+const MY_TASK_TONE: Record<MyTaskSection, string> = {
+  overdue: "blocked",
+  today: "at-risk",
+  week: "ongoing",
+  later: "for-review",
+  completed: "completed",
+};
+
+const MY_TASK_WIDTH = { task: 240, project: 200, status: 132, timeline: 168, priority: 120 };
+
+function taskDueLabel(value: string): string {
+  if (!value) return "—";
+  const formatted = formatAppDate(value);
+  return formatted === "-" ? value : formatted;
+}
+
+function taskDueTone(item: WorkflowBoardItem): string {
+  if (item.status === "Done") return "done";
+  if (isOverdueTask(item)) return "overdue";
+  const date = parseAppDateValue(item.targetDate);
+  if (!date) return "";
+  const today = dayjs().startOf("day");
+  if (date.isSame(today, "day")) return "today";
+  if (date.isBefore(today.add(7, "day"))) return "soon";
+  return "";
+}
+
 export function MyTasksView({
   items,
-  profiles,
   currentUserId,
   onOpen,
-  canCreate,
-  onCreate,
   projectTitles,
   canEditTasks,
   onPatchTask,
   onBackToTable,
 }: SharedViewProps) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ completed: true });
   const mine = items.filter((item) => currentUserId && item.assigneeIds.includes(currentUserId) && item.origin === "user");
   const sections = MY_TASK_SECTION_ORDER.map((section) => ({
     section,
     rows: mine.filter((item) => myTaskSection(item) === section),
   })).filter((group) => group.rows.length > 0);
+  const columns: ColumnsType<WorkflowBoardItem> = [
+    {
+      title: "Task",
+      dataIndex: "title",
+      key: "task",
+      ellipsis: true,
+      fixed: "left",
+      width: MY_TASK_WIDTH.task,
+      className: "pm-project-col",
+      render: (title: string) => <span className="pm-board-name">{title}</span>,
+    },
+    {
+      title: "Project",
+      key: "project",
+      ellipsis: true,
+      width: MY_TASK_WIDTH.project,
+      render: (_, row) => projectTitles?.[`${row.sourceType}:${row.sourceId}`] || "—",
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      width: MY_TASK_WIDTH.status,
+      className: "pm-fill-col",
+      onCell: () => ({ className: "pm-fill-col" }),
+      render: (status: WorkflowBoardItem["status"], row) => {
+        const slug = status.toLowerCase().replace(/\s+/g, "-");
+        const label = isOverdueTask(row) && status !== "Done" ? "Overdue" : status;
+        const cell = <span className={`pm-fill-cell pm-task-${slug}${isOverdueTask(row) && status !== "Done" ? " is-overdue" : ""}`}>{label}</span>;
+        if (!canEditTasks || !onPatchTask || row.origin !== "user") return cell;
+        return (
+          <Dropdown
+            trigger={["click"]}
+            menu={{
+              items: PM_TASK_STATUSES.map((value) => ({ key: value, label: value })),
+              onClick: ({ key, domEvent }) => {
+                domEvent.stopPropagation();
+                onPatchTask(row, { status: key as PmTaskStatus });
+              },
+            }}
+          >
+            <button type="button" className={`pm-fill-cell pm-task-${slug}`} onClick={(event) => event.stopPropagation()}>
+              {status}
+            </button>
+          </Dropdown>
+        );
+      },
+    },
+    {
+      title: "Timeline",
+      dataIndex: "targetDate",
+      width: MY_TASK_WIDTH.timeline,
+      render: (value: string, row) => {
+        const label = taskDueLabel(value);
+        const tone = taskDueTone(row);
+        const pill = (
+          <button
+            type="button"
+            className={`pm-timeline-pill${label === "—" ? " is-empty" : ""}${tone ? ` pm-due-${tone}` : ""}`}
+            title={label}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {label}
+          </button>
+        );
+        if (!canEditTasks || !onPatchTask || row.origin !== "user") return pill;
+        return (
+          <Popover
+            trigger="click"
+            placement="bottomLeft"
+            content={(
+              <div className="pm-date-popover" onClick={(event) => event.stopPropagation()}>
+                <DatePicker
+                  value={parseAppDateValue(value)}
+                  allowClear
+                  format="DD MMM YYYY"
+                  onChange={(next) => onPatchTask(row, { targetDate: next ? next.format("YYYY-MM-DD") : "" })}
+                />
+              </div>
+            )}
+          >
+            {pill}
+          </Popover>
+        );
+      },
+    },
+    {
+      title: "Priority",
+      dataIndex: "priority",
+      width: MY_TASK_WIDTH.priority,
+      className: "pm-fill-col",
+      onCell: () => ({ className: "pm-fill-col" }),
+      render: (priority: WorkflowBoardItem["priority"], row) => {
+        const cell = (
+          <span className={`pm-fill-cell pm-priority-${priority ? priority.toLowerCase() : "none"}`}>
+            {priority || "—"}
+          </span>
+        );
+        if (!canEditTasks || !onPatchTask || row.origin !== "user") return cell;
+        return (
+          <Dropdown
+            trigger={["click"]}
+            menu={{
+              items: (["High", "Medium", "Low"] as const).map((value) => ({ key: value, label: value })),
+              onClick: ({ key, domEvent }) => {
+                domEvent.stopPropagation();
+                onPatchTask(row, { priority: key as PmTaskPriority });
+              },
+            }}
+          >
+            <button
+              type="button"
+              className={`pm-fill-cell pm-priority-${priority ? priority.toLowerCase() : "none"}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              {priority || "—"}
+            </button>
+          </Dropdown>
+        );
+      },
+    },
+  ];
+
+  if (mine.length === 0) {
+    return (
+      <Empty description="No tasks assigned to you.">
+        {onBackToTable ? <Button type="primary" onClick={onBackToTable}>Main table</Button> : null}
+      </Empty>
+    );
+  }
 
   return (
-    <section className="pm-my-tasks" aria-label="My tasks">
-      <div className="pm-my-tasks-toolbar">
-        <div>
-          <h2 className="pm-panel-title">Your tasks</h2>
-          <p className="pm-panel-copy">Tasks assigned to you, grouped by when they are due.</p>
-        </div>
-        {mine.length > 0 && canCreate && onCreate ? (
-          <Button type="primary" icon={<LucideIcon name="plus" size={14} />} onClick={() => onCreate()}>
-            New task
-          </Button>
-        ) : null}
-      </div>
-      {mine.length === 0 ? (
-        <Empty description="No tasks assigned to you.">
-          {onBackToTable ? <Button type="primary" onClick={onBackToTable}>Main table</Button> : null}
-        </Empty>
-      ) : (
-        sections.map((group) => (
-          <section key={group.section} className="pm-task-section" aria-label={MY_TASK_SECTION_LABELS[group.section]}>
-            <h3 className="pm-status-heading">
-              {MY_TASK_SECTION_LABELS[group.section]}
-              <span className="pm-status-count">{group.rows.length}</span>
-            </h3>
-            <TaskTableView
-              items={group.rows}
-              profiles={profiles}
-              currentUserId={currentUserId}
-              onOpen={onOpen}
-              projectTitles={projectTitles}
-              canEditTasks={canEditTasks}
-              onPatchTask={onPatchTask}
+    <div className="pm-board-table-wrap" aria-label="My tasks">
+      {sections.map((group) => {
+        const isCollapsed = Boolean(collapsed[group.section]);
+        return (
+          <ProjectGroupSection
+            key={group.section}
+            label={MY_TASK_SECTION_LABELS[group.section]}
+            tone={MY_TASK_TONE[group.section]}
+            count={group.rows.length}
+            collapsed={isCollapsed}
+            onToggle={() => setCollapsed((current) => ({ ...current, [group.section]: !current[group.section] }))}
+          >
+            <Table
+              size="small"
+              rowKey="id"
+              className="pm-monday-table"
+              columns={columns}
+              dataSource={group.rows}
+              pagination={false}
+              tableLayout="fixed"
+              scroll={{ x: Object.values(MY_TASK_WIDTH).reduce((sum, width) => sum + width, 0) }}
+              onRow={(row) => ({
+                onClick: () => onOpen(row),
+                style: { cursor: "pointer" },
+              })}
             />
-          </section>
-        ))
-      )}
-    </section>
+          </ProjectGroupSection>
+        );
+      })}
+    </div>
   );
 }

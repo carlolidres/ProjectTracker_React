@@ -7,7 +7,7 @@ import {
 } from "@ant-design/icons";
 import { Avatar, Button, Drawer, Dropdown, Tooltip, Typography } from "antd";
 import type { MenuProps } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { LucideIcon } from "@/components/common/lucide-icon";
 import { ProfileSettingsModal } from "@/components/layout/profile-settings-modal";
@@ -103,11 +103,102 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
     [profile?.role, overrides],
   );
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const [menuOrder] = useState<string[]>(readSidebarOrder);
+  const [menuOrder, setMenuOrder] = useState<string[]>(readSidebarOrder);
   const orderedSections = useMemo(
     () => applySidebarOrder(visibleNavSections, menuOrder, sectionKey),
     [menuOrder, visibleNavSections],
   );
+  const gesture = useRef<{
+    key: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    from: number;
+    rects: DOMRect[];
+    strides: number[];
+  } | null>(null);
+  const dragRef = useRef<{ key: string; from: number; to: number; dy: number; stride: number } | null>(null);
+  const suppressClick = useRef(false);
+  const [drag, setDrag] = useState<{ key: string; from: number; to: number; dy: number; stride: number } | null>(null);
+  const [freezeMotion, setFreezeMotion] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!freezeMotion) return undefined;
+    const frame = requestAnimationFrame(() => setFreezeMotion(false));
+    return () => cancelAnimationFrame(frame);
+  }, [freezeMotion]);
+
+  const saveOrder = (next: string[]) => {
+    setMenuOrder(next);
+    localStorage.setItem(SIDEBAR_ORDER_KEY, JSON.stringify(next));
+  };
+
+  const onMovablePointerDown = (event: React.PointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return;
+    const block = event.currentTarget.closest(".sidebar-nav-block");
+    const nav = event.currentTarget.closest(".sidebar-nav");
+    if (!(block instanceof HTMLElement) || !(nav instanceof HTMLElement)) return;
+    const key = block.dataset.navKey;
+    if (!key) return;
+    const blocks = [...nav.querySelectorAll<HTMLElement>(".sidebar-nav-block")];
+    const from = blocks.findIndex((node) => node.dataset.navKey === key);
+    if (from < 0) return;
+    const rects = blocks.map((node) => node.getBoundingClientRect());
+    const strides = rects.map((rect, index) => {
+      const next = rects[index + 1];
+      return next ? next.top - rect.top : rect.height + 4;
+    });
+    gesture.current = { key, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, from, rects, strides };
+  };
+
+  const onMovablePointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    const current = gesture.current;
+    if (!current || event.pointerId !== current.pointerId) return;
+    const dx = event.clientX - current.startX;
+    const dy = event.clientY - current.startY;
+    if (!dragRef.current && Math.hypot(dx, dy) < 8) return;
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    let insertAt = 0;
+    for (let index = 0; index < current.rects.length; index += 1) {
+      const rect = current.rects[index];
+      if (!rect) continue;
+      if (event.clientY > rect.top + rect.height / 2) insertAt = index + 1;
+    }
+    const without = current.rects.length - 1;
+    const to = Math.max(0, Math.min(without, insertAt > current.from ? insertAt - 1 : insertAt));
+    const next = { key: current.key, from: current.from, to, dy, stride: current.strides[current.from] ?? 48 };
+    dragRef.current = next;
+    setDrag(next);
+  };
+
+  const onMovablePointerUp = (event: React.PointerEvent<HTMLElement>) => {
+    const current = gesture.current;
+    if (!current || event.pointerId !== current.pointerId) return;
+    gesture.current = null;
+    const active = dragRef.current;
+    dragRef.current = null;
+    if (active) {
+      suppressClick.current = true;
+      if (active.to !== active.from) {
+        const keys = orderedSections.map(sectionKey);
+        const next = keys.filter((key) => key !== active.key);
+        next.splice(active.to, 0, active.key);
+        setFreezeMotion(true);
+        saveOrder(next);
+      }
+    }
+    setDrag(null);
+  };
+
+  const shiftFor = (index: number) => {
+    if (!drag) return 0;
+    if (index === drag.from) return drag.dy;
+    if (drag.from < drag.to && index > drag.from && index <= drag.to) return -drag.stride;
+    if (drag.to < drag.from && index >= drag.to && index < drag.from) return drag.stride;
+    return 0;
+  };
 
   useEffect(() => {
     const active = visibleNavSections.find(
@@ -146,26 +237,63 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
         />
       </div>
 
-      <nav className="sidebar-nav" aria-label="Primary navigation">
-        {orderedSections.map((section) => {
+      <nav className={cn("sidebar-nav", drag && "is-sorting", freezeMotion && "is-frozen")} aria-label="Primary navigation">
+        {orderedSections.map((section, index) => {
+          const key = sectionKey(section);
+          const shift = shiftFor(index);
+          const lifted = drag?.key === key;
+          const blockClass = cn(
+            "sidebar-nav-block",
+            lifted && "is-dragging",
+            drag && !lifted && drag.to === index && drag.to !== drag.from && (drag.to < drag.from ? "is-drop-before" : "is-drop-after"),
+          );
+          const blockStyle = shift ? { transform: `translateY(${shift}px)` } : undefined;
+          const movable = {
+            onPointerDown: onMovablePointerDown,
+            onPointerMove: onMovablePointerMove,
+            onPointerUp: onMovablePointerUp,
+            onPointerCancel: onMovablePointerUp,
+          };
           if (section.type === "link") {
             return (
-              <SidebarNavItem
-                key={section.item.href}
-                item={section.item}
-                state={state}
-                onNavigate={onCloseMobile}
-              />
+              <div
+                key={key}
+                className={blockClass}
+                style={blockStyle}
+                data-nav-key={key}
+                onClickCapture={(event) => {
+                  if (!suppressClick.current) return;
+                  suppressClick.current = false;
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+              >
+                <div className="sidebar-nav-movable" {...movable}>
+                  <SidebarNavItem
+                    item={section.item}
+                    state={state}
+                    onNavigate={onCloseMobile}
+                  />
+                </div>
+              </div>
             );
           }
           const open = Boolean(openGroups[section.id]);
           return (
-            <div key={section.id} className={cn("sidebar-nav-group", open && "is-open")} role="group" aria-label={section.label}>
+            <div key={key} className={cn(blockClass, "sidebar-nav-group", open && "is-open")} style={blockStyle} data-nav-key={key} role="group" aria-label={section.label}>
               <button
                 type="button"
-                className="sidebar-nav-group-label"
+                className="sidebar-nav-group-label sidebar-nav-movable"
                 aria-expanded={open}
-                onClick={() => setOpenGroups((current) => (current[section.id] ? {} : { [section.id]: true }))}
+                {...movable}
+                onClick={(event) => {
+                  if (suppressClick.current) {
+                    suppressClick.current = false;
+                    event.preventDefault();
+                    return;
+                  }
+                  setOpenGroups((current) => (current[section.id] ? {} : { [section.id]: true }));
+                }}
               >
                 <span>{section.label}</span>
                 <LucideIcon name="chevron-right" size={16} className="sidebar-nav-chevron" aria-hidden />

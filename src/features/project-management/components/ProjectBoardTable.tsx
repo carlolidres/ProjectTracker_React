@@ -187,6 +187,8 @@ interface ProjectBoardTableProps {
   onPatchTask?: (task: ProjectManagementTask, patch: TaskCellPatch) => void;
   onAddSubtask?: (item: PortfolioItem) => void;
   canOpenSource?: boolean;
+  selectedId?: string | null;
+  onSelectedChange?: (id: string | null) => void;
 }
 
 function formatDue(item: PortfolioItem): string {
@@ -540,13 +542,14 @@ export function ProjectBoardTable({
   onPatchTask,
   onAddSubtask,
   canOpenSource = false,
+  selectedId = null,
+  onSelectedChange,
 }: ProjectBoardTableProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(readCollapsedGroups);
   useEffect(() => {
     localStorage.setItem(GROUP_COLLAPSE_KEY, JSON.stringify(collapsed));
   }, [collapsed]);
   const [expanded, setExpanded] = useState<string[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const hidden = useMemo(() => new Set(hiddenColumns), [hiddenColumns]);
   const groups = useMemo(() => {
     const sorted = sortPortfolioItems(items, sortKey, sortDirection);
@@ -580,17 +583,10 @@ export function ProjectBoardTable({
       fixed: "left",
       render: (_, item) => (
         <Checkbox
-          checked={selected.has(item.id)}
+          checked={selectedId === item.id}
           aria-label={`Select ${item.product !== "N/A" ? item.product : item.title}`}
           onClick={(event) => event.stopPropagation()}
-          onChange={(event) => {
-            setSelected((current) => {
-              const next = new Set(current);
-              if (event.target.checked) next.add(item.id);
-              else next.delete(item.id);
-              return next;
-            });
-          }}
+          onChange={() => onSelectedChange?.(selectedId === item.id ? null : item.id)}
         />
       ),
     },
@@ -879,7 +875,7 @@ export function ProjectBoardTable({
               }}
               onRow={(item) => ({
                 onClick: () => onOpen(item),
-                className: selected.has(item.id) ? "is-selected" : "",
+                className: selectedId === item.id ? "is-selected" : "",
                 style: { cursor: "pointer" },
               })}
             />
