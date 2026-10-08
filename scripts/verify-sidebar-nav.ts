@@ -20,7 +20,7 @@ assert.deepEqual(
   viewHrefs,
   [
     "/dashboard",
-    "/project-management",
+    "/project-boards",
     "/projects",
     "/projects/database",
     "/support-activities",

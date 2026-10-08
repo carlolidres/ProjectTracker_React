@@ -230,7 +230,7 @@ Key rules:
 
 ### Project Management portfolio (live view)
 
-Purpose: Card-first browse of active `cnf_projects` and `support_activities` without duplicating source rows, plus optional user tasks for execution tracking.
+Purpose: Card-first browse of active `cnf_projects` and `support_activities` without duplicating source rows, plus optional user tasks for execution tracking. `/project-management` is this portfolio. The independent board is `#/project-boards`.
 
 Key rules:
 
@@ -244,6 +244,24 @@ Key rules:
 - Admin and VAL can always assign. VAL users are always assignee options at every project phase. Other roles need the User Management **PM tasks** privilege plus menu create.
 - Active users may read other active profiles for assignee pickers (`Active users can read active directory profiles`).
 - Audit module name: `Project Management`. Assignee inbox is My Tasks (the existing FG `notifications` table is not per-user).
+
+### Independent Project Management board
+
+Purpose: Monday-style boards opened from the Project board sidebar item as a wide popup over the current page. The heading follows the selected project name. `/project-management` stays the CNF and support portfolio. `project_management_tasks` is unchanged and still belongs to those source records.
+
+Key rules:
+
+- Hierarchy: `pm_workspaces` → `pm_projects` → `pm_groups` → `pm_board_tasks`.
+- `pm_projects.source_kind` is `spreadsheet` or `support`. `source_id` is the spreadsheet `project_id` or support `activity_id`. `source_record_id` is the spreadsheet line when one was chosen. Board status and date edits write the matching source fields.
+- Workspace roles are Owner, Admin, and Member. Project roles are Owner, Editor, and Viewer.
+- Visibility `workspace` opens the project to every workspace member. Visibility `invited` opens it only to `pm_project_members`. Workspace membership does not grant access to a private project.
+- App role does not bypass a private project.
+- Task status (`Not Started`, `Working on it`, `Done`, `Stuck`) is separate from the group name. A due date cannot be earlier than the start date. A group can be deleted only when it has no tasks.
+- `pm_task_dependencies` stores predecessor task id, relationship (`FS`, `SS`, `FF`, `SF`), and lead/lag days. `pm_projects.schedule_mode` is `flexible`, `strict`, or `none`. `working_days` is Monday=1 through Sunday=7. `holidays` are dates skipped by scheduling. Blank task dates are not filled in.
+- Project role `Commenter` can post updates and files. Owners and Editors change tasks and dates. Viewers can read.
+- `pm_task_updates` stores the task conversation. `pm_task_files` plus the private `pm-task-files` bucket stores attachments. Activity for a task is the existing `audit_logs` rows for that task id.
+- Migration `20261007213000_pm_workspaces` must be applied before the board can save. Creation uses `create_pm_workspace` and `create_pm_project`. Dependencies, updates, and files need `20261008193000_pm_board_dependencies`.
+- Last opened workspace and project stay in `localStorage` key `project-tracker:pm-board:last` and are rechecked against access on restore.
 
 ### `ai_conversations` / `ai_messages`
 

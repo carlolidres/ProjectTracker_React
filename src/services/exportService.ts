@@ -8,6 +8,10 @@ import {
 import { formatAppDateTime } from "@/lib/date";
 import type { AuditLog, LessonLearned, ProjectRow, SupportActivity } from "@/types";
 
+export function exportBoardTasksToExcel(rows: Record<string, string>[], filename = "project-board.xlsx") {
+  exportRowsToExcel(rows, "Project board", filename);
+}
+
 export function exportRowsToExcel(
   rows: Record<string, unknown>[],
   sheetName: string,

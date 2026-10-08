@@ -16,6 +16,7 @@ import { useRestorableViewState } from "@/hooks/use-restorable-view-state";
 import { CnfTrackerSelectModal } from "@/features/cnf-tracker/CnfTrackerSelectModal";
 import { ROLE_LABELS } from "@/lib/constants";
 import { collectSupportDateChanges } from "@/lib/dateAdjustmentReview";
+import { subscribeSupportDataChanged } from "@/lib/projectDataEvents";
 import { SUPPORT_ACTIVITY_STATUS_OPTIONS, shouldOpenEndorsementTrackerFromSupportStatus } from "@/lib/endorsementSync";
 import {
   clearSupportActivityDraft,
@@ -249,6 +250,21 @@ export function SupportActivitiesPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    return subscribeSupportDataChanged((activityId) => {
+      void listActiveSupportActivities().then((activities) => {
+        setRows(activities);
+        const fresh = activities.find((item) => item.activity_id === activityId);
+        if (!fresh) return;
+        setForm((current) => {
+          if (current.activity_id !== activityId) return current;
+          baselineFormRef.current = fresh;
+          return fresh;
+        });
+      }).catch(() => undefined);
+    });
+  }, []);
 
   useEffect(() => {
     if (!user?.id || activityIdParam || createNewParam === "1") return;

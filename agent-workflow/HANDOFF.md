@@ -1,14 +1,23 @@
 # Current Handoff
 
-Last Updated: `2026-09-26`
+Last Updated: `2026-10-08`
 
 ## Current Status
 
-`#/project-management` (My work) opens on the main table. Board, Calendar, and My Tasks sit under More views. Search, New task, New Project, and Refresh stay on the toolbar. Person, filter, sort, hide, and group by sit under View options. The person filter starts on the signed-in user when they own a row. The drawer opens on This step: Protocol, Execution, Report, or Endorsement, with Update this step and Add a task. Execution dates are a checklist. New Project names the four steps. A saved project or support activity returns to My work and opens that row. Official protocol, report, and final status stay on the source record.
+Sidebar item **Project board** opens a wide popup over the current page. The old Project Management portfolio page is no longer in the sidebar; `#/project-management` returns to the dashboard. That popup shows the workspace rail and the board, and it uses this tab's sign-in. The page heading follows the selected project name. The board is Workspace, then Project, then groups and tasks. It does not list CNF or support projects. Standard groups are Planned, On-going, and Done. Status stays separate: Not Started, Working on it, Done, and Stuck. A private project is visible only to invited project members. Apply migration `20261007213000_pm_workspaces` before the board can save, and `20261008193000_pm_board_dependencies` for Depends on, updates, and files. Both were applied to the Project Tracker database.
 
 ## Recently Completed
 
-- Board chrome: Main table / Board / Calendar / My Tasks, toolbar search, person, filter, sort, hide, group by
+- The rail project list scrolls on its own. Workspace, search, and My work stay put, and the bottom New Project button is gone. Add subtask no longer starts with a plus. The Gantt uses a split task list and timeline, phase summary lines, right-angle dependency arrows, and zoom. Dependency and date editors use tighter spacing.
+- The board window keeps the same frozen rail, title, tabs, toolbar, group head, and column headers as the popup. Scrollbars in the board are thin. The more menu exports the visible tasks to Excel. A linked title is Unique Batch, Control #, Kind when present, and Product, all in capitals, and it follows those record fields. Renaming that title is turned off so a manual name cannot change the spreadsheet or support record.
+- Spreadsheet Product names display and save in capital letters. A linked board title follows the current spreadsheet or support record, including that capital product name. Archive and Open in new window are icon buttons. Gantt Day columns show the weekday and date with a line per day, and dependency arrows draw between dated bars or, when a bar is missing, from the task name.
+- A board project created from Spreadsheet or Support keeps that link. Changing a step’s status or dates writes the matching status, target date, or schedule on the source record, and opening the board reads those fields back. Changing an existing date still asks for a Lessons Learned reason.
+- The board title opens an archive of hidden workspaces and projects, with restore. Spreadsheet choices show Unique Batch, Control #, and Product. Support choices show activity kind and title. The empty board is a short prompt with create and invite actions.
+- New Project can copy a Spreadsheet project or a Support activity onto the board. Protocol, Execution, Report, and Endorsement become tasks, and the fields those steps need become subtasks. Finished steps land in Done, work in progress in On-going, and steps that have not started in Planned.
+- Board rows list High, then Medium, then Low. Stuck stays above Not Started inside Planned. Working on it moves the task to On-going, Done moves it to Done, and Not Started or Stuck move it to Planned. Subtasks are indented. The add row reads “Add task”. The popup title can open a signed-in board window and then closes. Rail, groups, Gantt labels, calendar toolbar, and the task panel use tighter spacing and type.
+- Project board follows the Monday-inspired spec for the working core: project header (rename, favorite, invite, copy link), persisted rail collapse with the `[` shortcut, My work, Me/Unassigned filters, filter chips, personal saved views, Kanban status lanes, Commenter role, holiday-aware scheduling, and previous/next plus activity export in the task panel.
+- Custom columns, multi-person owners, rich-text replies, shared saved views, realtime sync, pinned dates, baselines, and critical path are not in this pass.
+- Independent Project Management board with workspaces, projects, groups, and tasks stored apart from CNF and support records.
 - Collapsed groups show priority mix and timeline range
 - New Project menu adds a validation project or a TSD, RnD, or Non-Process support activity. The support form opens on that kind and returns to My work after save.
 - Main table: add-column menu, timeline range on a subitem, expandable subitems, group summary bars. No custom text, file, or formula columns.
@@ -35,15 +44,14 @@ Last Updated: `2026-09-26`
 
 | Check | Status | Result |
 |---|---|---|
-| `npx tsc --noEmit -p tsconfig.app.json` | PASSED | clean after the simpler My work path |
-| `npm run test:project-management-portfolio` | PASSED | group summary, status mix, and timeline span |
-| `npm run test:project-management-workflow` | PASSED | checklist replaces execution date rows; four-step mapping |
-| `scripts/verify-url-derived-filters.ts` | PASSED | return path keeps the new record id |
-| Browser smoke | NOT RUN | open My Tasks empty state, a row’s This step, and New Project |
+| `npx tsc --noEmit -p tsconfig.app.json` | PASSED | clean after the scrolling rail and Gantt layout |
+| `npm run test:pm-board` | PASSED | spreadsheet title is batch, control, kind, and product in capitals |
+| `npm run test:projects-db-validation` | PASSED | Product edits are stored in capitals |
+| Browser smoke | NOT RUN | signed-in spreadsheet, board title, and Gantt still need a browser pass |
 
 ## Next Action
 
-Refresh My work. Confirm the main table is the default, My Tasks empty state returns there, and a row opens on This step. New Project should describe the four steps.
+Open Project Management while signed in. Confirm Main Workspace, the Getting started project, and that a task edit shows on Main Table, Kanban, Gantt, and Calendar after refresh.
 
 ## Dumb-Zone Recovery
 

@@ -1,5 +1,6 @@
 import {
   ApartmentOutlined,
+  AppstoreOutlined,
   AuditOutlined,
   BookOutlined,
   CommentOutlined,
@@ -8,7 +9,6 @@ import {
   FileProtectOutlined,
   FileTextOutlined,
   InboxOutlined,
-  ProjectOutlined,
   ReadOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
@@ -38,7 +38,7 @@ export type SidebarNavSection =
 
 const ICONS: Record<string, ComponentType<{ className?: string }>> = {
   "/dashboard": DashboardOutlined,
-  "/project-management": ProjectOutlined,
+  "/project-boards": AppstoreOutlined,
   "/projects": FileTextOutlined,
   "/projects/database": DatabaseOutlined,
   "/support-activities": ToolOutlined,

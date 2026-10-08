@@ -73,7 +73,8 @@ export function ProjectFieldControl({
   const isViewOnly = readOnly && !disabled;
   const isNa = isMissingValue(value);
   const spanClass = field.span === 3 ? "project-field-span-3" : field.span === 2 ? "project-field-span-2" : "";
-  const capitalizeClass = field.capitalizeWords ? "project-field-capitalize" : "";
+  const uppercaseProduct = field.key === "product_name";
+  const capitalizeClass = uppercaseProduct ? "project-field-uppercase" : field.capitalizeWords ? "project-field-capitalize" : "";
   const anchorId = domId;
   const fieldId = anchorId ? `${anchorId}-control` : `project-field-${field.key}`;
 
@@ -254,7 +255,7 @@ export function ProjectFieldControl({
         value={value}
         disabled={disabled && !isViewOnly}
         readOnly={isViewOnly}
-        normalizeOnBlur={field.capitalizeWords ? toTitleCase : undefined}
+        normalizeOnBlur={uppercaseProduct ? (text) => text.toUpperCase() : field.capitalizeWords ? toTitleCase : undefined}
         onChange={onChange}
       />
     );

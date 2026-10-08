@@ -65,6 +65,10 @@ assert.equal(validateSpreadsheetCellValue(col("x", "month"), "not-a-month", {}).
 assert.equal(validateSpreadsheetCellValue(col("x", "order_quantity"), "1,234", {}).normalized, "1234");
 assert.equal(validateSpreadsheetCellValue(col("x", "alphanumeric"), "BAD!", {}).ok, false);
 assert.equal(validateSpreadsheetCellValue(col("x", "text"), "", {}).ok, true);
+assert.equal(
+  validateSpreadsheetCellValue(col("product_name", "text"), "Advil Infant Pain And Fever Relief 40ml", {}).normalized,
+  "ADVIL INFANT PAIN AND FEVER RELIEF 40ML",
+);
 
 assert.ok(compareAppMonthYear("30 Jun 2026", "15 May 2026") > 0);
 assert.equal(compareAppMonthYear("30 Jun 2026", "01 Jun 2026"), 0);

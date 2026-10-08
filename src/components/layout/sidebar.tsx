@@ -12,6 +12,7 @@ import { Link, useLocation } from "react-router-dom";
 import { LucideIcon } from "@/components/common/lucide-icon";
 import { ProfileSettingsModal } from "@/components/layout/profile-settings-modal";
 import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
+import { ProjectBoardPopup } from "@/features/project-management/board/ProjectBoardPopup";
 import { getVisibleSidebarNavSections } from "@/components/layout/sidebar-nav";
 import { useAuth } from "@/app/auth-provider";
 import { useMenuPermissions } from "@/app/menu-permission-provider";
@@ -62,6 +63,7 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
   const { overrides } = useMenuPermissions();
   const { appTheme, toggleTheme } = useAppTheme();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [boardOpen, setBoardOpen] = useState(false);
   const isCollapsed = state === "collapsed";
   const displayName =
     getProfileDisplayName(profile)
@@ -273,6 +275,7 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
                     item={section.item}
                     state={state}
                     onNavigate={onCloseMobile}
+                    onPopup={section.item.openInWindow ? () => setBoardOpen(true) : undefined}
                   />
                 </div>
               </div>
@@ -344,6 +347,7 @@ export function Sidebar({ state, isMobileOpen, onCloseMobile, onExpandSidebar }:
   return (
     <>
       <ProfileSettingsModal open={profileModalOpen} onClose={() => setProfileModalOpen(false)} />
+      <ProjectBoardPopup open={boardOpen} onClose={() => setBoardOpen(false)} />
       <aside className={cn("sidebar-shell sidebar-desktop", isCollapsed && "sidebar-shell-collapsed")}>{content}</aside>
       <Drawer
         placement="left"

@@ -36,7 +36,8 @@ export function LoginPage() {
   }
 
   if (!initializing && user && profile?.status === "active" && !profile.must_change_password) {
-    return <Navigate to="/dashboard" replace />;
+    const next = window.name === "project-tracker-board" ? "/project-boards" : "/dashboard";
+    return <Navigate to={next} replace />;
   }
 
   if (!initializing && user && profile && profile.status !== "active") {

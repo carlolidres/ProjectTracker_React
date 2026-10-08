@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "@/components/common/protected-route";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
-import { ProjectManagementPage } from "@/features/project-management/ProjectManagementPage";
+import { ProjectBoardWindow } from "@/features/project-management/board/ProjectBoardWindow";
 import { ProjectEntryPage } from "@/features/projects/ProjectEntryPage";
 import { ProjectsDatabasePage } from "@/features/projects/ProjectsDatabasePage";
 import { SupportActivitiesPage } from "@/features/support-activities/SupportActivitiesPage";
@@ -23,7 +23,8 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-      <Route path="/project-management" element={<ProtectedRoute><ProjectManagementPage /></ProtectedRoute>} />
+      <Route path="/project-management" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/project-boards" element={<ProtectedRoute><ProjectBoardWindow /></ProtectedRoute>} />
       <Route path="/ai-assistant" element={<ProtectedRoute><AiAssistantPage /></ProtectedRoute>} />
       <Route path="/projects" element={<ProtectedRoute><ProjectEntryPage /></ProtectedRoute>} />
       <Route path="/projects/database" element={<ProtectedRoute><ProjectsDatabasePage /></ProtectedRoute>} />

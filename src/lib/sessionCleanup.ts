@@ -1,3 +1,4 @@
+import { clearBoardSessionHandoff } from "@/lib/boardSessionHandoff";
 import { clearAllFormDrafts } from "@/lib/formDraftStorage";
 import { resetNavigationHistoryForSessionClear } from "@/lib/navigationHistory";
 import { diagLog } from "@/lib/sessionDiagnostics";
@@ -47,6 +48,7 @@ export function clearSupabaseAuthStorage(): void {
   for (const storage of [sessionStorage, localStorage]) {
     collectKeys(storage, isSupabaseAuthKey).forEach((key) => storage.removeItem(key));
   }
+  clearBoardSessionHandoff();
 }
 
 /** Hard navigation so the SPA remounts with a clean in-memory session. */

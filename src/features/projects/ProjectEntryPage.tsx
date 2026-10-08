@@ -289,7 +289,7 @@ function applyProjectOwnerSavePolicy(
   return {
     ...withOwner,
     client_name: toTitleCase(withOwner.client_name),
-    product_name: toTitleCase(withOwner.product_name),
+    product_name: isMissingValue(withOwner.product_name) ? withOwner.product_name : withOwner.product_name.trim().toUpperCase(),
   };
 }
 

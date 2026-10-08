@@ -106,7 +106,7 @@ export function validateSpreadsheetCellValue(
       return { ok: true, normalized: text };
     }
     default:
-      return { ok: true, normalized: text };
+      return { ok: true, normalized: column.field === "product_name" ? text.toUpperCase() : text };
   }
 }
 

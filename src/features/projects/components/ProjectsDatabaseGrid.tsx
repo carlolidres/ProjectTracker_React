@@ -177,6 +177,7 @@ function formatCellValue(field: string, value: unknown, editor: string): string 
   if (!text.trim() || valueOrNA(text) === "N/A") return text;
   if (editor === "month" || field === "fg_month") return formatAppMonth(text);
   if (editor === "date") return formatAppDate(text);
+  if (field === "product_name") return text.toUpperCase();
   return text;
 }
 

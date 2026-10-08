@@ -9,11 +9,40 @@ interface SidebarNavItemProps {
   state: SidebarState;
   nested?: boolean;
   onNavigate?: () => void;
+  onPopup?: () => void;
 }
 
-export function SidebarNavItem({ item, state, nested = false, onNavigate }: SidebarNavItemProps) {
+export function SidebarNavItem({ item, state, nested = false, onNavigate, onPopup }: SidebarNavItemProps) {
   const Icon = item.icon;
   const isCollapsed = state === "collapsed";
+
+  if (item.openInWindow) {
+    const button = (
+      <button
+        type="button"
+        className={cn(
+          "sidebar-nav-item",
+          nested && !isCollapsed && "sidebar-nav-item-nested",
+          isCollapsed && "sidebar-nav-item-collapsed",
+        )}
+        aria-label={item.label}
+        title={isCollapsed ? undefined : item.label}
+        onClick={() => {
+          onNavigate?.();
+          onPopup?.();
+        }}
+      >
+        <Icon className="sidebar-icon" aria-hidden />
+        <span className="sidebar-label">{item.label}</span>
+      </button>
+    );
+    if (!isCollapsed) return button;
+    return (
+      <Tooltip title={item.label} placement="right" mouseEnterDelay={0.35}>
+        {button}
+      </Tooltip>
+    );
+  }
 
   const link = (
     <NavLink

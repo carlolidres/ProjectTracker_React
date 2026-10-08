@@ -37,4 +37,6 @@ export interface NavItem {
   href: string;
   icon: ComponentType<{ className?: string }>;
   roles?: UserRole[];
+  /** Opens a wide popup over the current page instead of navigating. */
+  openInWindow?: boolean;
 }

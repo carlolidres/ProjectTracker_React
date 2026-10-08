@@ -8,6 +8,22 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        try {
+          if (window.name !== "project-tracker-board") return;
+          var raw = localStorage.getItem("project-tracker:board-session-handoff");
+          if (!raw) return;
+          localStorage.removeItem("project-tracker:board-session-handoff");
+          var payload = JSON.parse(raw);
+          Object.keys(payload).forEach(function (key) {
+            if (key.indexOf("sb-") === 0 && typeof payload[key] === "string") {
+              sessionStorage.setItem(key, payload[key]);
+            }
+          });
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

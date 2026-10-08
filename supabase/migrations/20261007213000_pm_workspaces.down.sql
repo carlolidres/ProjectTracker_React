@@ -1,0 +1,31 @@
+drop trigger if exists pm_board_tasks_sync_group on public.pm_board_tasks;
+drop trigger if exists pm_board_tasks_shape on public.pm_board_tasks;
+drop trigger if exists pm_groups_delete_empty on public.pm_groups;
+drop trigger if exists pm_workspaces_archive on public.pm_workspaces;
+drop trigger if exists pm_project_members_owner on public.pm_project_members;
+drop trigger if exists pm_workspace_members_owner on public.pm_workspace_members;
+drop trigger if exists pm_board_tasks_touch on public.pm_board_tasks;
+drop trigger if exists pm_groups_touch on public.pm_groups;
+drop trigger if exists pm_projects_touch on public.pm_projects;
+drop trigger if exists pm_workspaces_touch on public.pm_workspaces;
+
+drop function if exists public.create_pm_project(uuid, text, text, text);
+drop function if exists public.create_pm_workspace(text, text, text, text);
+drop function if exists public.pm_sync_subtask_group();
+drop function if exists public.pm_guard_task_shape();
+drop function if exists public.pm_guard_group_delete();
+drop function if exists public.pm_guard_workspace_archive();
+drop function if exists public.pm_guard_project_owner();
+drop function if exists public.pm_guard_workspace_owner();
+drop function if exists public.pm_can_manage_project(uuid);
+drop function if exists public.pm_can_edit_board(uuid);
+drop function if exists public.pm_project_access(uuid);
+drop function if exists public.pm_workspace_role(uuid);
+drop function if exists public.pm_touch_updated_at();
+
+drop table if exists public.pm_board_tasks;
+drop table if exists public.pm_groups;
+drop table if exists public.pm_project_members;
+drop table if exists public.pm_projects;
+drop table if exists public.pm_workspace_members;
+drop table if exists public.pm_workspaces;

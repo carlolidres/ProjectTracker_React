@@ -25,7 +25,8 @@ Database schema and migration details belong in `DATA_MAP.md` and `supabase/migr
 |---|---|---|
 | Auth | `src/features/auth/LoginPage.tsx` | Login flow and public entry route. |
 | Dashboard | `src/features/dashboard/DashboardPage.tsx` | Primary workspace: KPIs, My work, New task, meeting view. Hub flag keeps KPI filters on Dashboard. |
-| Project Management | `src/features/project-management/ProjectManagementPage.tsx` | My work: main table by default, More views including a per-project Gantt timeline, This step drawer. Project status stays derived. |
+| Project Management | — | Removed from the sidebar. `#/project-management` redirects to the dashboard. Task drawers used by the dashboard remain in this folder. |
+| Project board | `src/features/project-management/board/ProjectBoardPopup.tsx` | Independent Monday board. Sidebar item opens it in a wide popup. The heading is the selected project name. Last Updated opens updates, files, and the activity log. The Depends on column schedules predecessor links. |
 | Project Management model | `src/lib/projectManagementPortfolio.ts` | Portfolio rows plus derived board status (For Review / At Risk / Blocked), progress, filters, and grouping. |
 | Project Management workflow | `src/lib/projectManagementWorkflow.ts` | Phase gates, incomplete requirements, derived source workflow items. |
 | Project Management permissions | `src/lib/projectManagementPermissions.ts` | Assign/override/reopen. VAL is always an assignee. User-task create is not phase-gated. |

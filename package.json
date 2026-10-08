@@ -32,6 +32,7 @@
     "test:projects-db-validation": "tsx --tsconfig tsconfig.app.json scripts/verify-projects-database-validation.ts",
     "test:navigation-history": "tsx --tsconfig tsconfig.app.json scripts/verify-navigation-history.ts",
     "test:project-management-portfolio": "tsx --tsconfig tsconfig.app.json scripts/verify-project-management-portfolio.ts",
+    "test:pm-board": "tsx --tsconfig tsconfig.app.json scripts/verify-pm-board.ts",
     "test:project-management-workflow": "tsx --tsconfig tsconfig.app.json scripts/verify-project-management-workflow.ts",
     "test:fixes": "npm run test:project-save && npm run test:cnf-closure && npm run test:cnf-tracker-table && npm run test:cnf-project-integration && npm run test:cnf-tracker-detail-ux && npm run test:notification-db && npm run test:notifications && npm run test:bmr-lock && npm run test:endorsement-support && npm run test:menu-permissions && npm run test:sidebar-nav && npm run test:dashboard-drilldown && npm run test:dashboard-pm-hub && npm run test:projects-db-validation && npm run test:navigation-history && npm run test:project-management-portfolio && npm run test:project-management-workflow && npm run test:ai-assistant"
   },

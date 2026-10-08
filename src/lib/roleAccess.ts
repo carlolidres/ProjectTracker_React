@@ -15,6 +15,7 @@ export interface RouteAccess {
 export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/dashboard", roles: "all" },
   { path: "/project-management", roles: "all" },
+  { path: "/project-boards", roles: "all" },
   { path: "/ai-assistant", roles: "all" },
   { path: "/projects", roles: "all" },
   { path: "/projects/database", roles: "all" },

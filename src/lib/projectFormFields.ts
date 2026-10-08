@@ -38,7 +38,7 @@ export const HEADER_FIELDS: ProjectFieldDef[] = [
   { key: "activity_type", label: "Activity Type", type: "select", role: "AM/BM/PL", registry: "activity_type", creatable: true, tooltip: "Select PILOT/TRIAL, TRC, or VAL/VER." },
   { key: "client_name", label: "Client Name", type: "select", role: "AM/BM/PL", registry: "client_name", creatable: true, capitalizeWords: true, tooltip: "Client or principal name." },
   { key: "fg_code", label: "FG Code", type: "alphanumeric", role: "AM/BM/PL", tooltip: "Finished goods code (letters, numbers, hyphens)." },
-  { key: "product_name", label: "Product Name", type: "text", role: "AM/BM/PL", span: 3, capitalizeWords: true, tooltip: "Product or project name." },
+  { key: "product_name", label: "Product Name", type: "text", role: "AM/BM/PL", span: 3, tooltip: "Product or project name. Saved in capital letters." },
 ];
 
 export const BATCH_FIELDS: ProjectFieldDef[] = [

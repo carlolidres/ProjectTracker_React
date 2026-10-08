@@ -6,6 +6,8 @@ export interface SidebarNavLeaf {
   label: string;
   href: string;
   roles?: UserRole[];
+  /** Opens a wide popup over the current page instead of navigating. */
+  openInWindow?: boolean;
 }
 
 export type SidebarNavSectionSpec =
@@ -13,7 +15,7 @@ export type SidebarNavSectionSpec =
   | { type: "group"; id: string; label: string; items: SidebarNavLeaf[] };
 
 const DASHBOARD: SidebarNavLeaf = { label: "Dashboard", href: "/dashboard" };
-const MY_WORK: SidebarNavLeaf = { label: "Project Management", href: "/project-management" };
+const PROJECT_BOARD: SidebarNavLeaf = { label: "Project board", href: "/project-boards", openInWindow: true };
 const PROJECT_ENTRY: SidebarNavLeaf = { label: "Entry", href: "/projects" };
 const PROJECT_SPREADSHEET: SidebarNavLeaf = { label: "Spreadsheet", href: "/projects/database" };
 const SUPPORT: SidebarNavLeaf = { label: "Support", href: "/support-activities" };
@@ -32,7 +34,7 @@ export const AI_ASSISTANT_NAV_LEAF: SidebarNavLeaf = { label: "Ask AI", href: "/
 
 export const SIDEBAR_NAV_TREE_SPEC: SidebarNavSectionSpec[] = [
   { type: "link", item: DASHBOARD },
-  { type: "link", item: MY_WORK },
+  { type: "link", item: PROJECT_BOARD },
   { type: "group", id: "projects", label: "Projects", items: [PROJECT_ENTRY, PROJECT_SPREADSHEET] },
   { type: "link", item: SUPPORT },
   { type: "group", id: "trackers", label: "Trackers", items: [CNF, ENDORSEMENT] },
@@ -42,7 +44,7 @@ export const SIDEBAR_NAV_TREE_SPEC: SidebarNavSectionSpec[] = [
 
 export const SIDEBAR_NAV_LEAVES: SidebarNavLeaf[] = [
   DASHBOARD,
-  MY_WORK,
+  PROJECT_BOARD,
   PROJECT_ENTRY,
   PROJECT_SPREADSHEET,
   SUPPORT,
