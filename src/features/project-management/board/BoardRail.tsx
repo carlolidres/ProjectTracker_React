@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Dropdown, Input, Select } from "antd";
+import { Dropdown, Input } from "antd";
 import { LucideIcon } from "@/components/common/lucide-icon";
 import type { PmProject, PmWorkspace } from "@/features/project-management/board/boardRules";
 
@@ -11,16 +11,18 @@ export function BoardRail({
   query,
   canRename,
   favorites,
+  unseenCounts,
+  completedIds,
   onQuery,
   onSelectWorkspace,
   onSelectProject,
   onRenameProject,
   onToggleFavorite,
-  onMyWork,
   onAddWorkspace,
   onAddProject,
   onManage,
   onEdit,
+  onLeave,
   onArchive,
 }: {
   workspaces: PmWorkspace[];
@@ -30,19 +32,22 @@ export function BoardRail({
   query: string;
   canRename: boolean;
   favorites: string[];
+  unseenCounts: Map<string, number>;
+  completedIds: Set<string>;
   onQuery: (value: string) => void;
   onSelectWorkspace: (id: string) => void;
   onSelectProject: (id: string) => void;
   onRenameProject: (name: string) => void;
   onToggleFavorite: (projectId: string) => void;
-  onMyWork: () => void;
   onAddWorkspace: () => void;
   onAddProject: () => void;
   onManage: () => void;
   onEdit: () => void;
+  onLeave: () => void;
   onArchive: () => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+  const [workspaceOpen, setWorkspaceOpen] = useState(() => localStorage.getItem("project-tracker:pm-board-workspace-open") !== "closed");
   const skipSave = useRef(false);
   const visible = projects
     .filter((project) => !project.archivedAt && project.name.toLowerCase().includes(query.trim().toLowerCase()))
@@ -50,47 +55,6 @@ export function BoardRail({
   const activeWorkspaces = workspaces.filter((item) => !item.archivedAt);
   return (
     <aside className="pmb-rail" aria-label="Workspaces and projects">
-      <Select
-        showSearch
-        className="pmb-workspace-select"
-        aria-label="Workspace"
-        value={workspace?.id}
-        placeholder="Workspace"
-        optionFilterProp="label"
-        options={activeWorkspaces.map((item) => ({
-          value: item.id,
-          label: `${item.icon} ${item.name}`,
-        }))}
-        onChange={onSelectWorkspace}
-      />
-      <button type="button" className="pmb-rail-add" onClick={onAddWorkspace}>
-        <LucideIcon name="plus" size={14} /> Add new workspace
-      </button>
-      {workspace ? (
-        <Dropdown
-          trigger={["click"]}
-          menu={{
-            items: [
-              { key: "manage", label: "Manage" },
-              { key: "edit", label: "Edit" },
-              { key: "add", label: "Add New" },
-              { key: "project", label: "New project" },
-              { key: "archive", label: "Archive", disabled: workspace.role !== "Owner" },
-            ],
-            onClick: ({ key }) => {
-              if (key === "manage") onManage();
-              if (key === "edit") onEdit();
-              if (key === "add") onAddWorkspace();
-              if (key === "project") onAddProject();
-              if (key === "archive") onArchive();
-            },
-          }}
-        >
-          <button type="button" className="pmb-rail-menu" aria-label="Workspace actions">
-            {workspace.icon} {workspace.name}
-          </button>
-        </Dropdown>
-      ) : null}
       <Input
         allowClear
         prefix={<LucideIcon name="search" size={14} />}
@@ -99,14 +63,64 @@ export function BoardRail({
         value={query}
         onChange={(event) => onQuery(event.target.value)}
       />
-      <button type="button" className="pmb-rail-add" onClick={onMyWork}>My work</button>
-      <div className="pmb-project-list" role="list">
+      <button type="button" className="pmb-rail-add" onClick={onAddWorkspace}>
+        <LucideIcon name="plus" size={14} /> Add new workspace
+      </button>
+      {workspace ? (
+        <div className="pmb-workspace-row">
+          <button
+            type="button"
+            className="pmb-workspace-toggle"
+            aria-expanded={workspaceOpen}
+            aria-label={workspaceOpen ? `Collapse ${workspace.name}` : `Expand ${workspace.name}`}
+            onClick={() => setWorkspaceOpen((open) => {
+              localStorage.setItem("project-tracker:pm-board-workspace-open", open ? "closed" : "open");
+              return !open;
+            })}
+          >
+            <span className={workspaceOpen ? "is-open" : undefined}>
+              <LucideIcon name="chevron-right" size={14} />
+            </span>
+          </button>
+          <Dropdown
+            trigger={["click"]}
+            menu={{
+              items: [
+                ...activeWorkspaces.filter((item) => item.id !== workspace.id).map((item) => ({
+                  key: `open:${item.id}`,
+                  label: `${item.icon} ${item.name}`,
+                })),
+                ...(activeWorkspaces.some((item) => item.id !== workspace.id) ? [{ type: "divider" as const }] : []),
+                { key: "manage", label: "Manage" },
+                { key: "edit", label: "Edit" },
+                { key: "project", label: "New project" },
+                { key: "leave", label: "Leave workspace" },
+                { key: "archive", label: "Archive", disabled: workspace.role !== "Owner" },
+              ],
+              onClick: ({ key }) => {
+                if (key.startsWith("open:")) onSelectWorkspace(key.slice(5));
+                if (key === "manage") onManage();
+                if (key === "edit") onEdit();
+                if (key === "project") onAddProject();
+                if (key === "leave") onLeave();
+                if (key === "archive") onArchive();
+              },
+            }}
+          >
+            <button type="button" className="pmb-rail-menu" aria-label="Workspace actions">
+              {workspace.icon} {workspace.name}
+            </button>
+          </Dropdown>
+        </div>
+      ) : null}
+      {workspaceOpen ? <div className="pmb-project-list" role="list">
         {visible.map((project) => {
           const active = project.id === projectId;
+          const complete = completedIds.has(project.id);
           const editing = active && draft !== null;
           if (editing) {
             return (
-              <div key={project.id} className="pmb-project is-active" role="listitem">
+              <div key={project.id} className={`pmb-project is-active${complete ? " is-complete" : ""}`} role="listitem">
                 <span className="pmb-project-mark" style={{ background: workspace?.color ?? "#579bfc" }} />
                 <input
                   className="pmb-project-rename"
@@ -140,15 +154,16 @@ export function BoardRail({
               key={project.id}
               type="button"
               role="listitem"
-              className={`pmb-project${active ? " is-active" : ""}`}
+              className={`pmb-project${active ? " is-active" : ""}${complete ? " is-complete" : ""}`}
               aria-current={active ? "true" : undefined}
-              title={active && canRename ? "Double-click to rename" : undefined}
+              title={[active && canRename ? "Double-click to rename" : "", complete ? "All tasks completed" : ""].filter(Boolean).join(". ") || undefined}
               onClick={() => onSelectProject(project.id)}
               onDoubleClick={() => {
                 if (active && canRename) setDraft(project.name);
               }}
             >
               <span className="pmb-project-mark" style={{ background: workspace?.color ?? "#579bfc" }} />
+            {(unseenCounts.get(project.id) ?? 0) > 0 ? <span className="pmb-unseen-dot" aria-label={`${unseenCounts.get(project.id)} new updates`} /> : null}
             <span>{project.name}</span>
             <span
               role="button"
@@ -172,7 +187,7 @@ export function BoardRail({
           </button>
           );
         })}
-      </div>
+      </div> : null}
     </aside>
   );
 }

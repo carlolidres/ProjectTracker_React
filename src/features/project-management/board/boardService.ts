@@ -424,6 +424,16 @@ export async function myProjectRole(projectId: string, userId: string): Promise<
   return asProjectAccess(data.role);
 }
 
+/** Lets a task owner open this workspace and its shared projects. */
+export async function shareProjectWithAssignee(projectId: string, userId: string) {
+  if (!userId) return;
+  const { error } = await supabase.rpc("grant_pm_assignee", {
+    p_project_id: projectId,
+    p_user_id: userId,
+  });
+  if (error) fail(error);
+}
+
 export async function addProjectMember(projectId: string, userId: string, role: ProjectAccess, userEmail: string, personName: string) {
   const { error } = await supabase.from("pm_project_members").insert({
     project_id: projectId,
@@ -497,6 +507,25 @@ export async function deleteGroup(group: PmGroup, taskCount: number, userEmail: 
   await audit(userEmail, "delete", group.id, group.projectId, "group", group.name, "", `Deleted empty group ${group.name}`);
 }
 
+export async function listCompletedProjectIds(projectIds: string[]): Promise<Set<string>> {
+  if (projectIds.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("pm_board_tasks")
+    .select("project_id, status")
+    .in("project_id", projectIds);
+  if (error) fail(error);
+  const counts = new Map<string, { total: number; done: number }>();
+  for (const row of data ?? []) {
+    const id = String(row.project_id ?? "");
+    if (!id) continue;
+    const current = counts.get(id) ?? { total: 0, done: 0 };
+    current.total += 1;
+    if (row.status === "Done") current.done += 1;
+    counts.set(id, current);
+  }
+  return new Set([...counts].filter(([, item]) => item.total > 0 && item.done === item.total).map(([id]) => id));
+}
+
 export async function listTasks(projectId: string): Promise<PmBoardTask[]> {
   const { data, error } = await supabase
     .from("pm_board_tasks")
@@ -550,6 +579,7 @@ export async function createTask(input: TaskWrite): Promise<PmBoardTask> {
   if (!input.quiet) {
     await audit(input.userEmail, "create", task.id, input.projectId, "task", "", task.title, `Created task ${task.title}`);
   }
+  if (input.ownerId) await shareProjectWithAssignee(input.projectId, input.ownerId);
   return task;
 }
 
@@ -570,6 +600,7 @@ export async function updateTask(task: PmBoardTask, patch: Partial<PmBoardTask>,
   if (patch.sortOrder !== undefined) payload.sort_order = patch.sortOrder;
   const { error } = await supabase.from("pm_board_tasks").update(payload).eq("id", task.id);
   if (error) fail(error);
+  if (patch.ownerId) await shareProjectWithAssignee(task.projectId, patch.ownerId);
   const changed = patch.status && patch.status !== task.status
     ? `Status ${task.status} → ${patch.status}`
     : patch.title && patch.title !== task.title
@@ -717,7 +748,7 @@ export async function listTaskFiles(taskId: string): Promise<PmTaskFile[]> {
   });
 }
 
-export async function uploadTaskFile(task: PmBoardTask, file: File, userEmail: string) {
+export async function uploadTaskFile(task: PmBoardTask, file: File, userEmail: string): Promise<string> {
   const { data: userData } = await supabase.auth.getUser();
   const safeName = file.name.replace(/[^\w.\- ]+/g, "_");
   const storagePath = `${task.projectId}/${task.id}/${crypto.randomUUID()}-${safeName}`;
@@ -732,6 +763,7 @@ export async function uploadTaskFile(task: PmBoardTask, file: File, userEmail: s
   });
   if (error) fail(error);
   await audit(userEmail, "create", task.id, task.projectId, "file", "", file.name, `Added file ${file.name} to ${task.title}`);
+  return storagePath;
 }
 
 export async function taskFileUrl(storagePath: string) {
@@ -766,6 +798,124 @@ export async function listTaskActivity(taskId: string): Promise<TaskActivity[]> 
       timestamp: String(record.timestamp ?? ""),
     };
   });
+}
+
+export interface BoardColumnRecord {
+  id: string;
+  projectId: string;
+  type: string;
+  title: string;
+  settings: Record<string, unknown>;
+  position: number;
+}
+
+function mapColumn(row: Record<string, unknown>): BoardColumnRecord {
+  const settings = row.settings;
+  return {
+    id: String(row.id),
+    projectId: String(row.project_id ?? ""),
+    type: String(row.column_type ?? ""),
+    title: String(row.title ?? ""),
+    settings: settings && typeof settings === "object" && !Array.isArray(settings) ? settings as Record<string, unknown> : {},
+    position: Number(row.position ?? 0),
+  };
+}
+
+export async function listBoardColumns(projectId: string): Promise<BoardColumnRecord[]> {
+  const { data, error } = await supabase
+    .from("pm_board_columns")
+    .select("*")
+    .eq("project_id", projectId)
+    .is("deleted_at", null)
+    .order("position");
+  if (error) fail(error);
+  return (data ?? []).map((row) => mapColumn(row as Record<string, unknown>));
+}
+
+export async function addBoardColumn(projectId: string, type: string, title: string, settings: Record<string, unknown>, position: number) {
+  const { data: userData } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from("pm_board_columns")
+    .insert({
+      project_id: projectId,
+      column_type: type,
+      title,
+      settings,
+      position,
+      created_by: userData.user?.id ?? null,
+    })
+    .select("*")
+    .single();
+  if (error) fail(error);
+  return mapColumn(data as Record<string, unknown>);
+}
+
+export async function updateBoardColumn(columnId: string, patch: { title?: string; settings?: Record<string, unknown>; position?: number }) {
+  const payload: Record<string, unknown> = {};
+  if (patch.title !== undefined) payload.title = patch.title;
+  if (patch.settings !== undefined) payload.settings = patch.settings;
+  if (patch.position !== undefined) payload.position = patch.position;
+  const { error } = await supabase.from("pm_board_columns").update(payload).eq("id", columnId);
+  if (error) fail(error);
+}
+
+export async function archiveBoardColumn(columnId: string) {
+  const { error } = await supabase.from("pm_board_columns").update({ deleted_at: new Date().toISOString() }).eq("id", columnId);
+  if (error) fail(error);
+}
+
+export async function listCellValues(columnIds: string[]): Promise<{ taskId: string; columnId: string; value: unknown }[]> {
+  if (columnIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("pm_board_cell_values")
+    .select("task_id, column_id, value")
+    .in("column_id", columnIds);
+  if (error) fail(error);
+  return (data ?? []).map((row) => {
+    const record = row as Record<string, unknown>;
+    return { taskId: String(record.task_id), columnId: String(record.column_id), value: record.value };
+  });
+}
+
+export async function saveCellValue(taskId: string, columnId: string, value: unknown) {
+  const { data: userData } = await supabase.auth.getUser();
+  const { error } = await supabase.from("pm_board_cell_values").upsert({
+    task_id: taskId,
+    column_id: columnId,
+    value,
+    updated_at: new Date().toISOString(),
+    updated_by: userData.user?.id ?? null,
+  }, { onConflict: "task_id,column_id" });
+  if (error) fail(error);
+}
+
+export interface UpdateMark {
+  taskId: string;
+  projectId: string;
+  createdAt: string;
+  authorId: string;
+}
+
+export async function listUpdateMarks(projectIds: string[]): Promise<UpdateMark[]> {
+  if (projectIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("pm_task_updates")
+    .select("task_id, project_id, created_at, author_id")
+    .in("project_id", projectIds);
+  if (error) fail(error);
+  const latest = new Map<string, UpdateMark>();
+  for (const row of data ?? []) {
+    const record = row as Record<string, unknown>;
+    const mark: UpdateMark = {
+      taskId: String(record.task_id ?? ""),
+      projectId: String(record.project_id ?? ""),
+      createdAt: String(record.created_at ?? ""),
+      authorId: String(record.author_id ?? ""),
+    };
+    const current = latest.get(mark.taskId);
+    if (!current || mark.createdAt > current.createdAt) latest.set(mark.taskId, mark);
+  }
+  return [...latest.values()];
 }
 
 export { listAssignableProfiles };

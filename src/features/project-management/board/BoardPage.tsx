@@ -4,7 +4,7 @@ import { useAuth } from "@/app/auth-provider";
 import { useDateAdjustment } from "@/app/date-adjustment-provider";
 import { ROLE_LABELS } from "@/lib/constants";
 import { subscribeProjectDataChanged, subscribeSupportDataChanged } from "@/lib/projectDataEvents";
-import { BOARD_WINDOW_NAME } from "@/lib/boardSessionHandoff";
+import { BOARD_WINDOW_NAME, stageBoardSessionHandoff } from "@/lib/boardSessionHandoff";
 import { alignBoardFromSource, boardOwnsSourceWriteNow, markBoardSourceWrite, pushTaskToSource } from "@/features/project-management/board/boardSourceSync";
 import { exportBoardTasksToExcel } from "@/services/exportService";
 import { listActiveProjects } from "@/services/projectService";
@@ -26,6 +26,8 @@ import { BoardTable } from "@/features/project-management/board/BoardTable";
 import { BoardToolbar } from "@/features/project-management/board/BoardToolbar";
 import { TaskDetailsDrawer } from "@/features/project-management/board/TaskDetailsDrawer";
 import { TaskSidePanel } from "@/features/project-management/board/TaskSidePanel";
+import { ColumnCenter } from "@/features/project-management/board/ColumnCenter";
+import { builtinColumnKey, columnSortKey, type BoardColumn } from "@/features/project-management/board/columnCatalog";
 import {
   addWorkspaceMember,
   createGroup,
@@ -40,8 +42,10 @@ import {
   linkProjectSource,
   listProjects,
   listDependencies,
+  listCompletedProjectIds,
   listTasks,
   seedSourceTasks,
+  shareProjectWithAssignee,
   listWorkspaceMembers,
   myProjectRole,
   removeProjectMember,
@@ -58,6 +62,14 @@ import {
   updateWorkspaceMemberRole,
   addProjectMember,
   listAssignableProfiles,
+  listBoardColumns,
+  addBoardColumn,
+  updateBoardColumn,
+  archiveBoardColumn,
+  listCellValues,
+  saveCellValue,
+  listUpdateMarks,
+  type UpdateMark,
 } from "@/features/project-management/board/boardService";
 import { personName } from "@/features/project-management/board/boardUi";
 import {
@@ -97,8 +109,8 @@ import {
 import type { Profile } from "@/types";
 
 type BoardView = "table" | "kanban" | "gantt" | "calendar";
-const ICONS = ["📋", "⭐", "🧪", "📁", "🚀"];
-const COLORS = ["#579bfc", "#00c875", "#fdab3d", "#a25ddc", "#e2445c"];
+const ICONS = ["📋", "⭐", "🧪", "📁", "🚀", "🌿", "✨", "🎯", "💡", "🌸", "🐝", "📌", "🧩", "🌙", "🍀"];
+const COLORS = ["#579bfc", "#00c875", "#fdab3d", "#a25ddc", "#e2445c", "#ff7b9c", "#66ccff", "#9cd326", "#ffcb00", "#7e5bef", "#00d2d3", "#ff6b6b", "#4ecdc4", "#f78fb3", "#546de5"];
 
 let boardBootstrap: Promise<PmWorkspace[]> | null = null;
 
@@ -161,6 +173,17 @@ export function BoardPage() {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [updatesTaskId, setUpdatesTaskId] = useState<string | null>(null);
   const [railClosed, setRailClosed] = useState(() => localStorage.getItem("project-tracker:pm-board-rail") === "closed");
+  const [boardTheme, setBoardTheme] = useState<"light" | "dark">(() => (
+    localStorage.getItem("project-tracker:pm-board-theme") === "dark" ? "dark" : "light"
+  ));
+  const [boardColumns, setBoardColumns] = useState<BoardColumn[]>([]);
+  const [cells, setCells] = useState<Record<string, Record<string, unknown>>>({});
+  const [columnCenterOpen, setColumnCenterOpen] = useState(false);
+  const [configureColumnId, setConfigureColumnId] = useState<string | null>(null);
+  const [columnSort, setColumnSort] = useState<{ id: string; direction: "asc" | "desc" } | null>(null);
+  const [scrollColumn, setScrollColumn] = useState<{ key: string; tick: number } | null>(null);
+  const [updateMarks, setUpdateMarks] = useState<UpdateMark[]>([]);
+  const [seenUpdates, setSeenUpdates] = useState<Record<string, string>>({});
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem("project-tracker:pm-board-favorites");
@@ -188,11 +211,13 @@ export function BoardPage() {
   });
   const [sourceReload, setSourceReload] = useState(0);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveQuery, setArchiveQuery] = useState("");
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [archiveSnapshot, setArchiveSnapshot] = useState<{
     workspaces: PmWorkspace[];
-    projects: { project: PmProject; workspaceName: string; workspaceId: string }[];
+    projects: { project: PmProject; workspaceName: string; workspaceId: string; completed: boolean }[];
   }>({ workspaces: [], projects: [] });
+  const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set());
   const [manageWorkspace, setManageWorkspace] = useState(false);
   const [manageProject, setManageProject] = useState(false);
   const [members, setMembers] = useState<PmMembership[]>([]);
@@ -204,6 +229,89 @@ export function BoardPage() {
     : null;
   const canEdit = canEditBoard(access);
   const canComment = canCommentOnBoard(access);
+  const assigneeKey = useMemo(
+    () => [...new Set(tasks.map((task) => task.ownerId).filter((id): id is string => Boolean(id)))].sort().join(","),
+    [tasks],
+  );
+  useEffect(() => {
+    document.documentElement.dataset.pmbTheme = boardTheme;
+    localStorage.setItem("project-tracker:pm-board-theme", boardTheme);
+    return () => {
+      delete document.documentElement.dataset.pmbTheme;
+    };
+  }, [boardTheme]);
+  useEffect(() => {
+    if (!projectId || !canEdit || !assigneeKey) return;
+    for (const ownerId of assigneeKey.split(",")) {
+      void shareProjectWithAssignee(projectId, ownerId).catch(() => undefined);
+    }
+  }, [assigneeKey, canEdit, projectId]);
+  const projectKey = projects.map((item) => item.id).join(",");
+  const unseenTaskIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const mark of updateMarks) {
+      if (mark.authorId && mark.authorId === user?.id) continue;
+      if ((seenUpdates[mark.taskId] || "") >= mark.createdAt) continue;
+      ids.add(mark.taskId);
+    }
+    return ids;
+  }, [seenUpdates, updateMarks, user?.id]);
+  const unseenCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const mark of updateMarks) {
+      if (!unseenTaskIds.has(mark.taskId)) continue;
+      counts.set(mark.projectId, (counts.get(mark.projectId) ?? 0) + 1);
+    }
+    return counts;
+  }, [unseenTaskIds, updateMarks]);
+  useEffect(() => {
+    const key = `project-tracker:pm-board-seen:${user?.id || "local"}`;
+    try {
+      setSeenUpdates(JSON.parse(localStorage.getItem(key) || "{}") as Record<string, string>);
+    } catch {
+      setSeenUpdates({});
+    }
+  }, [user?.id]);
+  useEffect(() => {
+    if (!projectKey) return;
+    let cancel = false;
+    void listUpdateMarks(projectKey.split(",")).then((marks) => {
+      if (!cancel) setUpdateMarks(marks);
+    }).catch(() => undefined);
+    return () => { cancel = true; };
+  }, [projectKey]);
+  useEffect(() => {
+    if (!projectId) return;
+    let cancel = false;
+    void listBoardColumns(projectId).then(async (columns) => {
+      if (cancel) return;
+      setBoardColumns(columns);
+      const values = await listCellValues(columns.map((column) => column.id));
+      if (cancel) return;
+      const next: Record<string, Record<string, unknown>> = {};
+      for (const item of values) {
+        next[item.taskId] = { ...next[item.taskId], [item.columnId]: item.value };
+      }
+      setCells(next);
+    }).catch(() => undefined);
+    return () => { cancel = true; };
+  }, [projectId]);
+  const markUpdateSeen = (taskId: string) => {
+    const mark = updateMarks.find((item) => item.taskId === taskId);
+    if (!mark) return;
+    setSeenUpdates((current) => {
+      const next = { ...current, [taskId]: mark.createdAt };
+      localStorage.setItem(`project-tracker:pm-board-seen:${user?.id || "local"}`, JSON.stringify(next));
+      return next;
+    });
+  };
+  const saveCell = (task: PmBoardTask, column: BoardColumn, value: unknown) => {
+    setCells((current) => ({ ...current, [task.id]: { ...current[task.id], [column.id]: value } }));
+    void saveCellValue(task.id, column.id, value).catch((err) => message.error(err instanceof Error ? err.message : "Could not save the cell."));
+    if (column.type === "people" && Array.isArray(value)) {
+      for (const ownerId of value) void shareProjectWithAssignee(task.projectId, String(ownerId)).catch(() => undefined);
+    }
+  };
   const visibleTasks = useMemo(() => {
     const filtered = filterBoardTasks(tasks, filters, {
       columns: searchColumns,
@@ -231,10 +339,8 @@ export function BoardPage() {
   }, []);
 
   useEffect(() => {
-    const open = () => setArchiveOpen(true);
-    window.addEventListener("pmb-open-archive", open);
-    return () => window.removeEventListener("pmb-open-archive", open);
-  }, []);
+    if (!archiveOpen) setArchiveQuery("");
+  }, [archiveOpen]);
 
   useEffect(() => {
     if (!archiveOpen) return;
@@ -243,13 +349,16 @@ export function BoardPage() {
     void Promise.all(workspaces.map(async (space) => ({
       workspace: space,
       projects: await listProjects(space.id),
-    }))).then((lists) => {
+    }))).then(async (lists) => {
+      if (cancel) return;
+      const archivedProjects = lists.flatMap((item) => item.projects
+        .filter((project) => project.archivedAt || item.workspace.archivedAt)
+        .map((project) => ({ project, workspaceName: item.workspace.name, workspaceId: item.workspace.id })));
+      const completed = await listCompletedProjectIds(archivedProjects.map((item) => item.project.id));
       if (cancel) return;
       setArchiveSnapshot({
         workspaces: lists.filter((item) => item.workspace.archivedAt).map((item) => item.workspace),
-        projects: lists.flatMap((item) => item.projects
-          .filter((project) => project.archivedAt || item.workspace.archivedAt)
-          .map((project) => ({ project, workspaceName: item.workspace.name, workspaceId: item.workspace.id }))),
+        projects: archivedProjects.map((item) => ({ ...item, completed: completed.has(item.project.id) })),
       });
     }).catch((err) => {
       if (!cancel) message.error(err instanceof Error ? err.message : "Could not load the archive.");
@@ -260,6 +369,21 @@ export function BoardPage() {
       cancel = true;
     };
   }, [archiveOpen, message, workspaces]);
+
+  useEffect(() => {
+    const ids = projects.filter((item) => !item.archivedAt).map((item) => item.id);
+    if (ids.length === 0) {
+      setCompletedIds(new Set());
+      return;
+    }
+    let cancel = false;
+    void listCompletedProjectIds(ids).then((next) => {
+      if (!cancel) setCompletedIds(next);
+    }).catch(() => undefined);
+    return () => {
+      cancel = true;
+    };
+  }, [projects, tasks]);
 
   useEffect(() => {
     if (!email || !user?.id) return;
@@ -494,8 +618,81 @@ export function BoardPage() {
     }
   };
 
+  const shownColumns = useMemo(
+    () => [...boardColumns].filter((column) => column.settings.hidden !== true).sort((a, b) => a.position - b.position || a.title.localeCompare(b.title)),
+    [boardColumns],
+  );
+  const revealColumn = (key: string) => {
+    setView("table");
+    setHidden((current) => {
+      if (!current.has(key)) return current;
+      const next = new Set(current);
+      next.delete(key);
+      return next;
+    });
+    setScrollColumn((current) => ({ key, tick: (current?.tick ?? 0) + 1 }));
+  };
+  const patchColumn = async (column: BoardColumn, patch: { title?: string; settings?: Record<string, unknown>; position?: number }) => {
+    await updateBoardColumn(column.id, patch);
+    setBoardColumns((current) => current.map((item) => (
+      item.id === column.id ? { ...item, ...patch, settings: patch.settings ?? item.settings } : item
+    )));
+  };
+  const onColumnAction = (column: BoardColumn, action: string) => {
+    if (action === "rename") {
+      const name = window.prompt("Column name", column.title);
+      if (!name?.trim() || name.trim() === column.title) return;
+      void patchColumn(column, { title: name.trim() }).catch((err) => message.error(err instanceof Error ? err.message : "Could not rename the column."));
+      return;
+    }
+    if (action === "settings") {
+      setConfigureColumnId(column.id);
+      setColumnCenterOpen(true);
+      return;
+    }
+    if (action === "hide") {
+      void patchColumn(column, { settings: { ...column.settings, hidden: true } }).catch((err) => message.error(err instanceof Error ? err.message : "Could not hide the column."));
+      return;
+    }
+    if (action === "delete") {
+      if (!window.confirm(`Remove ${column.title}? Cell values for this column will be hidden.`)) return;
+      void archiveBoardColumn(column.id).then(() => {
+        setBoardColumns((current) => current.filter((item) => item.id !== column.id));
+        setColumnSort((current) => (current?.id === column.id ? null : current));
+      }).catch((err) => message.error(err instanceof Error ? err.message : "Could not delete the column."));
+      return;
+    }
+    if (action === "asc" || action === "desc") {
+      setColumnSort({ id: column.id, direction: action });
+      return;
+    }
+    if (action !== "left" && action !== "right") return;
+    const ordered = [...boardColumns].sort((a, b) => a.position - b.position || a.title.localeCompare(b.title));
+    const index = ordered.findIndex((item) => item.id === column.id);
+    const nextIndex = index + (action === "left" ? -1 : 1);
+    if (index < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
+    const swapped = [...ordered];
+    const [moved] = swapped.splice(index, 1);
+    swapped.splice(nextIndex, 0, moved);
+    const positioned = swapped.map((item, position) => ({ ...item, position }));
+    setBoardColumns(positioned);
+    void Promise.all(positioned.map((item) => updateBoardColumn(item.id, { position: item.position }))).catch((err) => message.error(err instanceof Error ? err.message : "Could not move the column."));
+  };
   const sections = useMemo(() => {
-    const tops = topLevelTasks(visibleTasks);
+    const direction = columnSort?.direction === "asc" ? 1 : -1;
+    const sortColumn = boardColumns.find((column) => column.id === columnSort?.id);
+    const orderTasks = (list: PmBoardTask[]) => {
+      if (!sortColumn || !columnSort) return list;
+      return [...list].sort((a, b) => {
+        const left = columnSortKey(sortColumn.type, cells[a.id]?.[sortColumn.id]);
+        const right = columnSortKey(sortColumn.type, cells[b.id]?.[sortColumn.id]);
+        if (left === right) return 0;
+        if (left === "") return 1;
+        if (right === "") return -1;
+        return left < right ? -direction : direction;
+      });
+    };
+    const tops = orderTasks(topLevelTasks(visibleTasks));
     if (groupBy === "status") {
       return BOARD_STATUSES.map((status) => ({
         id: status,
@@ -518,7 +715,7 @@ export function BoardPage() {
       color: group.color,
       tasks: tops.filter((task) => task.groupId === group.id),
     }));
-  }, [groupBy, groups, visibleTasks]);
+  }, [boardColumns, cells, columnSort, groupBy, groups, visibleTasks]);
 
   const saveWorkspace = async () => {
     if (!workspaceDraft) return;
@@ -652,6 +849,13 @@ export function BoardPage() {
     setGroupBy(saved.groupBy);
   };
 
+  const archiveNeedle = archiveQuery.trim().toLowerCase();
+  const archivedWorkspaces = archiveSnapshot.workspaces.filter((space) =>
+    !archiveNeedle || `${space.icon} ${space.name} ${space.description}`.toLowerCase().includes(archiveNeedle),
+  );
+  const archivedProjects = archiveSnapshot.projects.filter(({ project: item, workspaceName }) =>
+    !archiveNeedle || `${item.name} ${item.description} ${workspaceName}`.toLowerCase().includes(archiveNeedle),
+  );
   const taskOrder = topLevelTasks(visibleTasks);
   const updatesIndex = taskOrder.findIndex((task) => task.id === updatesTaskId);
 
@@ -666,16 +870,13 @@ export function BoardPage() {
         query={projectQuery}
         canRename={access === "Owner" && !project?.sourceKind}
         favorites={favorites}
+        unseenCounts={unseenCounts}
+        completedIds={completedIds}
         onQuery={setProjectQuery}
         onSelectWorkspace={setWorkspaceId}
         onSelectProject={setProjectId}
         onRenameProject={renameProject}
         onToggleFavorite={toggleFavorite}
-        onMyWork={() => {
-          if (!user?.id) return;
-          setFilters((current) => ({ ...current, ownerId: user.id }));
-          setView("table");
-        }}
         onAddWorkspace={() => setWorkspaceDraft({ open: true, editing: false, name: "", description: "", icon: "📋", color: "#579bfc" })}
         onAddProject={openNewProject}
         onManage={() => void openMembers("workspace")}
@@ -687,6 +888,22 @@ export function BoardPage() {
           icon: workspace.icon,
           color: workspace.color,
         })}
+        onLeave={() => {
+          if (!workspace || !user?.id) return;
+          modal.confirm({
+            title: `Leave ${workspace.name}?`,
+            content: "You will no longer see this workspace. An owner can remove other people from Manage.",
+            okText: "Leave",
+            okButtonProps: { danger: true },
+            onOk: () => removeWorkspaceMember(workspace.id, user.id, email, personName(profiles, user.id)).then(async () => {
+              const next = await listMyWorkspaces();
+              setWorkspaces(next);
+              setWorkspaceId(next.find((item) => !item.archivedAt)?.id ?? null);
+              setManageWorkspace(false);
+              message.success(`Left ${workspace.name}`);
+            }),
+          });
+        }}
         onArchive={() => {
           if (!workspace) return;
           modal.confirm({
@@ -712,15 +929,29 @@ export function BoardPage() {
         </button>
       </div>
       <div className="pmb-main">
-        {window.name === BOARD_WINDOW_NAME ? (
+        {error ? <Alert type="error" showIcon message={error} /> : null}
+        {loading || (workspaceId && !projectsReady) ? <Skeleton active /> : !project ? (
+          <>
           <div className="pmb-window-bar">
             <button type="button" className="pmb-popup-window" aria-label="Archive" title="Archive" onClick={() => setArchiveOpen(true)}>
               <LucideIcon name="archive" size={14} />
             </button>
+            <button
+              type="button"
+              className="pmb-popup-window"
+              aria-label="Open in new window"
+              title="Open in new window"
+              onClick={() => {
+                stageBoardSessionHandoff();
+                const url = new URL(window.location.href);
+                url.searchParams.set("board", String(Date.now()));
+                url.hash = "/project-boards";
+                if (window.open(url.toString(), BOARD_WINDOW_NAME)) window.dispatchEvent(new Event("pmb-close-popup"));
+              }}
+            >
+              <LucideIcon name="external-link" size={14} />
+            </button>
           </div>
-        ) : null}
-        {error ? <Alert type="error" showIcon message={error} /> : null}
-        {loading || (workspaceId && !projectsReady) ? <Skeleton active /> : !project ? (
           <section className="pmb-empty" aria-label="No project yet">
             <LucideIcon name="clipboard-list" size={28} />
             <h2>No project yet</h2>
@@ -730,6 +961,7 @@ export function BoardPage() {
               <Button icon={<LucideIcon name="user" size={14} />} onClick={() => void openMembers("workspace")}>Invite members</Button>
             </div>
           </section>
+          </>
         ) : (
           <>
             <header className="pmb-head">
@@ -763,10 +995,34 @@ export function BoardPage() {
                 <button type="button" className="pmb-fav" aria-label="Favorite project" onClick={() => toggleFavorite(project.id)}>
                   {favorites.includes(project.id) ? "★" : "☆"}
                 </button>
-                <Button disabled={access !== "Owner"} onClick={() => void openMembers("project")}>Invite</Button>
-                <Button onClick={() => {
-                  void navigator.clipboard.writeText(window.location.href).then(() => message.success("Link copied"));
-                }}>Copy link</Button>
+                <span className="pmb-title-actions">
+                  <button type="button" className="pmb-popup-window" aria-label="Archive" title="Archive" onClick={() => setArchiveOpen(true)}>
+                    <LucideIcon name="archive" size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="pmb-popup-window"
+                    aria-label="Open in new window"
+                    title="Open in new window"
+                    onClick={() => {
+                      stageBoardSessionHandoff();
+                      const url = new URL(window.location.href);
+                      url.searchParams.set("board", String(Date.now()));
+                      url.hash = "/project-boards";
+                      if (window.open(url.toString(), BOARD_WINDOW_NAME)) window.dispatchEvent(new Event("pmb-close-popup"));
+                    }}
+                  >
+                    <LucideIcon name="external-link" size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`pmb-theme-toggle is-${boardTheme}`}
+                    aria-label={boardTheme === "dark" ? "Use light theme" : "Use dark theme"}
+                    onClick={() => setBoardTheme(boardTheme === "dark" ? "light" : "dark")}
+                  >
+                    <span>{boardTheme === "dark" ? "☾" : "☀"}</span>
+                  </button>
+                </span>
               </div>
               <div>
                 <div className="pmb-tabs" role="tablist" aria-label="Project views">
@@ -941,7 +1197,21 @@ export function BoardPage() {
                   }}
                   dependencies={dependencies}
                   scheduleStrict={project.scheduleMode === "strict"}
-                  onOpenUpdates={(task) => setUpdatesTaskId(task.id)}
+                  onOpenUpdates={(task) => {
+                    markUpdateSeen(task.id);
+                    setUpdatesTaskId(task.id);
+                  }}
+                  columns={shownColumns}
+                  cells={cells}
+                  projects={projects}
+                  userId={user?.id ?? ""}
+                  userEmail={email}
+                  unseenTaskIds={unseenTaskIds}
+                  onAddColumn={() => setColumnCenterOpen(true)}
+                  onSaveCell={saveCell}
+                  onColumnAction={onColumnAction}
+                  scrollKey={scrollColumn?.key ?? null}
+                  scrollTick={scrollColumn?.tick ?? 0}
                   onSaveDependencies={saveDependencies}
                 />
                 {canEdit ? (
@@ -969,6 +1239,8 @@ export function BoardPage() {
                 tasks={visibleTasks}
                 profiles={profiles}
                 canEdit={canEdit}
+                columns={shownColumns}
+                cells={cells}
                 onOpen={(task) => setUpdatesTaskId(task.id)}
                 onMove={(task, columnId) => void patchTask(task, columnPatch(groupBy === "priority" ? "priority" : "status", columnId))}
                 onAdd={(columnId, title) => {
@@ -992,14 +1264,23 @@ export function BoardPage() {
                 tasks={visibleTasks}
                 dependencies={dependencies}
                 canEdit={canEdit}
-                onOpen={(task) => setUpdatesTaskId(task.id)}
+                profiles={profiles}
+                columns={shownColumns}
+                cells={cells}
+                onOpen={(task) => {
+                  markUpdateSeen(task.id);
+                  setUpdatesTaskId(task.id);
+                }}
                 onShift={(task, startDate, dueDate) => void patchTask(task, { startDate, dueDate })}
+                onAddColumn={() => setColumnCenterOpen(true)}
               />
             ) : null}
             {view === "calendar" ? (
               <BoardCalendar
                 tasks={visibleTasks}
                 canEdit={canEdit}
+                columns={shownColumns}
+                cells={cells}
                 onOpen={(task) => setUpdatesTaskId(task.id)}
                 onCreate={(date) => {
                   const group = groups[0];
@@ -1039,6 +1320,45 @@ export function BoardPage() {
           }).catch((err) => message.error(err instanceof Error ? err.message : "Could not delete the task."));
         }}
       />
+      <ColumnCenter
+        open={columnCenterOpen}
+        columns={boardColumns}
+        configureId={configureColumnId}
+        onClose={() => {
+          setColumnCenterOpen(false);
+          setConfigureColumnId(null);
+        }}
+        onFocusBuiltin={(type) => {
+          const key = builtinColumnKey(type);
+          if (!key) return;
+          revealColumn(key);
+          setColumnCenterOpen(false);
+        }}
+        onAdd={async (type, title, settings) => {
+          if (!project) return;
+          const builtin = builtinColumnKey(type);
+          if (builtin) {
+            revealColumn(builtin);
+            setColumnCenterOpen(false);
+            return;
+          }
+          try {
+            const created = await addBoardColumn(project.id, type, title, settings, boardColumns.length);
+            setBoardColumns((current) => [...current, created]);
+            revealColumn(created.id);
+          } catch (err) {
+            message.error(err instanceof Error ? err.message : "Could not add the column.");
+          }
+        }}
+        onUpdate={async (column, patch) => {
+          await updateBoardColumn(column.id, patch);
+          setBoardColumns((current) => current.map((item) => (item.id === column.id ? { ...item, ...patch, settings: patch.settings ?? item.settings } : item)));
+        }}
+        onDelete={async (column) => {
+          await archiveBoardColumn(column.id);
+          setBoardColumns((current) => current.filter((item) => item.id !== column.id));
+        }}
+      />
       {updatesTask && project ? (
         <TaskSidePanel
           task={updatesTask}
@@ -1046,6 +1366,10 @@ export function BoardPage() {
           canEdit={canComment}
           userEmail={email}
           onClose={() => setUpdatesTaskId(null)}
+          onPosted={() => {
+            if (!projectKey) return;
+            void listUpdateMarks(projectKey.split(",")).then(setUpdateMarks).catch(() => undefined);
+          }}
           onPrevious={updatesIndex > 0 ? () => setUpdatesTaskId(taskOrder[updatesIndex - 1].id) : undefined}
           onNext={updatesIndex >= 0 && updatesIndex < taskOrder.length - 1 ? () => setUpdatesTaskId(taskOrder[updatesIndex + 1].id) : undefined}
         />
@@ -1088,19 +1412,32 @@ export function BoardPage() {
           </div>
         ) : null}
       </Modal>
-      <Modal title="Archive" open={archiveOpen} onCancel={() => setArchiveOpen(false)} footer={null}>
+      <Modal className="pmb-archive-modal" title="Archive" width={880} open={archiveOpen} onCancel={() => setArchiveOpen(false)} footer={null}>
+        <div className="pmb-archive-search">
+          <Input
+            allowClear
+            prefix={<LucideIcon name="search" size={14} />}
+            aria-label="Search archive"
+            placeholder="Search"
+            value={archiveQuery}
+            onChange={(event) => setArchiveQuery(event.target.value)}
+          />
+        </div>
         {archiveLoading ? <Skeleton active /> : (
           <div className="pmb-archive">
             <section aria-label="Archived workspaces">
               <h3>Workspaces</h3>
-              {archiveSnapshot.workspaces.length === 0 ? <p>No archived workspaces.</p> : (
-                <ul>
-                  {archiveSnapshot.workspaces.map((space) => (
-                    <li key={space.id}>
-                      <span>{space.icon} {space.name}</span>
+              {archiveSnapshot.workspaces.length === 0 ? <p>No archived workspaces.</p> : archivedWorkspaces.length === 0 ? <p>No workspaces match that search.</p> : (
+                <ul className="pmb-archive-grid">
+                  {archivedWorkspaces.map((space) => (
+                    <li key={space.id} className="pmb-archive-card">
+                      <LucideIcon name="archive" size={16} />
+                      <strong>{space.icon} {space.name}</strong>
+                      <small>Workspace</small>
                       {space.role === "Owner" ? (
                         <Button
                           size="small"
+                          icon={<LucideIcon name="refresh-cw" size={14} />}
                           onClick={() => {
                             void setWorkspaceArchived(space, false, email).then(() => {
                               setWorkspaces((current) => current.map((item) => (item.id === space.id ? { ...item, archivedAt: null } : item)));
@@ -1120,16 +1457,16 @@ export function BoardPage() {
             </section>
             <section aria-label="Archived projects">
               <h3>Projects</h3>
-              {archiveSnapshot.projects.length === 0 ? <p>No archived projects.</p> : (
-                <ul>
-                  {archiveSnapshot.projects.map(({ project: item, workspaceName, workspaceId: itemWorkspaceId }) => (
-                    <li key={item.id}>
-                      <span>
-                        {item.name}
-                        <small>{workspaceName}</small>
-                      </span>
+              {archiveSnapshot.projects.length === 0 ? <p>No archived projects.</p> : archivedProjects.length === 0 ? <p>No projects match that search.</p> : (
+                <ul className="pmb-archive-grid">
+                  {archivedProjects.map(({ project: item, workspaceName, workspaceId: itemWorkspaceId, completed }) => (
+                    <li key={item.id} className={`pmb-archive-card${completed ? " is-complete" : ""}`}>
+                      <LucideIcon name={completed ? "check-circle" : "clipboard-list"} size={16} />
+                      <strong>{item.name}</strong>
+                      <small>{completed ? `${workspaceName} · Completed` : workspaceName}</small>
                       <Button
                         size="small"
+                        icon={<LucideIcon name="refresh-cw" size={14} />}
                         onClick={() => {
                           void setProjectArchived(item, false, email).then(() => {
                             writeLastBoard(itemWorkspaceId, item.id);
@@ -1218,19 +1555,6 @@ export function BoardPage() {
             ) : null}
             <Input aria-label="Project name" placeholder="Name" value={projectDraft.name} onChange={(event) => setProjectDraft({ ...projectDraft, name: event.target.value })} />
             <Input.TextArea aria-label="Project description" placeholder="Description (optional)" value={projectDraft.description} onChange={(event) => setProjectDraft({ ...projectDraft, description: event.target.value })} />
-            {projectDraft.source === "blank" ? null : (
-              <p>Required steps are added as tasks. Finished steps go to Done, work in progress goes to On-going, and steps that have not started stay in Planned.</p>
-            )}
-            <Select
-              aria-label="Project access"
-              value={projectDraft.visibility}
-              options={[
-                { value: "workspace", label: "All workspace members" },
-                { value: "invited", label: "Invited members only" },
-              ]}
-              onChange={(visibility) => setProjectDraft({ ...projectDraft, visibility })}
-            />
-            <p>All workspace members can open a shared project. Invited members only: belonging to the workspace does not open a private project.</p>
           </div>
         ) : null}
       </Modal>
@@ -1245,7 +1569,20 @@ export function BoardPage() {
         onClose={() => setManageWorkspace(false)}
         onInvite={(userId, role) => workspace ? addWorkspaceMember(workspace.id, userId, role as WorkspaceRole, email, personName(profiles, userId)).then(() => openMembers("workspace")) : Promise.resolve()}
         onRole={(userId, role) => workspace ? updateWorkspaceMemberRole(workspace.id, userId, role as WorkspaceRole, email, personName(profiles, userId)).then(() => openMembers("workspace")) : Promise.resolve()}
-        onRemove={(userId) => workspace ? removeWorkspaceMember(workspace.id, userId, email, personName(profiles, userId)).then(() => openMembers("workspace")) : Promise.resolve()}
+        onRemove={(userId) => {
+          if (!workspace) return Promise.resolve();
+          const leaving = userId === user?.id;
+          return removeWorkspaceMember(workspace.id, userId, email, personName(profiles, userId)).then(async () => {
+            if (!leaving) {
+              await openMembers("workspace");
+              return;
+            }
+            const next = await listMyWorkspaces();
+            setWorkspaces(next);
+            setWorkspaceId(next.find((item) => !item.archivedAt)?.id ?? null);
+            setManageWorkspace(false);
+          });
+        }}
         onRestore={() => {
           if (!workspace) return Promise.resolve();
           return setWorkspaceArchived(workspace, false, email).then(() => {

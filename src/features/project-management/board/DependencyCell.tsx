@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, Input, Popover, Select, Tooltip } from "antd";
 import { LucideIcon } from "@/components/common/lucide-icon";
 import {
@@ -86,31 +86,12 @@ function ChipRow({
   groups: PmGroup[];
   onOpen: (task: PmBoardTask) => void;
 }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [visible, setVisible] = useState(items.length);
-  useLayoutEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    const chips = [...node.querySelectorAll<HTMLElement>(".pmb-dep-chip")];
-    let used = 0;
-    let count = chips.length;
-    const limit = node.clientWidth - 28;
-    for (let index = 0; index < chips.length; index += 1) {
-      used += chips[index].offsetWidth + 4;
-      if (used > limit) {
-        count = Math.max(index, 1);
-        break;
-      }
-    }
-    setVisible(count);
-  }, [items]);
   return (
-    <span ref={ref} className="pmb-dep-chips">
-      {items.map((item, index) => (
+    <span className="pmb-dep-chips">
+      {items.map((item) => (
         <Tooltip key={item.id} title={detail(item, groups)}>
           <span
             className="pmb-dep-chip"
-            style={{ display: index < visible ? undefined : "none" }}
             onClick={(event) => {
               event.stopPropagation();
               onOpen(item);
@@ -121,7 +102,6 @@ function ChipRow({
           </span>
         </Tooltip>
       ))}
-      {items.length > visible ? <span className="pmb-dep-more">+{items.length - visible}</span> : null}
     </span>
   );
 }

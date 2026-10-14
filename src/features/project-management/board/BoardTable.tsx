@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Checkbox, Dropdown } from "antd";
 import type { Profile } from "@/types";
 import { LucideIcon } from "@/components/common/lucide-icon";
@@ -14,7 +14,9 @@ import {
 } from "@/features/project-management/board/boardRules";
 import { OwnerAvatar, PriorityFill, StatusFill, personName, relativeUpdated, timelineLabel } from "@/features/project-management/board/boardUi";
 import { DependencyCell } from "@/features/project-management/board/DependencyCell";
-import type { PmDependency } from "@/features/project-management/board/boardRules";
+import { ColumnCell } from "@/features/project-management/board/ColumnCell";
+import type { BoardColumn } from "@/features/project-management/board/columnCatalog";
+import type { PmDependency, PmProject } from "@/features/project-management/board/boardRules";
 
 export interface BoardSection {
   id: string;
@@ -45,6 +47,17 @@ export function BoardTable({
   scheduleStrict,
   onOpenUpdates,
   onSaveDependencies,
+  columns,
+  cells,
+  projects,
+  userId,
+  userEmail,
+  unseenTaskIds,
+  onAddColumn,
+  onSaveCell,
+  onColumnAction,
+  scrollKey,
+  scrollTick,
 }: {
   sections: BoardSection[];
   tasks: PmBoardTask[];
@@ -67,7 +80,22 @@ export function BoardTable({
   scheduleStrict: boolean;
   onOpenUpdates: (task: PmBoardTask) => void;
   onSaveDependencies: (task: PmBoardTask, links: { predecessorId: string; relation: PmDependency["relation"]; lagDays: number }[]) => Promise<void>;
+  columns: BoardColumn[];
+  cells: Record<string, Record<string, unknown>>;
+  projects: PmProject[];
+  userId: string;
+  userEmail: string;
+  unseenTaskIds: Set<string>;
+  onAddColumn: () => void;
+  onSaveCell: (task: PmBoardTask, column: BoardColumn, value: unknown) => void;
+  onColumnAction: (column: BoardColumn, action: string) => void;
+  scrollKey: string | null;
+  scrollTick: number;
 }) {
+  useEffect(() => {
+    if (!scrollKey) return;
+    document.querySelector(`[data-board-col="${CSS.escape(scrollKey)}"]`)?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [scrollKey, scrollTick]);
   return (
     <div className="pmb-groups">
       {sections.map((section) => {
@@ -98,12 +126,35 @@ export function BoardTable({
                       <tr>
                         <th className="pmb-check" />
                         <th>Task</th>
-                        {hidden.has("owner") ? null : <th>Owner</th>}
-                        {hidden.has("status") ? null : <th>Status</th>}
-                        {hidden.has("timeline") ? null : <th>Timeline</th>}
-                        {hidden.has("priority") ? null : <th>Priority</th>}
-                        {hidden.has("depends") ? null : <th>Depends on</th>}
-                        {hidden.has("updated") ? null : <th>Last Updated</th>}
+                        {hidden.has("owner") ? null : <th data-board-col="owner">Owner</th>}
+                        {hidden.has("status") ? null : <th data-board-col="status">Status</th>}
+                        {hidden.has("timeline") ? null : <th data-board-col="timeline">Timeline</th>}
+                        {hidden.has("priority") ? null : <th data-board-col="priority">Priority</th>}
+                        {hidden.has("depends") ? null : <th data-board-col="depends">Depends on</th>}
+                        {hidden.has("updated") ? null : <th data-board-col="updated">Last Updated</th>}
+                        {columns.map((column, index) => (
+                          <th key={column.id} data-board-col={column.id}>
+                            <Dropdown
+                              trigger={["click"]}
+                              menu={{
+                                items: [
+                                  { key: "rename", label: "Rename", disabled: !canEdit },
+                                  { key: "settings", label: "Edit settings", disabled: !canEdit },
+                                  { key: "asc", label: "Sort ascending" },
+                                  { key: "desc", label: "Sort descending" },
+                                  { key: "hide", label: "Hide", disabled: !canEdit },
+                                  { key: "left", label: "Move left", disabled: !canEdit || index === 0 },
+                                  { key: "right", label: "Move right", disabled: !canEdit || index === columns.length - 1 },
+                                  { key: "delete", label: "Delete column", disabled: !canEdit, danger: true },
+                                ],
+                                onClick: ({ key }) => onColumnAction(column, key),
+                              }}
+                            >
+                              <button type="button" className="pmb-col-menu" aria-label={`${column.title} column`}>{column.title}</button>
+                            </Dropdown>
+                          </th>
+                        ))}
+                        <th className="pmb-add-col"><button type="button" className="pmb-add-col-btn" aria-label="Add column" onClick={onAddColumn}>+</button></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -126,6 +177,13 @@ export function BoardTable({
                           scheduleStrict={scheduleStrict}
                           onOpenUpdates={onOpenUpdates}
                           onSaveDependencies={onSaveDependencies}
+                          columns={columns}
+                          cells={cells}
+                          projects={projects}
+                          userId={userId}
+                          userEmail={userEmail}
+                          unseenTaskIds={unseenTaskIds}
+                          onSaveCell={onSaveCell}
                         />
                       ))}
                     </tbody>
@@ -196,14 +254,23 @@ function TaskRows(props: {
   scheduleStrict: boolean;
   onOpenUpdates: (task: PmBoardTask) => void;
   onSaveDependencies: (task: PmBoardTask, links: { predecessorId: string; relation: PmDependency["relation"]; lagDays: number }[]) => Promise<void>;
+  columns: BoardColumn[];
+  cells: Record<string, Record<string, unknown>>;
+  projects: PmProject[];
+  userId: string;
+  userEmail: string;
+  unseenTaskIds: Set<string>;
+  onSaveCell: (task: PmBoardTask, column: BoardColumn, value: unknown) => void;
 }) {
   const { task, tasks, depth } = props;
+  const unseen = props.unseenTaskIds.has(task.id);
   const children = depth === 0 ? subtasksOf(tasks, task.id) : [];
   const [open, setOpen] = useState(children.length > 0);
-  const colSpan = 2 + ["owner", "status", "timeline", "priority", "depends", "updated"].filter((key) => !props.hidden.has(key)).length;
+  const colSpan = 3 + props.columns.length + ["owner", "status", "timeline", "priority", "depends", "updated"].filter((key) => !props.hidden.has(key)).length;
+  const groupIndex = props.tasks.filter((item) => item.groupId === task.groupId && !item.parentTaskId).findIndex((item) => item.id === (task.parentTaskId || task.id)) + 1;
   return (
     <>
-      <tr className={`${props.selected.has(task.id) ? "is-selected" : ""}${depth > 0 ? " is-subtask" : ""}`.trim()}>
+      <tr className={`${props.selected.has(task.id) ? "is-selected" : ""}${unseen ? " is-unseen" : ""}${depth > 0 ? " is-subtask" : ""}`.trim()}>
         <td className="pmb-check">
           <Checkbox
             checked={props.selected.has(task.id)}
@@ -272,12 +339,34 @@ function TaskRows(props: {
         )}
         {props.hidden.has("updated") ? null : (
           <td className="pmb-updated">
-            <button type="button" className="pmb-updated-btn" onClick={() => props.onOpenUpdates(task)}>
+            <button type="button" className={`pmb-updated-btn${unseen ? " is-unseen" : ""}`} onClick={() => props.onOpenUpdates(task)}>
+              {unseen ? <span className="pmb-unseen-dot" aria-hidden="true" /> : null}
               <OwnerAvatar name={personName(props.profiles, task.updatedBy || task.ownerId)} />
               <span>{relativeUpdated(task.updatedAt)}</span>
             </button>
           </td>
         )}
+        {props.columns.map((column) => (
+          <td key={column.id} className="pmb-custom-cell">
+            <ColumnCell
+              column={column}
+              columns={props.columns}
+              task={task}
+              tasks={tasks}
+              profiles={props.profiles}
+              projects={props.projects}
+              value={props.cells[task.id]?.[column.id]}
+              cells={props.cells}
+              canEdit={props.canEdit}
+              userId={props.userId}
+              userEmail={props.userEmail}
+              groupIndex={groupIndex}
+              onSave={(value) => props.onSaveCell(task, column, value)}
+              onOpen={props.onOpen}
+            />
+          </td>
+        ))}
+        <td />
       </tr>
       {open && depth === 0 ? children.map((child) => (
         <TaskRows key={child.id} {...props} task={child} depth={1} />

@@ -26,6 +26,7 @@ export function TaskSidePanel({
   onClose,
   onPrevious,
   onNext,
+  onPosted,
 }: {
   task: PmBoardTask;
   profiles: Profile[];
@@ -34,6 +35,7 @@ export function TaskSidePanel({
   onClose: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
+  onPosted?: () => void;
 }) {
   const [tab, setTab] = useState<PanelTab>("updates");
   const [updates, setUpdates] = useState<PmTaskUpdate[]>([]);
@@ -82,6 +84,7 @@ export function TaskSidePanel({
     await addTaskUpdate(task, draft, userEmail);
     setDraft("");
     await reload();
+    onPosted?.();
   };
 
   const addFiles = async (list: FileList | null) => {

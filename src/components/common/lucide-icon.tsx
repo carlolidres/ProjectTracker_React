@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 /** Minimal Lucide-style icons (MIT) — avoids adding lucide-react for a few glyphs. */
 
-type LucideIconName =
+export type LucideIconName =
   | "layers"
   | "clipboard-list"
   | "calendar"
@@ -24,6 +24,7 @@ type LucideIconName =
   | "user"
   | "filter"
   | "arrow-up-down"
+  | "eye"
   | "eye-off"
   | "link"
   | "external-link"
@@ -166,6 +167,12 @@ const PATHS: Record<LucideIconName, ReactNode> = {
     <>
       <path d="m7 15 5 5 5-5" />
       <path d="m7 9 5-5 5 5" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
     </>
   ),
   "eye-off": (

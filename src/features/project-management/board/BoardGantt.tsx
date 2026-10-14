@@ -1,6 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Button } from "antd";
 import { LucideIcon } from "@/components/common/lucide-icon";
+import { formatColumnValue, type BoardColumn } from "@/features/project-management/board/columnCatalog";
+import { personName } from "@/features/project-management/board/boardUi";
+import type { Profile } from "@/types";
 import {
   addDays,
   daySpan,
@@ -14,7 +17,7 @@ import {
 type Zoom = "day" | "week" | "month";
 
 const PX: Record<Zoom, number> = { day: 56, week: 28, month: 10 };
-const SIDE = 300;
+const SIDE = 240;
 
 function dayParts(date: string): { weekday: string; day: string; weekend: boolean } {
   const parsed = new Date(`${date}T12:00:00`);
@@ -23,6 +26,19 @@ function dayParts(date: string): { weekday: string; day: string; weekend: boolea
     day: parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     weekend: parsed.getDay() === 0 || parsed.getDay() === 6,
   };
+}
+
+/** Monday = start of the week. Sunday is 0 in UTC, matching addDays. */
+function mondayOnOrBefore(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return addDays(iso, weekday === 0 ? -6 : 1 - weekday);
+}
+
+function sundayOnOrAfter(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return addDays(iso, weekday === 0 ? 0 : 7 - weekday);
 }
 
 function shortRange(start: string, due: string): string {
@@ -54,45 +70,47 @@ function monthBands(start: string, count: number, px: number): { key: string; la
   return items;
 }
 
-function datedSpan(tasks: PmBoardTask[]): { start: string; due: string; days: number } | null {
-  const dated = tasks.filter((task) => task.startDate && task.dueDate);
-  if (dated.length === 0) return null;
-  const start = dated.map((task) => task.startDate).sort()[0];
-  const due = dated.map((task) => task.dueDate).sort().at(-1) ?? start;
-  return { start, due, days: daySpan(start, due) };
-}
-
 export function BoardGantt({
   groups,
   tasks,
   dependencies,
   canEdit,
+  profiles,
+  columns,
+  cells,
   onOpen,
   onShift,
+  onAddColumn,
 }: {
   groups: PmGroup[];
   tasks: PmBoardTask[];
   dependencies: PmDependency[];
   canEdit: boolean;
+  profiles: Profile[];
+  columns: BoardColumn[];
+  cells: Record<string, Record<string, unknown>>;
   onOpen: (task: PmBoardTask) => void;
   onShift: (task: PmBoardTask, startDate: string, dueDate: string) => void;
+  onAddColumn: () => void;
 }) {
   const [zoom, setZoom] = useState<Zoom>("week");
   const [scale, setScale] = useState(1);
-  const [offset, setOffset] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [showUnscheduled, setShowUnscheduled] = useState(() => localStorage.getItem("project-tracker:pm-board-gantt-unscheduled") !== "hidden");
+  const [showDetails, setShowDetails] = useState(false);
+  const progressColumn = columns.find((column) => column.type === "progress");
   const today = new Date().toISOString().slice(0, 10);
   const px = Math.max(8, Math.round(PX[zoom] * scale));
   const scheduled = tasks.filter((task) => task.startDate && task.dueDate);
   const unscheduled = topLevelTasks(tasks).filter((task) => !task.startDate || !task.dueDate);
   const starts = scheduled.map((task) => task.startDate).sort();
   const dues = scheduled.map((task) => task.dueDate).sort();
-  const rangeStart = addDays(starts[0] ?? today, -3 + offset);
-  const rangeEnd = addDays(dues.at(-1) ?? today, 14 + offset);
+  const paddedStart = mondayOnOrBefore(addDays(starts[0] ?? today, -3));
+  const paddedEnd = sundayOnOrAfter(addDays(dues.at(-1) ?? today, 14));
   const range = {
-    start: rangeStart,
-    end: rangeEnd < addDays(rangeStart, 21) ? addDays(rangeStart, 28) : rangeEnd,
+    start: paddedStart,
+    end: paddedEnd < addDays(paddedStart, 21) ? sundayOnOrAfter(addDays(paddedStart, 28)) : paddedEnd,
   };
   const days = Math.max(daySpan(range.start, range.end), 1);
   const width = days * px;
@@ -103,15 +121,8 @@ export function BoardGantt({
   return (
     <section className={`pmb-gantt is-${zoom}`} aria-label="Gantt" style={{ ["--pmb-col" as string]: `${px}px` }}>
       <div className="pmb-view-tools">
-        <Button onClick={() => setOffset((value) => value - (zoom === "month" ? 30 : 7))}>Previous</Button>
-        <Button onClick={() => setOffset(0)}>Today</Button>
-        <Button onClick={() => setOffset((value) => value + (zoom === "month" ? 30 : 7))}>Next</Button>
-        {(["day", "week", "month"] as const).map((value) => (
-          <Button key={value} type={zoom === value ? "primary" : "default"} onClick={() => setZoom(value)}>
-            {value[0].toUpperCase()}{value.slice(1)}
-          </Button>
-        ))}
-        <Button onClick={() => { setOffset(0); setScale(1); }}>Auto fit</Button>
+        <Button type={showDetails ? "primary" : "default"} onClick={() => setShowDetails((value) => !value)}>Details</Button>
+        <Button onClick={() => { setZoom("week"); setScale(1); }}>Auto fit</Button>
         <Button aria-label="Zoom out" onClick={() => setScale((value) => Math.max(0.6, Number((value - 0.2).toFixed(1))))}>−</Button>
         <Button aria-label="Zoom in" onClick={() => setScale((value) => Math.min(2, Number((value + 0.2).toFixed(1))))}>+</Button>
       </div>
@@ -120,7 +131,10 @@ export function BoardGantt({
           <DependencyArrows gridRef={gridRef} dependencies={dependencies} tasks={tasks} layoutKey={`${zoom}:${width}:${scale}:${Object.values(collapsed).join()}`} />
           {todayLeft >= 0 && todayLeft < days ? <span className="pmb-today" style={{ left: SIDE + todayLeft * px + px / 2 }} /> : null}
           <div className="pmb-gantt-row pmb-gantt-head-row">
-            <div className="pmb-gantt-side pmb-gantt-head">Task</div>
+            <div className="pmb-gantt-side pmb-gantt-head">
+              <span>Task Name</span>
+              <button type="button" className="pmb-add-col-btn" aria-label="Add column" onClick={onAddColumn}>+</button>
+            </div>
             <div className="pmb-gantt-time pmb-gantt-head" style={{ width }}>
               <div className="pmb-gantt-months">
                 {months.map((month) => <span key={month.key} style={{ width: month.width }}>{month.label}</span>)}
@@ -130,9 +144,10 @@ export function BoardGantt({
                   const date = addDays(range.start, index);
                   const parts = dayParts(date);
                   return (
-                    <span key={date} className={parts.weekend ? "is-weekend" : undefined} style={{ width: px }} title={date}>
+                    <span key={date} className={[parts.weekend ? "is-weekend" : "", date === today ? "is-today" : ""].filter(Boolean).join(" ") || undefined} style={{ width: px }} title={date}>
                       <strong>{parts.weekday}</strong>
                       {parts.day}
+                      {date === today ? <em>Today</em> : null}
                     </span>
                   );
                 }) : Array.from({ length: Math.ceil(days / (zoom === "week" ? 7 : 30)) }, (_, index) => {
@@ -140,7 +155,13 @@ export function BoardGantt({
                   const date = addDays(range.start, index * step);
                   const count = Math.min(step, days - index * step);
                   const end = addDays(date, count - 1);
-                  return <span key={date} style={{ width: count * px }}>{shortRange(date, end)}</span>;
+                  const containsToday = today >= date && today <= end;
+                  return (
+                    <span key={date} className={containsToday ? "is-today" : undefined} style={{ width: count * px }}>
+                      {shortRange(date, end)}
+                      {containsToday ? <em>Today</em> : null}
+                    </span>
+                  );
                 })}
               </div>
             </div>
@@ -148,7 +169,6 @@ export function BoardGantt({
           {groups.map((group) => {
             const rows = topLevelTasks(tasks).filter((task) => task.groupId === group.id);
             const visible = rows.flatMap((task) => [task, ...subtasksOf(tasks, task.id)]);
-            const summary = datedSpan(visible);
             const closed = collapsed[group.id];
             return (
               <div key={group.id} className="pmb-gantt-block">
@@ -160,19 +180,7 @@ export function BoardGantt({
                     <span className="pmb-project-mark" style={{ background: group.color }} />
                     <span className="pmb-gantt-task" style={{ color: group.color }}>{group.name}</span>
                   </button>
-                  <div className="pmb-gantt-time" style={{ width }}>
-                    {summary ? (
-                      <span
-                        className="pmb-phase-wrap"
-                        style={{ left: (daySpan(range.start, summary.start) - 1) * px, width: Math.max(summary.days * px, 12) }}
-                      >
-                        <span className="pmb-phase-caption" style={{ color: group.color }}>
-                          {group.name} · {shortRange(summary.start, summary.due)} · {summary.days}d
-                        </span>
-                        <span className="pmb-phase-bar" style={{ background: group.color }} />
-                      </span>
-                    ) : null}
-                  </div>
+                  <div className="pmb-gantt-time" style={{ width }} />
                 </div>
                 {closed ? null : visible.map((task) => (
                   <div key={task.id} className={`pmb-gantt-row${selectedId === task.id ? " is-selected" : ""}`}>
@@ -186,8 +194,15 @@ export function BoardGantt({
                         onOpen(task);
                       }}
                     >
-                      <span className="pmb-gantt-task">{task.title}</span>
-                      {task.startDate && task.dueDate ? <span className="pmb-gantt-dates">{shortRange(task.startDate, task.dueDate)}</span> : null}
+                      <span className="pmb-gantt-task">
+                        {task.title}
+                        {showDetails ? (
+                          <span className="pmb-gantt-extra">
+                            {personName(profiles, task.ownerId)} · {task.status} · {task.priority}
+                            {progressColumn ? ` · ${formatColumnValue("progress", cells[task.id]?.[progressColumn.id]) || "0%"}` : ""}
+                          </span>
+                        ) : null}
+                      </span>
                     </button>
                     <div className="pmb-gantt-time" style={{ width }}>
                       {task.startDate && task.dueDate ? (
@@ -212,11 +227,26 @@ export function BoardGantt({
           })}
         </div>
       </div>
-      <aside className="pmb-unscheduled" aria-label="Unscheduled tasks">
-        <h3>Unscheduled</h3>
-        {unscheduled.length === 0 ? <p>Every task has a start and due date.</p> : unscheduled.map((task) => (
-          <button key={task.id} type="button" onClick={() => onOpen(task)}>{task.title}</button>
-        ))}
+      <aside className={`pmb-unscheduled${showUnscheduled ? "" : " is-hidden"}`} aria-label="Unscheduled tasks">
+        <header>
+          <h3>Unscheduled</h3>
+          <button
+            type="button"
+            className="pmb-icon-btn"
+            aria-label={showUnscheduled ? "Hide unscheduled" : "Show unscheduled"}
+            onClick={() => setShowUnscheduled((value) => {
+              localStorage.setItem("project-tracker:pm-board-gantt-unscheduled", value ? "hidden" : "shown");
+              return !value;
+            })}
+          >
+            <LucideIcon name={showUnscheduled ? "eye-off" : "eye"} size={16} />
+          </button>
+        </header>
+        {showUnscheduled ? (
+          unscheduled.length === 0 ? <p>Every task has a start and due date.</p> : unscheduled.map((task) => (
+            <button key={task.id} type="button" onClick={() => onOpen(task)}>{task.title}</button>
+          ))
+        ) : null}
       </aside>
     </section>
   );

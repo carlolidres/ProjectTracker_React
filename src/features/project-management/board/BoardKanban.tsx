@@ -13,6 +13,7 @@ import {
   type PmBoardTask,
   type PmGroup,
 } from "@/features/project-management/board/boardRules";
+import { formatColumnValue, type BoardColumn } from "@/features/project-management/board/columnCatalog";
 import { OwnerAvatar, personName, timelineLabel } from "@/features/project-management/board/boardUi";
 import { useState } from "react";
 
@@ -22,6 +23,8 @@ export function BoardKanban({
   tasks,
   profiles,
   canEdit,
+  columns,
+  cells,
   onOpen,
   onMove,
   onAdd,
@@ -31,11 +34,13 @@ export function BoardKanban({
   tasks: PmBoardTask[];
   profiles: Profile[];
   canEdit: boolean;
+  columns: BoardColumn[];
+  cells: Record<string, Record<string, unknown>>;
   onOpen: (task: PmBoardTask) => void;
   onMove: (task: PmBoardTask, columnId: string) => void;
   onAdd: (columnId: string, title: string) => void;
 }) {
-  const columns = groupBy === "status"
+  const lanes = groupBy === "status"
     ? BOARD_STATUSES.map((status) => ({ id: status, label: status, color: STATUS_COLOR[status] }))
     : groupBy === "priority"
       ? BOARD_PRIORITIES.map((priority) => ({ id: priority, label: priority, color: PRIORITY_COLOR[priority] }))
@@ -43,7 +48,7 @@ export function BoardKanban({
   const tops = tasks.filter((task) => !task.parentTaskId);
   return (
     <div className="pmb-kanban" role="list" aria-label="Kanban">
-      {columns.map((column) => {
+      {lanes.map((column) => {
         const cards = tops.filter((task) => (
           groupBy === "status" ? task.status === column.id
             : groupBy === "priority" ? task.priority === column.id
@@ -81,6 +86,10 @@ export function BoardKanban({
                     <span>{groups.find((group) => group.id === task.groupId)?.name ?? "Group"}</span>
                     <OwnerAvatar name={personName(profiles, task.ownerId)} />
                   </div>
+                  {columns.slice(0, 3).map((item) => {
+                    const text = formatColumnValue(item.type, cells[task.id]?.[item.id]);
+                    return text ? <span key={item.id} className="pmb-card-extra">{item.title}: {text}</span> : null;
+                  })}
                   <div className="pmb-card-meta">
                     <span className="pmb-chip" style={{ background: PRIORITY_COLOR[task.priority] }}>{task.priority}</span>
                     <span>{timelineLabel(task)}</span>
@@ -90,7 +99,7 @@ export function BoardKanban({
                     <Dropdown
                       trigger={["click"]}
                       menu={{
-                        items: columns.filter((item) => item.id !== column.id).map((item) => ({ key: item.id, label: item.label })),
+                        items: lanes.filter((item) => item.id !== column.id).map((item) => ({ key: item.id, label: item.label })),
                         onClick: ({ key }) => onMove(task, String(key)),
                       }}
                     >

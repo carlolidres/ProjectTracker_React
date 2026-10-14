@@ -49,7 +49,7 @@ export function statusLabel(status: BoardStatus): string {
 
 export function StatusFill({ status }: { status: BoardStatus }) {
   return (
-    <span className="pmb-fill" style={{ background: STATUS_COLOR[status], color: status === "Working on it" ? "#1f2937" : "#fff" }}>
+    <span className="pmb-fill" style={{ ["--pmb-fill" as string]: STATUS_COLOR[status] }}>
       {status}
     </span>
   );
@@ -57,7 +57,7 @@ export function StatusFill({ status }: { status: BoardStatus }) {
 
 export function PriorityFill({ priority }: { priority: BoardPriority }) {
   return (
-    <span className="pmb-fill" style={{ background: PRIORITY_COLOR[priority], color: "#fff" }}>
+    <span className="pmb-fill" style={{ ["--pmb-fill" as string]: PRIORITY_COLOR[priority] }}>
       {priority}
     </span>
   );

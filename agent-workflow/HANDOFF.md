@@ -1,6 +1,6 @@
 # Current Handoff
 
-Last Updated: `2026-10-08`
+Last Updated: `2026-10-14`
 
 ## Current Status
 
@@ -8,6 +8,14 @@ Sidebar item **Project board** opens a wide popup over the current page. The old
 
 ## Recently Completed
 
+- Column Center leaves Status, Priority, People, Timeline, and Dependencies on the built-in columns. Other types add a real column, with a header menu to rename, sort, hide, move, and delete. Kanban, Gantt Details, and the calendar show those saved values.
+- Archive opens wider as cards, with the title fixed and a thin scrollbar. A project turns green in the rail and in the archive when every task is Done.
+- Gantt group rows no longer draw a summary bar. Task bars stay on the task rows.
+- Board chrome (title, tabs, toolbar, rail, and update times) is transparent and readable in dark mode. Kanban column titles stay pinned. The workspace menu no longer repeats the workspace selector or Add New. Leave workspace removes your own membership; Manage still removes other people. New project no longer asks about access or explains the step groups.
+- Calendar Day opens on today as a full-day list. The board popup uses a slow morning sky in light mode and a moonlight wash in dark mode. The task panel composer, files, and activity controls follow dark mode. A Depends on chip grows to the full predecessor name.
+- The main table groups grow to the width of their columns and scroll sideways. Dark mode raises contrast on the rail search, selected project, table, Gantt, calendar, and Column Center. Column Center stays inside the screen, with a scrolling catalog and icon cards.
+- Gantt no longer shows the summary cards, Previous/Today/Next, Day/Week/Month, or the date and status columns. The timeline header stays pinned. Unscheduled tasks sit under the chart with a hide icon in that panel’s corner. The main table keeps column width and scrolls sideways. A task update from someone else highlights the row, the Last Updated cell, and the project in the rail until that task’s updates are opened. Light and Dark is a sun/moon switch, and dark mode covers the board chrome. The + beside Task Name and at the end of the table opens Column Center. Added columns and cell values are saved on the board.
+- Task owners from the owner menu can open the creator’s shared board projects. Assigning an owner, or opening a project you can edit, calls `grant_pm_assignee`, which adds that person as a workspace Member. Invited projects also add them as an Editor on that project only. The rail no longer has My work, and project search sits above the workspace selector. The board has a Light/Dark switch saved on this browser. Workspace icons and colors have a wider set, with icons centered in the circles. Gantt shows Task Name, Start Date, End Date, and Status, a Today marker, summary cards, and a control to hide Unscheduled.
 - The rail project list scrolls on its own. Workspace, search, and My work stay put, and the bottom New Project button is gone. Add subtask no longer starts with a plus. The Gantt uses a split task list and timeline, phase summary lines, right-angle dependency arrows, and zoom. Dependency and date editors use tighter spacing.
 - The board window keeps the same frozen rail, title, tabs, toolbar, group head, and column headers as the popup. Scrollbars in the board are thin. The more menu exports the visible tasks to Excel. A linked title is Unique Batch, Control #, Kind when present, and Product, all in capitals, and it follows those record fields. Renaming that title is turned off so a manual name cannot change the spreadsheet or support record.
 - Spreadsheet Product names display and save in capital letters. A linked board title follows the current spreadsheet or support record, including that capital product name. Archive and Open in new window are icon buttons. Gantt Day columns show the weekday and date with a line per day, and dependency arrows draw between dated bars or, when a bar is missing, from the task name.
@@ -44,10 +52,10 @@ Sidebar item **Project board** opens a wide popup over the current page. The old
 
 | Check | Status | Result |
 |---|---|---|
-| `npx tsc --noEmit -p tsconfig.app.json` | PASSED | clean after the scrolling rail and Gantt layout |
-| `npm run test:pm-board` | PASSED | spreadsheet title is batch, control, kind, and product in capitals |
+| `npx tsc --noEmit -p tsconfig.app.json` | PASSED | clean after Column Center, Gantt cleanup, and dark theme |
+| `npm run test:pm-board` | PASSED | board rules still pass |
 | `npm run test:projects-db-validation` | PASSED | Product edits are stored in capitals |
-| Browser smoke | NOT RUN | signed-in spreadsheet, board title, and Gantt still need a browser pass |
+| Browser smoke | NOT RUN | signed-in board, assignee login, theme, and Gantt still need a browser pass |
 
 ## Next Action
 
