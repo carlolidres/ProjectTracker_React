@@ -72,3 +72,5 @@ cross join (
     ('priority', 'High', 'High', '#401694', 2, 'High')
 ) as seed(kind, label_id, name, color, sort_order, semantic)
 on conflict (project_id, kind, label_id) do nothing;
+
+grant select, insert, update, delete on public.pm_board_labels to authenticated;

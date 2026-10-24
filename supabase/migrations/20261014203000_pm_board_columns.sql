@@ -83,3 +83,6 @@ create policy pm_board_cell_values_delete
     select 1 from public.pm_board_columns c
     where c.id = column_id and public.pm_can_edit_board(c.project_id)
   ));
+
+grant select, insert, update, delete on public.pm_board_columns to authenticated;
+grant select, insert, update, delete on public.pm_board_cell_values to authenticated;

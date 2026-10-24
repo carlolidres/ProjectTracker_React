@@ -1888,16 +1888,15 @@
 
   .pmb-popup .pm-group-head,
   .pmb-window .pm-group-head {
-    position: sticky;
-    top: 0;
-    z-index: 3;
+    position: relative;
+    z-index: 1;
     min-height: 40px;
     background: var(--surface, #fff);
   }
 
   .pmb-popup .pmb-table th,
   .pmb-window .pmb-table th {
-    top: 40px;
+    top: 0;
     z-index: 2;
     background: var(--surface, #fff);
   }
@@ -2226,8 +2225,9 @@
 .pmb-column-picker input { height: 32px; padding: 0 8px; border: 1px solid #c5c7d0; border-radius: 6px; }
 
 .pmb-groups { display: flex; flex-direction: column; align-items: stretch; gap: 18px; width: 100%; overflow-x: clip; overflow-y: auto; }
-.pmb-groups > .pm-group { align-self: stretch; width: 100%; min-width: 0; max-width: 100%; }
+.pmb-groups > .pm-group { flex: none; align-self: stretch; width: 100%; min-width: 0; max-width: 100%; }
 .pmb-table-scroll {
+  flex: none;
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;

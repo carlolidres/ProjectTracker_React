@@ -8,7 +8,7 @@ Sidebar item **Project board** opens a wide popup over the current page. The old
 
 ## Recently Completed
 
-- The main-table add-column button is gone. Arrow keys scroll the Main Table and Gantt, and move the Calendar. The launch bar and the Gantt and Calendar toolbars use the board’s existing controls and icons. Priority still follows Launch Impact and the quality gate. Apply `20261024120000_pm_launch_impact`.
+- Signed-in board users can read and save `pm_board_labels`, `pm_board_columns`, and `pm_board_cell_values`. Apply `20261024153000_pm_board_table_grants`. Row policies still limit each project.
 - Board popovers stay a fixed content size in the new window. The date range fields share the panel, calendar days stay square, and the label editor is two equal columns with names that fit. The rail collapse arrow is centered in its circle. Timeline pills stay compact when the table grows.
 - Status and priority labels are stored on the project. Edit Labels opens a two-column editor. Apply saves names, colors, order, descriptions, and deactivated or retired labels. Tasks keep the label id, so a rename or recolor shows on the table, Kanban, calendar, filters, and task details. A label that tasks still use is retired instead of wiping those tasks. Apply migration `20261017203000_pm_board_labels`.
 - Main table status and priority cells are solid colors. Status opens colored choices and saves at once. Priority stages a choice until Apply. Edit Labels recolors those names in this browser and keeps the names fixed for spreadsheet and support sync. The timeline opens a two-date calendar; a finished range is green, an overdue range is red, and the group footer shows the live mix with a count tooltip. Adding, renaming, or deleting labels is not available.
