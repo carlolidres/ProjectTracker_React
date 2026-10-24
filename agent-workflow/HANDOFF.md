@@ -1,6 +1,6 @@
 # Current Handoff
 
-Last Updated: `2026-10-14`
+Last Updated: `2026-10-24`
 
 ## Current Status
 
@@ -8,6 +8,14 @@ Sidebar item **Project board** opens a wide popup over the current page. The old
 
 ## Recently Completed
 
+- The main-table add-column button is gone. Arrow keys scroll the Main Table and Gantt, and move the Calendar. The launch bar and the Gantt and Calendar toolbars use the board’s existing controls and icons. Priority still follows Launch Impact and the quality gate. Apply `20261024120000_pm_launch_impact`.
+- Board popovers stay a fixed content size in the new window. The date range fields share the panel, calendar days stay square, and the label editor is two equal columns with names that fit. The rail collapse arrow is centered in its circle. Timeline pills stay compact when the table grows.
+- Status and priority labels are stored on the project. Edit Labels opens a two-column editor. Apply saves names, colors, order, descriptions, and deactivated or retired labels. Tasks keep the label id, so a rename or recolor shows on the table, Kanban, calendar, filters, and task details. A label that tasks still use is retired instead of wiping those tasks. Apply migration `20261017203000_pm_board_labels`.
+- Main table status and priority cells are solid colors. Status opens colored choices and saves at once. Priority stages a choice until Apply. Edit Labels recolors those names in this browser and keeps the names fixed for spreadsheet and support sync. The timeline opens a two-date calendar; a finished range is green, an overdue range is red, and the group footer shows the live mix with a count tooltip. Adding, renaming, or deleting labels is not available.
+- Kanban lanes follow the reference layout: colored headers, live counts, a status bar, white cards, subtasks, and an updates count. Dragging or the card menu changes status and order on the shared tasks, so the table, Gantt, and calendar stay in step. Card title opens task details. Phase 2 settings, swimlanes, and WIP limits are not in this pass.
+- Workspace Admin, Owner, and an app admin can remove people and set Admin, Owner, or Member. Owner and Admin can change the board and post updates. Member can post updates only. Apply `20261017193000_pm_workspace_role_powers` so the database matches.
+- The workspace menu lists each other workspace once. Membership rows for other people no longer repeat the same workspace in the popup or the board window.
+- Gantt no longer has the add-column button. Each task row shows Duration, Start Date, and End Date. Duration is calculated. Editing a date updates the main table, Kanban, and calendar through the same task. Clicking the task name opens the shared update panel.
 - Column Center leaves Status, Priority, People, Timeline, and Dependencies on the built-in columns. Other types add a real column, with a header menu to rename, sort, hide, move, and delete. Kanban, Gantt Details, and the calendar show those saved values.
 - Archive opens wider as cards, with the title fixed and a thin scrollbar. A project turns green in the rail and in the archive when every task is Done.
 - Gantt group rows no longer draw a summary bar. Task bars stay on the task rows.
@@ -52,7 +60,9 @@ Sidebar item **Project board** opens a wide popup over the current page. The old
 
 | Check | Status | Result |
 |---|---|---|
-| `npx tsc --noEmit -p tsconfig.app.json` | PASSED | clean after Column Center, Gantt cleanup, and dark theme |
+| `npx tsc --noEmit -p tsconfig.app.json` | PASSED | clean after arrow-key navigation and the launch bar refresh |
+| `npm run test:pm-board` | PASSED | priority follows launch impact and the quality gate |
+| `npm run test:pm-board` | PASSED | launch impact is the project target date, not a task flag |
 | `npm run test:pm-board` | PASSED | board rules still pass |
 | `npm run test:projects-db-validation` | PASSED | Product edits are stored in capitals |
 | Browser smoke | NOT RUN | signed-in board, assignee login, theme, and Gantt still need a browser pass |

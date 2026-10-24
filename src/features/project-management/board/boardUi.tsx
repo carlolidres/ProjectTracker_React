@@ -1,13 +1,7 @@
 import type { Profile } from "@/types";
 import { getProfileDisplayName } from "@/lib/profileName";
 import { formatAppDate } from "@/lib/date";
-import {
-  PRIORITY_COLOR,
-  STATUS_COLOR,
-  type BoardPriority,
-  type BoardStatus,
-  type PmBoardTask,
-} from "@/features/project-management/board/boardRules";
+import type { PmBoardTask } from "@/features/project-management/board/boardRules";
 
 export function personName(profiles: Profile[], userId: string): string {
   if (!userId) return "Unassigned";
@@ -43,22 +37,18 @@ export function OwnerAvatar({ name }: { name: string }) {
   );
 }
 
-export function statusLabel(status: BoardStatus): string {
-  return status;
-}
-
-export function StatusFill({ status }: { status: BoardStatus }) {
+export function StatusFill({ name, color }: { name: string; color: string }) {
   return (
-    <span className="pmb-fill" style={{ ["--pmb-fill" as string]: STATUS_COLOR[status] }}>
-      {status}
+    <span className="pmb-fill" style={{ ["--pmb-fill" as string]: color }} title={name}>
+      {name}
     </span>
   );
 }
 
-export function PriorityFill({ priority }: { priority: BoardPriority }) {
+export function PriorityFill({ name, color }: { name: string; color: string }) {
   return (
-    <span className="pmb-fill" style={{ ["--pmb-fill" as string]: PRIORITY_COLOR[priority] }}>
-      {priority}
+    <span className="pmb-fill" style={{ ["--pmb-fill" as string]: color }} title={name}>
+      {name}
     </span>
   );
 }
@@ -83,4 +73,10 @@ export function relativeUpdated(value: string): string {
   const days = Math.round(hours / 24);
   if (days < 30) return `${days}d ago`;
   return formatAppDate(value);
+}
+
+export function isBoardTypingTarget(target: EventTarget | null): boolean {
+  const node = target instanceof HTMLElement ? target : null;
+  if (!node) return false;
+  return Boolean(node.closest("input, textarea, select, [contenteditable='true'], .ant-select, .ant-picker, .ant-dropdown, .ant-popover"));
 }

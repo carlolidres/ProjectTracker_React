@@ -1,14 +1,18 @@
-import { useState } from "react";
-import { Button, Popover } from "antd";
+import { useEffect, useState } from "react";
+import { Popover } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
+import { LucideIcon } from "@/components/common/lucide-icon";
+import { isBoardTypingTarget } from "@/features/project-management/board/boardUi";
 import { formatColumnValue, type BoardColumn } from "@/features/project-management/board/columnCatalog";
-import { STATUS_COLOR, addDays, daySpan, type PmBoardTask } from "@/features/project-management/board/boardRules";
+import { labelColor, labelName, type BoardLabel } from "@/features/project-management/board/boardLabels";
+import { STATUS_COLOR, addDays, daySpan, type BoardStatus, type PmBoardTask } from "@/features/project-management/board/boardRules";
 
 export function BoardCalendar({
   tasks,
   canEdit,
   columns,
   cells,
+  labels,
   onOpen,
   onCreate,
   onReschedule,
@@ -17,6 +21,7 @@ export function BoardCalendar({
   canEdit: boolean;
   columns: BoardColumn[];
   cells: Record<string, Record<string, unknown>>;
+  labels: BoardLabel[];
   onOpen: (task: PmBoardTask) => void;
   onCreate: (date: string) => void;
   onReschedule: (task: PmBoardTask, startDate: string, dueDate: string) => void;
@@ -31,17 +36,36 @@ export function BoardCalendar({
   const unscheduled = tasks.filter((task) => !task.dueDate);
   const step = () => setCursor((value) => value.add(1, mode === "day" ? "day" : mode === "week" ? "week" : "month"));
   const back = () => setCursor((value) => value.subtract(1, mode === "day" ? "day" : mode === "week" ? "week" : "month"));
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (isBoardTypingTarget(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key === "ArrowLeft") back();
+      else if (event.key === "ArrowRight") step();
+      else if (event.key === "ArrowUp") setCursor((value) => value.subtract(1, "week"));
+      else if (event.key === "ArrowDown") setCursor((value) => value.add(1, "week"));
+      else return;
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mode]);
 
   return (
-    <section className="pmb-calendar" aria-label="Calendar">
-      <div className="pmb-view-tools">
-        <Button onClick={back}>Previous</Button>
-        <Button onClick={() => setCursor(dayjs())}>Today</Button>
-        <Button onClick={step}>Next</Button>
+    <section className="pmb-calendar" aria-label="Calendar" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown">
+      <div className="pmb-view-tools" role="toolbar" aria-label="Calendar controls">
+        <button type="button" className="pmb-tool" onClick={back} aria-label="Previous">
+          <LucideIcon name="chevron-left" size={14} />
+          Previous
+        </button>
+        <button type="button" className="pmb-tool" onClick={() => setCursor(dayjs())}>Today</button>
+        <button type="button" className="pmb-tool" onClick={step} aria-label="Next">
+          Next
+          <LucideIcon name="chevron-right" size={14} />
+        </button>
         <strong>{mode === "day" ? cursor.format("dddd, MMMM D, YYYY") : mode === "week" ? cursor.format("MMM D, YYYY") : cursor.format("MMMM YYYY")}</strong>
-        <Button type={mode === "month" ? "primary" : "default"} onClick={() => setMode("month")}>Month</Button>
-        <Button type={mode === "week" ? "primary" : "default"} onClick={() => setMode("week")}>Week</Button>
-        <Button type={mode === "day" ? "primary" : "default"} onClick={() => { setMode("day"); setCursor(dayjs()); }}>Day</Button>
+        <button type="button" className={`pmb-tool${mode === "month" ? " is-on" : ""}`} aria-pressed={mode === "month"} onClick={() => setMode("month")}>Month</button>
+        <button type="button" className={`pmb-tool${mode === "week" ? " is-on" : ""}`} aria-pressed={mode === "week"} onClick={() => setMode("week")}>Week</button>
+        <button type="button" className={`pmb-tool${mode === "day" ? " is-on" : ""}`} aria-pressed={mode === "day"} onClick={() => { setMode("day"); setCursor(dayjs()); }}>Day</button>
       </div>
       {mode === "day" ? (
         <DayAgenda
@@ -49,6 +73,7 @@ export function BoardCalendar({
           tasks={tasks}
           columns={columns}
           cells={cells}
+          labels={labels}
           canEdit={canEdit}
           onOpen={onOpen}
           onCreate={() => onCreate(cursor.format("YYYY-MM-DD"))}
@@ -84,7 +109,7 @@ export function BoardCalendar({
                   type="button"
                   draggable={canEdit}
                   className="pmb-cal-event"
-                  style={{ background: STATUS_COLOR[task.status] }}
+                  style={{ background: eventColor(labels, task.status) }}
                   onDragStart={(event) => event.dataTransfer.setData("text/plain", task.id)}
                   onClick={() => onOpen(task)}
                 >
@@ -120,6 +145,7 @@ function DayAgenda({
   tasks,
   columns,
   cells,
+  labels,
   canEdit,
   onOpen,
   onCreate,
@@ -129,6 +155,7 @@ function DayAgenda({
   tasks: PmBoardTask[];
   columns: BoardColumn[];
   cells: Record<string, Record<string, unknown>>;
+  labels: BoardLabel[];
   canEdit: boolean;
   onOpen: (task: PmBoardTask) => void;
   onCreate: () => void;
@@ -164,10 +191,10 @@ function DayAgenda({
                 onDragStart={(event) => event.dataTransfer.setData("text/plain", task.id)}
                 onClick={() => onOpen(task)}
               >
-                <span className="pmb-day-mark" style={{ background: STATUS_COLOR[task.status] }} />
+                <span className="pmb-day-mark" style={{ background: eventColor(labels, task.status) }} />
                 <span>
                   <strong>{eventLabel(task, columns, cells)}</strong>
-                  <small>{task.status}{task.startDate && task.dueDate ? ` · ${task.startDate} – ${task.dueDate}` : ""}</small>
+                  <small>{labelName(labels, "status", task.status)}{task.startDate && task.dueDate ? ` · ${task.startDate} – ${task.dueDate}` : ""}</small>
                 </span>
               </button>
             </li>
@@ -188,6 +215,13 @@ function eventLabel(task: PmBoardTask, columns: BoardColumn[], cells: Record<str
 function monthDays(cursor: Dayjs): Dayjs[] {
   const start = cursor.startOf("month").startOf("week");
   return Array.from({ length: 42 }, (_, index) => start.add(index, "day"));
+}
+
+function eventColor(labels: BoardLabel[], status: string): string {
+  const fallback = status === "Done" || status === "Working on it" || status === "Stuck" || status === "Not Started"
+    ? STATUS_COLOR[status as BoardStatus]
+    : "#c4c4c4";
+  return labelColor(labels, "status", status, fallback);
 }
 
 function covers(task: PmBoardTask, iso: string): boolean {

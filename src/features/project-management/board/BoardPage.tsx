@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, App, Button, Input, Modal, Select, Skeleton } from "antd";
+import { Alert, App, Button, Input, Modal, Popover, Select, Skeleton } from "antd";
 import { useAuth } from "@/app/auth-provider";
 import { useDateAdjustment } from "@/app/date-adjustment-provider";
 import { ROLE_LABELS } from "@/lib/constants";
@@ -57,33 +57,37 @@ import {
   updateProject,
   updateProjectMemberRole,
   updateProjectSchedule,
+  saveLaunchPlan,
   updateTask,
   updateWorkspace,
   updateWorkspaceMemberRole,
   addProjectMember,
   listAssignableProfiles,
   listBoardColumns,
+  listBoardLabels,
+  saveBoardLabels,
   addBoardColumn,
   updateBoardColumn,
   archiveBoardColumn,
   listCellValues,
   saveCellValue,
+  listUpdateCounts,
   listUpdateMarks,
   type UpdateMark,
 } from "@/features/project-management/board/boardService";
 import { personName } from "@/features/project-management/board/boardUi";
+import { defaultBoardLabels, labelColor, labelName, selectableLabels, semanticStatus, type BoardLabel } from "@/features/project-management/board/boardLabels";
+import { IMPACT_LABEL, QUALITY_LABEL, assessLaunch, priorityFromLaunch, priorityReason } from "@/features/project-management/board/launchSchedule";
 import {
-  BOARD_PRIORITIES,
-  BOARD_STATUSES,
   DEFAULT_SEARCH_COLUMNS,
   EMPTY_BOARD_FILTERS,
-  PRIORITY_COLOR,
-  STATUS_COLOR,
   canEditBoard,
   canCommentOnBoard,
+  canManageWorkspace,
   filterBoardTasks,
   compareBoardTasks,
   groupIdForStatus,
+  formatMonthDayYear,
   readLastBoard,
   rescheduleFrom,
   resolveProjectAccess,
@@ -92,8 +96,6 @@ import {
   type BoardFilters,
   type BoardGroupBy,
   type BoardSortKey,
-  type BoardPriority,
-  type BoardStatus,
   type PmBoardTask,
   type PmDependency,
   type PmGroup,
@@ -177,12 +179,14 @@ export function BoardPage() {
     localStorage.getItem("project-tracker:pm-board-theme") === "dark" ? "dark" : "light"
   ));
   const [boardColumns, setBoardColumns] = useState<BoardColumn[]>([]);
+  const [labels, setLabels] = useState<BoardLabel[]>(defaultBoardLabels);
   const [cells, setCells] = useState<Record<string, Record<string, unknown>>>({});
   const [columnCenterOpen, setColumnCenterOpen] = useState(false);
   const [configureColumnId, setConfigureColumnId] = useState<string | null>(null);
   const [columnSort, setColumnSort] = useState<{ id: string; direction: "asc" | "desc" } | null>(null);
   const [scrollColumn, setScrollColumn] = useState<{ key: string; tick: number } | null>(null);
   const [updateMarks, setUpdateMarks] = useState<UpdateMark[]>([]);
+  const [updateCounts, setUpdateCounts] = useState<Record<string, number>>({});
   const [seenUpdates, setSeenUpdates] = useState<Record<string, string>>({});
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
@@ -229,6 +233,7 @@ export function BoardPage() {
     : null;
   const canEdit = canEditBoard(access);
   const canComment = canCommentOnBoard(access);
+  const canManage = canManageWorkspace(workspace?.role ?? null, profile?.role);
   const assigneeKey = useMemo(
     () => [...new Set(tasks.map((task) => task.ownerId).filter((id): id is string => Boolean(id)))].sort().join(","),
     [tasks],
@@ -275,14 +280,20 @@ export function BoardPage() {
   useEffect(() => {
     if (!projectKey) return;
     let cancel = false;
-    void listUpdateMarks(projectKey.split(",")).then((marks) => {
-      if (!cancel) setUpdateMarks(marks);
+    const ids = projectKey.split(",");
+    void Promise.all([listUpdateMarks(ids), listUpdateCounts(ids)]).then(([marks, counts]) => {
+      if (cancel) return;
+      setUpdateMarks(marks);
+      setUpdateCounts(counts);
     }).catch(() => undefined);
     return () => { cancel = true; };
   }, [projectKey]);
   useEffect(() => {
     if (!projectId) return;
     let cancel = false;
+    void listBoardLabels(projectId).then((next) => {
+      if (!cancel) setLabels(next);
+    }).catch(() => undefined);
     void listBoardColumns(projectId).then(async (columns) => {
       if (cancel) return;
       setBoardColumns(columns);
@@ -319,6 +330,50 @@ export function BoardPage() {
     });
     return [...filtered].sort((a, b) => compareBoardTasks(a, b, sortKey));
   }, [filters, profiles, searchColumns, sortKey, tasks]);
+  const launchReport = useMemo(() => {
+    if (!project) return null;
+    return assessLaunch({
+      nodes: tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        start: task.startDate,
+        finish: task.dueDate,
+        baselineFinish: task.baselineFinish,
+        qualityBlocker: task.qualityBlocker,
+        isLaunch: task.isLaunch,
+      })),
+      edges: dependencies.map((link) => ({
+        predecessorId: link.predecessorId,
+        successorId: link.successorId,
+        relation: link.relation,
+        lagDays: link.lagDays,
+      })),
+      baselineLaunchDate: project.baselineLaunchDate,
+      bufferWorkdays: project.riskBufferWorkdays,
+      workingDays: project.workingDays,
+      holidays: project.holidays,
+      qualityRelease: project.qualityReleaseStatus,
+    });
+  }, [dependencies, project, tasks]);
+  const priorityStamp = useRef("");
+  useEffect(() => {
+    if (!canEdit || !launchReport) return;
+    const updates = tasks.flatMap((task) => {
+      const priority = priorityFromLaunch(launchReport.tasks[task.id]?.impact ?? "NOT_ASSESSED", task.qualityBlocker);
+      return task.priority === priority ? [] : [{ task, priority }];
+    });
+    const stamp = updates.map((item) => `${item.task.id}:${item.priority}`).sort().join("|");
+    if (!stamp || priorityStamp.current === stamp) return;
+    priorityStamp.current = stamp;
+    void Promise.all(updates.map(({ task, priority }) => updateTask(task, { priority }, email))).then(() => {
+      setTasks((current) => current.map((task) => {
+        const match = updates.find((item) => item.task.id === task.id);
+        return match && task.priority !== match.priority ? { ...task, priority: match.priority } : task;
+      }));
+    }).catch(() => {
+      priorityStamp.current = "";
+    });
+  }, [canEdit, email, launchReport, tasks]);
   const spreadsheetChoices = useMemo(() => sourceCatalog.projects.flatMap((row) => {
     const projectId = row.project_id?.trim();
     if (!projectId || projectId === "N/A") return [];
@@ -520,11 +575,98 @@ export function BoardPage() {
     };
   }, [project?.name, workspace?.name]);
 
+  const placeKanban = async (task: PmBoardTask, columnId: string | null, orderedIds: string[]) => {
+    const lane = groupBy === "priority" ? "priority" : "status";
+    const fieldPatch = columnId ? columnPatch(lane, columnId) : {};
+    if (fieldPatch.status && !task.parentTaskId) {
+      const nextGroup = groupIdForStatus(semanticStatus(labels, fieldPatch.status), groups);
+      if (nextGroup) fieldPatch.groupId = nextGroup;
+    }
+    const previous = tasks;
+    setTasks(tasks.map((item) => {
+      const index = orderedIds.indexOf(item.id);
+      if (index < 0) return item;
+      return { ...item, ...(item.id === task.id ? fieldPatch : {}), sortOrder: index, updatedAt: new Date().toISOString() };
+    }));
+    try {
+      if (project && fieldPatch.status) {
+        const roleLabel = profile?.role ? (ROLE_LABELS[profile.role] ?? profile.role) : "User";
+        markBoardSourceWrite(true);
+        await pushTaskToSource(project, { ...task, ...fieldPatch }, email, (changes) => promptBatchDateAdjustment(changes, roleLabel));
+      }
+      await Promise.all(orderedIds.map((id, index) => {
+        const item = previous.find((row) => row.id === id);
+        if (!item) return Promise.resolve();
+        const patch: Partial<PmBoardTask> = { sortOrder: index };
+        if (id === task.id) Object.assign(patch, fieldPatch);
+        return updateTask(item, patch, email);
+      }));
+    } catch (err) {
+      setTasks(previous);
+      message.error(err instanceof Error ? err.message : "Could not move the task.");
+    } finally {
+      markBoardSourceWrite(false);
+    }
+  };
+
+  const persistLaunch = async (nextTasks: PmBoardTask[], links: PmDependency[] = dependencies) => {
+    if (!project || !canEdit) return;
+    const report = assessLaunch({
+      nodes: nextTasks.map((item) => ({
+        id: item.id,
+        title: item.title,
+        start: item.startDate,
+        finish: item.dueDate,
+        baselineFinish: item.baselineFinish,
+        qualityBlocker: item.qualityBlocker,
+        isLaunch: item.isLaunch,
+      })),
+      edges: links.map((link) => ({
+        predecessorId: link.predecessorId,
+        successorId: link.successorId,
+        relation: link.relation,
+        lagDays: link.lagDays,
+      })),
+      baselineLaunchDate: project.baselineLaunchDate,
+      bufferWorkdays: project.riskBufferWorkdays,
+      workingDays: project.workingDays,
+      holidays: project.holidays,
+      qualityRelease: project.qualityReleaseStatus,
+    });
+    const reasons = report.reasons.join(" ");
+    if (
+      project.forecastLaunchDate === report.forecastLaunchDate
+      && project.launchImpact === report.impact
+      && project.launchImpactReasons === reasons
+    ) return;
+    const version = await saveLaunchPlan(project, {
+      baselineLaunchDate: project.baselineLaunchDate,
+      forecastLaunchDate: report.forecastLaunchDate,
+      qualityReleaseStatus: project.qualityReleaseStatus,
+      launchImpact: report.impact,
+      launchImpactReasons: reasons,
+      riskBufferWorkdays: project.riskBufferWorkdays,
+      rebaseline: false,
+    }, email);
+    setProjects((current) => current.map((item) => (item.id === project.id ? {
+      ...item,
+      forecastLaunchDate: report.forecastLaunchDate,
+      launchImpact: report.impact,
+      launchImpactReasons: reasons,
+      scheduleVersion: version,
+    } : item)));
+  };
+
   const patchTask = async (task: PmBoardTask, patch: Partial<PmBoardTask>) => {
     const nextPatch = { ...patch };
     if (patch.status && !task.parentTaskId) {
-      const groupId = groupIdForStatus(patch.status, groups);
+      const groupId = groupIdForStatus(semanticStatus(labels, patch.status), groups);
       if (groupId && groupId !== task.groupId) nextPatch.groupId = groupId;
+    }
+    if (patch.dueDate && !task.baselineFinish) nextPatch.baselineFinish = patch.dueDate;
+    if (patch.status === "Done" && !task.actualFinish) {
+      const finish = nextPatch.dueDate ?? task.dueDate;
+      if (finish) nextPatch.actualFinish = finish;
     }
     const previous = tasks;
     const next = tasks.map((item) => (item.id === task.id ? { ...item, ...nextPatch, updatedAt: new Date().toISOString() } : item));
@@ -536,7 +678,10 @@ export function BoardPage() {
         await pushTaskToSource(project, { ...task, ...nextPatch }, email, (changes) => promptBatchDateAdjustment(changes, roleLabel));
       }
       await updateTask(task, nextPatch, email);
-      if (patch.startDate !== undefined || patch.dueDate !== undefined) await applySchedule(next, task.id);
+      const scheduled = patch.startDate !== undefined || patch.dueDate !== undefined ? await applySchedule(next, task.id) : next;
+      if (patch.startDate !== undefined || patch.dueDate !== undefined || patch.status || patch.qualityBlocker !== undefined) {
+        await persistLaunch(scheduled);
+      }
     } catch (err) {
       setTasks(previous);
       message.error(err instanceof Error ? err.message : "Could not update the task.");
@@ -545,8 +690,8 @@ export function BoardPage() {
     }
   };
 
-  const applySchedule = async (base: PmBoardTask[], originId: string, links: PmDependency[] = dependencies) => {
-    if (!project) return;
+  const applySchedule = async (base: PmBoardTask[], originId: string, links: PmDependency[] = dependencies): Promise<PmBoardTask[]> => {
+    if (!project) return base;
     const result = rescheduleFrom(base, links, originId, {
       mode: project.scheduleMode,
       workingDays: project.workingDays,
@@ -554,7 +699,7 @@ export function BoardPage() {
     });
     result.conflicts.forEach((conflict) => message.warning(conflict.message));
     if (result.datesRequired.length) message.info("Dates required");
-    if (!result.updates.length) return;
+    if (!result.updates.length) return base;
     const before = base
       .filter((item) => result.updates.some((update) => update.id === item.id))
       .map((item) => ({ ...item }));
@@ -562,10 +707,11 @@ export function BoardPage() {
       const current = base.find((item) => item.id === update.id);
       if (current) await updateTask(current, { startDate: update.startDate, dueDate: update.dueDate }, email);
     }
-    setTasks((current) => current.map((item) => {
+    const scheduled = base.map((item) => {
       const update = result.updates.find((entry) => entry.id === item.id);
       return update ? { ...item, startDate: update.startDate, dueDate: update.dueDate } : item;
-    }));
+    });
+    setTasks((current) => current.map((item) => scheduled.find((entry) => entry.id === item.id) ?? item));
     message.open({
       type: "info",
       key: "pm-schedule-undo",
@@ -587,6 +733,7 @@ export function BoardPage() {
         </span>
       ),
     });
+    return scheduled;
   };
 
   const saveDependencies = async (
@@ -595,7 +742,8 @@ export function BoardPage() {
   ) => {
     const next = await replaceTaskDependencies(task, links, dependencies, email);
     setDependencies(next);
-    await applySchedule(tasks, task.id, next);
+    const scheduled = await applySchedule(tasks, task.id, next);
+    await persistLaunch(scheduled, next);
   };
 
   const addTask = async (sectionId: string, title: string, parent?: PmBoardTask) => {
@@ -608,8 +756,8 @@ export function BoardPage() {
         groupId,
         parentTaskId: parent?.id,
         title,
-        status: groupBy === "status" && !parent ? sectionId as BoardStatus : parent?.status ?? "Not Started",
-        priority: groupBy === "priority" && !parent ? sectionId as BoardPriority : "Medium",
+        status: groupBy === "status" && !parent ? sectionId : parent?.status ?? "Not Started",
+        priority: groupBy === "priority" && !parent ? sectionId : "Medium",
         userEmail: email,
       });
       setTasks((current) => [...current, created]);
@@ -693,20 +841,15 @@ export function BoardPage() {
       });
     };
     const tops = orderTasks(topLevelTasks(visibleTasks));
-    if (groupBy === "status") {
-      return BOARD_STATUSES.map((status) => ({
-        id: status,
-        label: status,
-        color: STATUS_COLOR[status],
-        tasks: tops.filter((task) => task.status === status),
-      }));
-    }
-    if (groupBy === "priority") {
-      return BOARD_PRIORITIES.map((priority) => ({
-        id: priority,
-        label: priority,
-        color: PRIORITY_COLOR[priority],
-        tasks: tops.filter((task) => task.priority === priority),
+    if (groupBy === "status" || groupBy === "priority") {
+      const active = selectableLabels(labels, groupBy);
+      const used = tops.map((task) => groupBy === "status" ? task.status : task.priority);
+      const extra = [...new Set(used.filter((id) => !active.some((label) => label.id === id)))];
+      return [...active, ...extra.map((id) => ({ id, name: labelName(labels, groupBy, id), color: labelColor(labels, groupBy, id, "#c4c4c4"), kind: groupBy, order: 0, active: false, retired: false, description: "", semantic: "" }))].map((label) => ({
+        id: label.id,
+        label: label.name,
+        color: label.color,
+        tasks: tops.filter((task) => (groupBy === "status" ? task.status : task.priority) === label.id),
       }));
     }
     return groups.map((group) => ({
@@ -715,7 +858,7 @@ export function BoardPage() {
       color: group.color,
       tasks: tops.filter((task) => task.groupId === group.id),
     }));
-  }, [boardColumns, cells, columnSort, groupBy, groups, visibleTasks]);
+  }, [boardColumns, cells, columnSort, groupBy, groups, labels, visibleTasks]);
 
   const saveWorkspace = async () => {
     if (!workspaceDraft) return;
@@ -925,7 +1068,7 @@ export function BoardPage() {
           title={railClosed ? "Open navigation" : "Close navigation"}
           onClick={() => setRailClosed((current) => !current)}
         >
-          <LucideIcon name={railClosed ? "chevron-right" : "chevron-left"} size={14} />
+          <LucideIcon className="pmb-rail-chevron" name={railClosed ? "chevron-right" : "chevron-left"} size={14} />
         </button>
       </div>
       <div className="pmb-main">
@@ -1051,6 +1194,8 @@ export function BoardPage() {
               hidden={hidden}
               groupBy={groupBy}
               searchColumns={searchColumns}
+              statusLabels={selectableLabels(labels, "status")}
+              priorityLabels={selectableLabels(labels, "priority")}
               onFilters={(patch) => setFilters((current) => ({ ...current, ...patch }))}
               onSort={setSortKey}
               onToggleHidden={(key) => setHidden((current) => {
@@ -1118,8 +1263,8 @@ export function BoardPage() {
                 <span>{visibleTasks.length} shown</span>
                 {filters.search ? <button type="button" onClick={() => setFilters((current) => ({ ...current, search: "" }))}>Search: {filters.search}</button> : null}
                 {filters.ownerId !== "all" ? <button type="button" onClick={() => setFilters((current) => ({ ...current, ownerId: "all" }))}>Person</button> : null}
-                {filters.status !== "all" ? <button type="button" onClick={() => setFilters((current) => ({ ...current, status: "all" }))}>{filters.status}</button> : null}
-                {filters.priority !== "all" ? <button type="button" onClick={() => setFilters((current) => ({ ...current, priority: "all" }))}>{filters.priority}</button> : null}
+                {filters.status !== "all" ? <button type="button" onClick={() => setFilters((current) => ({ ...current, status: "all" }))}>{labelName(labels, "status", filters.status)}</button> : null}
+                {filters.priority !== "all" ? <button type="button" onClick={() => setFilters((current) => ({ ...current, priority: "all" }))}>{labelName(labels, "priority", filters.priority)}</button> : null}
                 {filters.groupId !== "all" ? <button type="button" onClick={() => setFilters((current) => ({ ...current, groupId: "all" }))}>Group</button> : null}
                 <button type="button" onClick={() => setFilters(EMPTY_BOARD_FILTERS)}>Clear all</button>
               </div>
@@ -1138,7 +1283,7 @@ export function BoardPage() {
                   aria-label="Set status"
                   placeholder="Set status"
                   style={{ width: 150 }}
-                  options={BOARD_STATUSES.map((status) => ({ value: status, label: status }))}
+                  options={selectableLabels(labels, "status").map((label) => ({ value: label.id, label: label.name }))}
                   onChange={(status) => void bulk({ status })}
                 />
                 <Select
@@ -1150,6 +1295,96 @@ export function BoardPage() {
                 />
                 <Button danger onClick={() => void bulkDelete()}>Delete</Button>
                 <Button onClick={() => setSelected(new Set())}>Clear</Button>
+              </div>
+            ) : null}
+            {project && launchReport ? (
+              <div className="pmb-launch" aria-label="Launch impact">
+                <span className={`pmb-impact is-${launchReport.impact}`}>{IMPACT_LABEL[launchReport.impact]}</span>
+                <label className="pmb-launch-field">
+                  <LucideIcon name="calendar" size={14} />
+                  <span>Target launch</span>
+                  <input
+                    type="date"
+                    aria-label="Target launch date for the project"
+                    value={project.baselineLaunchDate}
+                    disabled={!canEdit}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      const changing = Boolean(project.baselineLaunchDate) && value !== project.baselineLaunchDate;
+                      const reason = changing ? window.prompt("Reason for the new launch baseline") ?? "" : "Approved launch baseline";
+                      if (changing && !reason.trim()) return;
+                      void saveLaunchPlan(project, {
+                        baselineLaunchDate: value,
+                        forecastLaunchDate: launchReport.forecastLaunchDate,
+                        qualityReleaseStatus: project.qualityReleaseStatus,
+                        launchImpact: launchReport.impact,
+                        launchImpactReasons: [reason.trim(), ...launchReport.reasons].filter(Boolean).join(" "),
+                        riskBufferWorkdays: project.riskBufferWorkdays,
+                        rebaseline: changing,
+                      }, email).then((version) => {
+                        setProjects((current) => current.map((item) => (item.id === project.id ? {
+                          ...item,
+                          baselineLaunchDate: value,
+                          launchImpactReasons: [reason.trim(), ...launchReport.reasons].filter(Boolean).join(" "),
+                          scheduleVersion: version,
+                        } : item)));
+                      }).catch((err) => message.error(err instanceof Error ? err.message : "Could not save the launch baseline."));
+                    }}
+                  />
+                </label>
+                <span className="pmb-launch-stat">
+                  <span>Forecast</span>
+                  <strong>{launchReport.forecastLaunchDate ? formatMonthDayYear(launchReport.forecastLaunchDate) : "—"}</strong>
+                </span>
+                <span className="pmb-launch-stat">
+                  <span>Variance</span>
+                  <strong className={launchReport.varianceWorkdays == null ? "" : launchReport.varianceWorkdays > 0 ? "is-late" : launchReport.varianceWorkdays < 0 ? "is-early" : ""}>
+                    {launchReport.varianceWorkdays === null
+                      ? "—"
+                      : `${launchReport.varianceWorkdays > 0 ? "+" : ""}${launchReport.varianceWorkdays} working days`}
+                  </strong>
+                </span>
+                <label className="pmb-launch-field">
+                  <span>Quality</span>
+                  <select
+                    aria-label="Quality release"
+                    value={project.qualityReleaseStatus}
+                    disabled={!canEdit}
+                    onChange={(event) => {
+                      const qualityReleaseStatus = event.target.value as PmProject["qualityReleaseStatus"];
+                      void saveLaunchPlan(project, {
+                        baselineLaunchDate: project.baselineLaunchDate,
+                        forecastLaunchDate: launchReport.forecastLaunchDate,
+                        qualityReleaseStatus,
+                        launchImpact: launchReport.impact,
+                        launchImpactReasons: launchReport.reasons.join(" "),
+                        riskBufferWorkdays: project.riskBufferWorkdays,
+                        rebaseline: false,
+                      }, email).then((version) => {
+                        setProjects((current) => current.map((item) => (item.id === project.id ? { ...item, qualityReleaseStatus, scheduleVersion: version } : item)));
+                      }).catch((err) => message.error(err instanceof Error ? err.message : "Could not save the quality gate."));
+                    }}
+                  >
+                    {(Object.keys(QUALITY_LABEL) as (keyof typeof QUALITY_LABEL)[]).map((key) => (
+                      <option key={key} value={key}>{QUALITY_LABEL[key]}</option>
+                    ))}
+                  </select>
+                </label>
+                <Popover
+                  content={(
+                    <div className="pmb-impact-note">
+                      <p>{launchReport.copy}</p>
+                      {launchReport.reasons.filter((reason) => reason !== launchReport.copy).map((reason) => <p key={reason}>{reason}</p>)}
+                      {project.qualityReleaseStatus !== "CLEAR" ? <p>Quality release is {QUALITY_LABEL[project.qualityReleaseStatus]}. Schedule impact does not clear a quality hold.</p> : null}
+                    </div>
+                  )}
+                >
+                  <button type="button" className="pmb-launch-why">
+                    <LucideIcon name="info" size={14} />
+                    Why this label?
+                  </button>
+                </Popover>
+                {launchReport.error ? <span>{launchReport.error}</span> : null}
               </div>
             ) : null}
             {view === "table" ? (
@@ -1175,6 +1410,33 @@ export function BoardPage() {
                     return next;
                   })}
                   onOpen={(task) => setOpenTaskId(task.id)}
+                  launch={launchReport}
+                  previewImpact={(task, start, due) => {
+                    if (!project) return "";
+                    const report = assessLaunch({
+                      nodes: tasks.map((item) => ({
+                        id: item.id,
+                        title: item.title,
+                        start: item.id === task.id ? start : item.startDate,
+                        finish: item.id === task.id ? due : item.dueDate,
+                        baselineFinish: item.baselineFinish,
+                        qualityBlocker: item.qualityBlocker,
+                        isLaunch: item.isLaunch,
+                      })),
+                      edges: dependencies.map((link) => ({
+                        predecessorId: link.predecessorId,
+                        successorId: link.successorId,
+                        relation: link.relation,
+                        lagDays: link.lagDays,
+                      })),
+                      baselineLaunchDate: project.baselineLaunchDate,
+                      bufferWorkdays: project.riskBufferWorkdays,
+                      workingDays: project.workingDays,
+                      holidays: project.holidays,
+                      qualityRelease: project.qualityReleaseStatus,
+                    });
+                    return report.error || `${IMPACT_LABEL[report.impact]}. ${report.copy}`;
+                  }}
                   onPatch={(task, patch) => void patchTask(task, patch)}
                   onAddTask={(sectionId, title) => void addTask(sectionId, title)}
                   onAddSubtask={(task, title) => void addTask(task.groupId, title, task)}
@@ -1203,11 +1465,17 @@ export function BoardPage() {
                   }}
                   columns={shownColumns}
                   cells={cells}
+                  labels={labels}
+                  onSaveLabels={async (kind, next) => {
+                    if (!project) return;
+                    const merged = [...labels.filter((label) => label.kind !== kind), ...next];
+                    await saveBoardLabels(project.id, merged, email);
+                    setLabels(merged);
+                  }}
                   projects={projects}
                   userId={user?.id ?? ""}
                   userEmail={email}
                   unseenTaskIds={unseenTaskIds}
-                  onAddColumn={() => setColumnCenterOpen(true)}
                   onSaveCell={saveCell}
                   onColumnAction={onColumnAction}
                   scrollKey={scrollColumn?.key ?? null}
@@ -1237,12 +1505,27 @@ export function BoardPage() {
                 groupBy={groupBy === "priority" ? "priority" : "status"}
                 groups={groups}
                 tasks={visibleTasks}
-                profiles={profiles}
+                labels={labels}
                 canEdit={canEdit}
-                columns={shownColumns}
-                cells={cells}
-                onOpen={(task) => setUpdatesTaskId(task.id)}
-                onMove={(task, columnId) => void patchTask(task, columnPatch(groupBy === "priority" ? "priority" : "status", columnId))}
+                updateCounts={updateCounts}
+                onOpen={(task) => setOpenTaskId(task.id)}
+                onUpdates={(task) => {
+                  markUpdateSeen(task.id);
+                  setUpdatesTaskId(task.id);
+                }}
+                onMove={(task, columnId, orderedIds) => void placeKanban(task, columnId, orderedIds)}
+                onReorder={(task, orderedIds) => void placeKanban(task, null, orderedIds)}
+                onRename={(task, title) => void patchTask(task, { title })}
+                onDelete={(task) => {
+                  modal.confirm({
+                    title: `Delete ${task.title}?`,
+                    okText: "Delete",
+                    okButtonProps: { danger: true },
+                    onOk: () => deleteTask(task, email).then(() => {
+                      setTasks((current) => current.filter((item) => item.id !== task.id && item.parentTaskId !== task.id));
+                    }),
+                  });
+                }}
                 onAdd={(columnId, title) => {
                   const lane = groupBy === "priority" ? "priority" : "status";
                   if (!project || !groups[0]) return;
@@ -1250,8 +1533,8 @@ export function BoardPage() {
                     projectId: project.id,
                     groupId: groups[0].id,
                     title,
-                    status: lane === "status" ? columnId as BoardStatus : "Not Started",
-                    priority: lane === "priority" ? columnId as BoardPriority : "Medium",
+                    status: lane === "status" ? columnId : "Not Started",
+                    priority: lane === "priority" ? columnId : "Medium",
                     userEmail: email,
                   }).then((created) => setTasks((current) => [...current, created]))
                     .catch((err) => message.error(err instanceof Error ? err.message : "Could not add the task."));
@@ -1272,7 +1555,6 @@ export function BoardPage() {
                   setUpdatesTaskId(task.id);
                 }}
                 onShift={(task, startDate, dueDate) => void patchTask(task, { startDate, dueDate })}
-                onAddColumn={() => setColumnCenterOpen(true)}
               />
             ) : null}
             {view === "calendar" ? (
@@ -1281,6 +1563,7 @@ export function BoardPage() {
                 canEdit={canEdit}
                 columns={shownColumns}
                 cells={cells}
+                labels={labels}
                 onOpen={(task) => setUpdatesTaskId(task.id)}
                 onCreate={(date) => {
                   const group = groups[0];
@@ -1307,7 +1590,10 @@ export function BoardPage() {
         tasks={tasks}
         groups={groups}
         profiles={profiles}
+        labels={labels}
         canEdit={canEdit}
+        autoPriority={openTask ? priorityFromLaunch(launchReport?.tasks[openTask.id]?.impact ?? "NOT_ASSESSED", openTask.qualityBlocker) : undefined}
+        autoPriorityNote={openTask ? priorityReason(launchReport?.tasks[openTask.id]?.impact ?? "NOT_ASSESSED", openTask.qualityBlocker) : undefined}
         onClose={() => setOpenTaskId(null)}
         onOpen={(task) => setOpenTaskId(task.id)}
         onPatch={(task, patch) => void patchTask(task, patch)}
@@ -1368,7 +1654,11 @@ export function BoardPage() {
           onClose={() => setUpdatesTaskId(null)}
           onPosted={() => {
             if (!projectKey) return;
-            void listUpdateMarks(projectKey.split(",")).then(setUpdateMarks).catch(() => undefined);
+            const ids = projectKey.split(",");
+            void Promise.all([listUpdateMarks(ids), listUpdateCounts(ids)]).then(([marks, counts]) => {
+              setUpdateMarks(marks);
+              setUpdateCounts(counts);
+            }).catch(() => undefined);
           }}
           onPrevious={updatesIndex > 0 ? () => setUpdatesTaskId(taskOrder[updatesIndex - 1].id) : undefined}
           onNext={updatesIndex >= 0 && updatesIndex < taskOrder.length - 1 ? () => setUpdatesTaskId(taskOrder[updatesIndex + 1].id) : undefined}
@@ -1563,12 +1853,19 @@ export function BoardPage() {
         open={manageWorkspace}
         members={members}
         profiles={profiles}
-        roles={["Owner", "Admin", "Member"]}
+        roles={["Admin", "Owner", "Member"]}
+        note="Admin manages people and roles. Owner can change the board and post updates. Member can post updates only."
+        canManage={canManage}
         archived={workspace?.archivedAt}
-        canRestore={workspace?.role === "Owner"}
+        canRestore={workspace?.role === "Owner" || profile?.role === "admin"}
         onClose={() => setManageWorkspace(false)}
-        onInvite={(userId, role) => workspace ? addWorkspaceMember(workspace.id, userId, role as WorkspaceRole, email, personName(profiles, userId)).then(() => openMembers("workspace")) : Promise.resolve()}
-        onRole={(userId, role) => workspace ? updateWorkspaceMemberRole(workspace.id, userId, role as WorkspaceRole, email, personName(profiles, userId)).then(() => openMembers("workspace")) : Promise.resolve()}
+        onInvite={(userId, role) => workspace ? addWorkspaceMember(workspace.id, userId, role as WorkspaceRole, email, personName(profiles, userId)).then(() => openMembers("workspace")).catch((err) => {
+          message.error(err instanceof Error ? err.message : "Could not invite that person.");
+        }) : Promise.resolve()}
+        onRole={(userId, role) => workspace ? updateWorkspaceMemberRole(workspace.id, userId, role as WorkspaceRole, email, personName(profiles, userId)).then(() => openMembers("workspace")).catch((err) => {
+          message.error(err instanceof Error ? err.message : "Could not change that role.");
+          return openMembers("workspace");
+        }) : Promise.resolve()}
         onRemove={(userId) => {
           if (!workspace) return Promise.resolve();
           const leaving = userId === user?.id;
@@ -1581,6 +1878,8 @@ export function BoardPage() {
             setWorkspaces(next);
             setWorkspaceId(next.find((item) => !item.archivedAt)?.id ?? null);
             setManageWorkspace(false);
+          }).catch((err) => {
+            message.error(err instanceof Error ? err.message : "Could not remove that person.");
           });
         }}
         onRestore={() => {
@@ -1626,6 +1925,7 @@ function MemberModal({
   profiles,
   roles,
   note,
+  canManage = true,
   archived,
   canRestore,
   onClose,
@@ -1640,6 +1940,7 @@ function MemberModal({
   profiles: Profile[];
   roles: string[];
   note?: string;
+  canManage?: boolean;
   archived?: string | null;
   canRestore?: boolean;
   onClose: () => void;
@@ -1664,10 +1965,10 @@ function MemberModal({
           options={available.map((person) => ({ value: person.id, label: personName(profiles, person.id) }))}
           onChange={setUserId}
         />
-        <Select aria-label="Role" value={role} options={roles.map((item) => ({ value: item, label: item }))} onChange={setRole} />
+        <Select aria-label="Role" value={role} disabled={!canManage} options={roles.map((item) => ({ value: item, label: item }))} onChange={setRole} />
         <Button
           type="primary"
-          disabled={!userId}
+          disabled={!userId || !canManage}
           onClick={() => {
             if (!userId) return;
             void onInvite(userId, role).then(() => setUserId(undefined));
@@ -1678,8 +1979,8 @@ function MemberModal({
         {members.map((member) => (
           <div key={member.userId} className="pmb-member">
             <span>{personName(profiles, member.userId)}</span>
-            <Select aria-label={`Role for ${personName(profiles, member.userId)}`} value={member.role} options={roles.map((item) => ({ value: item, label: item }))} onChange={(next) => void onRole(member.userId, next)} />
-            <Button onClick={() => void onRemove(member.userId)}>Remove</Button>
+            <Select aria-label={`Role for ${personName(profiles, member.userId)}`} value={member.role} disabled={!canManage} options={roles.map((item) => ({ value: item, label: item }))} onChange={(next) => void onRole(member.userId, next)} />
+            <Button disabled={!canManage} onClick={() => void onRemove(member.userId)}>Remove</Button>
           </div>
         ))}
         {canRestore && archived ? <Button onClick={() => void onRestore?.()}>Restore workspace</Button> : null}

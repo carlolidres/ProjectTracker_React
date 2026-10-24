@@ -30,6 +30,9 @@ const HIDE_COLUMNS = [
   ["priority", "Priority"],
   ["depends", "Depends on"],
   ["updated", "Last Updated"],
+  ["float", "Float"],
+  ["impact", "Launch Impact"],
+  ["quality", "Quality gate"],
 ] as const;
 
 export function BoardToolbar({
@@ -42,6 +45,8 @@ export function BoardToolbar({
   hidden,
   groupBy,
   searchColumns,
+  statusLabels,
+  priorityLabels,
   onFilters,
   onSort,
   onToggleHidden,
@@ -66,6 +71,8 @@ export function BoardToolbar({
   hidden: Set<string>;
   groupBy: BoardGroupBy;
   searchColumns: SearchColumn[];
+  statusLabels?: { id: string; name: string }[];
+  priorityLabels?: { id: string; name: string }[];
   onFilters: (patch: Partial<BoardFilters>) => void;
   onSort: (value: BoardSortKey) => void;
   onToggleHidden: (key: string) => void;
@@ -134,9 +141,10 @@ export function BoardToolbar({
               />
               <Checkbox
                 checked={searchColumns.length === SEARCH_COLUMNS.length}
+                indeterminate={searchColumns.length > 0 && searchColumns.length < SEARCH_COLUMNS.length}
                 onChange={(event) => onSearchColumns(event.target.checked ? SEARCH_COLUMNS.map((column) => column.key) : ["title"])}
               >
-                All columns
+                All columns {searchColumns.length} selected
               </Checkbox>
               {shownColumns.map((column) => (
                 <Checkbox
@@ -175,14 +183,15 @@ export function BoardToolbar({
         trigger={["click"]}
         menu={{
           items: [
-            { key: "status", label: "Status", children: [{ key: "status:all", label: "Any status" }, ...BOARD_STATUSES.map((status) => ({ key: `status:${status}`, label: status }))] },
-            { key: "priority", label: "Priority", children: [{ key: "priority:all", label: "Any priority" }, ...BOARD_PRIORITIES.map((priority) => ({ key: `priority:${priority}`, label: priority }))] },
+            { key: "status", label: "Status", children: [{ key: "status:all", label: "Any status" }, ...(statusLabels ?? BOARD_STATUSES.map((status) => ({ id: status, name: status }))).map((status) => ({ key: `status:${status.id}`, label: status.name }))] },
+            { key: "priority", label: "Priority", children: [{ key: "priority:all", label: "Any priority" }, ...(priorityLabels ?? BOARD_PRIORITIES.map((priority) => ({ id: priority, name: priority }))).map((priority) => ({ key: `priority:${priority.id}`, label: priority.name }))] },
             { key: "group", label: "Group", children: [{ key: "group:all", label: "Any group" }, ...groups.map((group) => ({ key: `group:${group.id}`, label: group.name }))] },
           ],
           onClick: ({ key }) => {
-            const [kind, value] = String(key).split(":");
-            if (kind === "status") onFilters({ status: value as BoardFilters["status"] });
-            if (kind === "priority") onFilters({ priority: value as BoardFilters["priority"] });
+            const [kind, ...rest] = String(key).split(":");
+            const value = rest.join(":");
+            if (kind === "status") onFilters({ status: value });
+            if (kind === "priority") onFilters({ priority: value });
             if (kind === "group") onFilters({ groupId: value });
           },
         }}

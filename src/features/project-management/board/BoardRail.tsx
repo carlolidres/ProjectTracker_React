@@ -52,7 +52,9 @@ export function BoardRail({
   const visible = projects
     .filter((project) => !project.archivedAt && project.name.toLowerCase().includes(query.trim().toLowerCase()))
     .sort((a, b) => Number(favorites.includes(b.id)) - Number(favorites.includes(a.id)));
-  const activeWorkspaces = workspaces.filter((item) => !item.archivedAt);
+  const activeWorkspaces = [...new Map(
+    workspaces.filter((item) => !item.archivedAt).map((item) => [item.id, item]),
+  ).values()];
   return (
     <aside className="pmb-rail" aria-label="Workspaces and projects">
       <Input

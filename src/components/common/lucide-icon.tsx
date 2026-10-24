@@ -28,7 +28,10 @@ export type LucideIconName =
   | "eye-off"
   | "link"
   | "external-link"
-  | "archive";
+  | "archive"
+  | "message-circle"
+  | "minus"
+  | "info";
 
 interface LucideIconProps {
   name: LucideIconName;
@@ -201,6 +204,17 @@ const PATHS: Record<LucideIconName, ReactNode> = {
       <rect width="20" height="5" x="2" y="3" rx="1" />
       <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
       <path d="M10 12h4" />
+    </>
+  ),
+  "message-circle": (
+    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+  ),
+  minus: <path d="M5 12h14" />,
+  info: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
     </>
   ),
 };

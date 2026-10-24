@@ -198,7 +198,8 @@ export interface SourceColumnPatch {
 }
 
 /** Document status written back to a spreadsheet or support protocol/report field. */
-export function documentStatusFromBoard(status: BoardStatus, current: string): string | null {
+export function documentStatusFromBoard(status: string, current: string): string | null {
+  if (status !== "Not Started" && status !== "Working on it" && status !== "Done" && status !== "Stuck") return null;
   if (status === "Stuck") return null;
   if (status === "Done" && isApprovedOrNotApplicableStatus(current)) return null;
   if (status === "Done") return "Approved";
@@ -207,7 +208,7 @@ export function documentStatusFromBoard(status: BoardStatus, current: string): s
 }
 
 /** Support activity status written back from a board status. */
-export function supportActivityStatusFromBoard(status: BoardStatus): string | null {
+export function supportActivityStatusFromBoard(status: string): string | null {
   if (status === "Done") return "Done";
   if (status === "Working on it") return "In-process";
   if (status === "Not Started") return "Planned";
@@ -226,7 +227,7 @@ function statusPatch(column: string, value: string | null, scope: "project" | "r
 /** Columns a board task should write on the linked spreadsheet project. */
 export function spreadsheetPatchesForTask(
   title: string,
-  status: BoardStatus,
+  status: string,
   dueDate: string,
   currentStatus: string,
 ): SourceColumnPatch[] {
@@ -257,7 +258,7 @@ export function spreadsheetPatchesForTask(
 /** Columns a board task should write on the linked support activity. */
 export function supportPatchesForTask(
   title: string,
-  status: BoardStatus,
+  status: string,
   dueDate: string,
   startDate: string,
   currentStatus: string,

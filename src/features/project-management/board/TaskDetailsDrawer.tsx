@@ -1,9 +1,8 @@
 import { Button, DatePicker, Drawer, Input, Select } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
+import { labelName, selectableLabels, type BoardLabel } from "@/features/project-management/board/boardLabels";
 import {
-  BOARD_PRIORITIES,
-  BOARD_STATUSES,
   subtasksOf,
   type PmBoardTask,
   type PmGroup,
@@ -16,7 +15,10 @@ export function TaskDetailsDrawer({
   tasks,
   groups,
   profiles,
+  labels,
   canEdit,
+  autoPriority,
+  autoPriorityNote,
   onClose,
   onOpen,
   onPatch,
@@ -27,7 +29,10 @@ export function TaskDetailsDrawer({
   tasks: PmBoardTask[];
   groups: PmGroup[];
   profiles: Profile[];
+  labels: BoardLabel[];
   canEdit: boolean;
+  autoPriority?: string;
+  autoPriorityNote?: string;
   onClose: () => void;
   onOpen: (task: PmBoardTask) => void;
   onPatch: (task: PmBoardTask, patch: Partial<PmBoardTask>) => void;
@@ -105,18 +110,17 @@ export function TaskDetailsDrawer({
               aria-label="Status"
               disabled={!canEdit}
               value={task.status}
-              options={BOARD_STATUSES.map((status) => ({ value: status, label: status }))}
+              options={choiceOptions(labels, "status", task.status)}
               onChange={(status) => onPatch(task, { status })}
             />
           </label>
-          <label>
+          <label title={autoPriorityNote}>
             Priority
             <Select
               aria-label="Priority"
-              disabled={!canEdit}
-              value={task.priority}
-              options={BOARD_PRIORITIES.map((priority) => ({ value: priority, label: priority }))}
-              onChange={(priority) => onPatch(task, { priority })}
+              disabled
+              value={autoPriority || task.priority}
+              options={choiceOptions(labels, "priority", autoPriority || task.priority)}
             />
           </label>
           <label>
@@ -144,7 +148,7 @@ export function TaskDetailsDrawer({
                 {children.map((child) => (
                   <li key={child.id}>
                     <button type="button" onClick={() => onOpen(child)}>{child.title}</button>
-                    <span>{child.status}</span>
+                    <span>{labelName(labels, "status", child.status)}</span>
                   </li>
                 ))}
               </ul>
@@ -167,4 +171,11 @@ export function TaskDetailsDrawer({
       ) : null}
     </Drawer>
   );
+}
+
+function choiceOptions(labels: BoardLabel[], kind: BoardLabel["kind"], current: string) {
+  const choices = selectableLabels(labels, kind);
+  const options = choices.map((label) => ({ value: label.id, label: label.name }));
+  if (current && !choices.some((label) => label.id === current)) options.push({ value: current, label: labelName(labels, kind, current) });
+  return options;
 }

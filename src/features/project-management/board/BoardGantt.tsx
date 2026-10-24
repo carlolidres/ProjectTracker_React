@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { Button } from "antd";
 import { LucideIcon } from "@/components/common/lucide-icon";
 import { formatColumnValue, type BoardColumn } from "@/features/project-management/board/columnCatalog";
-import { personName } from "@/features/project-management/board/boardUi";
+import { isBoardTypingTarget, personName } from "@/features/project-management/board/boardUi";
 import type { Profile } from "@/types";
 import {
   addDays,
@@ -17,7 +16,12 @@ import {
 type Zoom = "day" | "week" | "month";
 
 const PX: Record<Zoom, number> = { day: 56, week: 28, month: 10 };
-const SIDE = 240;
+const SIDE = 520;
+
+function durationLabel(start: string, due: string): string {
+  if (!start || !due || due < start) return "—";
+  return `${daySpan(start, due)}d`;
+}
 
 function dayParts(date: string): { weekday: string; day: string; weekend: boolean } {
   const parsed = new Date(`${date}T12:00:00`);
@@ -80,7 +84,6 @@ export function BoardGantt({
   cells,
   onOpen,
   onShift,
-  onAddColumn,
 }: {
   groups: PmGroup[];
   tasks: PmBoardTask[];
@@ -91,7 +94,6 @@ export function BoardGantt({
   cells: Record<string, Record<string, unknown>>;
   onOpen: (task: PmBoardTask) => void;
   onShift: (task: PmBoardTask, startDate: string, dueDate: string) => void;
-  onAddColumn: () => void;
 }) {
   const [zoom, setZoom] = useState<Zoom>("week");
   const [scale, setScale] = useState(1);
@@ -116,24 +118,55 @@ export function BoardGantt({
   const width = days * px;
   const todayLeft = daySpan(range.start, today) - 1;
   const gridRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const months = monthBands(range.start, days, px);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (isBoardTypingTarget(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
+      const scroller = scrollRef.current;
+      if (!scroller) return;
+      const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
+      const vertical = event.key === "ArrowUp" || event.key === "ArrowDown";
+      if (!horizontal && !vertical) return;
+      const distance = event.shiftKey ? 480 : 220;
+      if (horizontal) scroller.scrollBy({ left: event.key === "ArrowLeft" ? -distance : distance });
+      else scroller.scrollBy({ top: event.key === "ArrowUp" ? -distance : distance });
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <section className={`pmb-gantt is-${zoom}`} aria-label="Gantt" style={{ ["--pmb-col" as string]: `${px}px` }}>
-      <div className="pmb-view-tools">
-        <Button type={showDetails ? "primary" : "default"} onClick={() => setShowDetails((value) => !value)}>Details</Button>
-        <Button onClick={() => { setZoom("week"); setScale(1); }}>Auto fit</Button>
-        <Button aria-label="Zoom out" onClick={() => setScale((value) => Math.max(0.6, Number((value - 0.2).toFixed(1))))}>−</Button>
-        <Button aria-label="Zoom in" onClick={() => setScale((value) => Math.min(2, Number((value + 0.2).toFixed(1))))}>+</Button>
+      <div className="pmb-view-tools" role="toolbar" aria-label="Gantt controls">
+        <button type="button" className={`pmb-tool${showDetails ? " is-on" : ""}`} aria-pressed={showDetails} onClick={() => setShowDetails((value) => !value)}>
+          <LucideIcon name={showDetails ? "eye-off" : "eye"} size={14} />
+          Details
+        </button>
+        <button type="button" className="pmb-tool" onClick={() => { setZoom("week"); setScale(1); }}>
+          <LucideIcon name="columns" size={14} />
+          Auto fit
+        </button>
+        <span className="pmb-zoom">
+          <button type="button" className="pmb-tool" aria-label="Zoom out" onClick={() => setScale((value) => Math.max(0.6, Number((value - 0.2).toFixed(1))))}>
+            <LucideIcon name="minus" size={14} />
+          </button>
+          <button type="button" className="pmb-tool" aria-label="Zoom in" onClick={() => setScale((value) => Math.min(2, Number((value + 0.2).toFixed(1))))}>
+            <LucideIcon name="plus" size={14} />
+          </button>
+        </span>
       </div>
-      <div className="pmb-gantt-scroll">
+      <div className="pmb-gantt-scroll" ref={scrollRef} aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown">
         <div ref={gridRef} className="pmb-gantt-grid" style={{ minWidth: SIDE + width }}>
           <DependencyArrows gridRef={gridRef} dependencies={dependencies} tasks={tasks} layoutKey={`${zoom}:${width}:${scale}:${Object.values(collapsed).join()}`} />
           {todayLeft >= 0 && todayLeft < days ? <span className="pmb-today" style={{ left: SIDE + todayLeft * px + px / 2 }} /> : null}
           <div className="pmb-gantt-row pmb-gantt-head-row">
             <div className="pmb-gantt-side pmb-gantt-head">
-              <span>Task Name</span>
-              <button type="button" className="pmb-add-col-btn" aria-label="Add column" onClick={onAddColumn}>+</button>
+              <span className="pmb-gantt-col-name">Task Name</span>
+              <span className="pmb-gantt-col-duration">Duration</span>
+              <span className="pmb-gantt-col-date">Start Date</span>
+              <span className="pmb-gantt-col-date">End Date</span>
             </div>
             <div className="pmb-gantt-time pmb-gantt-head" style={{ width }}>
               <div className="pmb-gantt-months">
@@ -184,26 +217,44 @@ export function BoardGantt({
                 </div>
                 {closed ? null : visible.map((task) => (
                   <div key={task.id} className={`pmb-gantt-row${selectedId === task.id ? " is-selected" : ""}`}>
-                    <button
-                      type="button"
-                      className="pmb-gantt-side"
-                      data-task-id={task.id}
-                      style={{ paddingLeft: task.parentTaskId ? 28 : 10 }}
-                      onClick={() => {
-                        setSelectedId(task.id);
-                        onOpen(task);
-                      }}
-                    >
-                      <span className="pmb-gantt-task">
-                        {task.title}
-                        {showDetails ? (
-                          <span className="pmb-gantt-extra">
-                            {personName(profiles, task.ownerId)} · {task.status} · {task.priority}
-                            {progressColumn ? ` · ${formatColumnValue("progress", cells[task.id]?.[progressColumn.id]) || "0%"}` : ""}
-                          </span>
-                        ) : null}
-                      </span>
-                    </button>
+                    <div className="pmb-gantt-side" data-task-id={task.id}>
+                      <button
+                        type="button"
+                        className="pmb-gantt-col-name"
+                        style={{ paddingLeft: task.parentTaskId ? 28 : 10 }}
+                        onClick={() => {
+                          setSelectedId(task.id);
+                          onOpen(task);
+                        }}
+                      >
+                        <span className="pmb-gantt-task">
+                          {task.title}
+                          {showDetails ? (
+                            <span className="pmb-gantt-extra">
+                              {personName(profiles, task.ownerId)} · {task.status} · {task.priority}
+                              {progressColumn ? ` · ${formatColumnValue("progress", cells[task.id]?.[progressColumn.id]) || "0%"}` : ""}
+                            </span>
+                          ) : null}
+                        </span>
+                      </button>
+                      <span className="pmb-gantt-col-duration" title="Calculated from the start and end dates">{durationLabel(task.startDate, task.dueDate)}</span>
+                      <input
+                        className="pmb-gantt-col-date"
+                        type="date"
+                        aria-label={`Start date for ${task.title}`}
+                        value={task.startDate}
+                        disabled={!canEdit}
+                        onChange={(event) => onShift(task, event.target.value, task.dueDate)}
+                      />
+                      <input
+                        className="pmb-gantt-col-date"
+                        type="date"
+                        aria-label={`End date for ${task.title}`}
+                        value={task.dueDate}
+                        disabled={!canEdit}
+                        onChange={(event) => onShift(task, task.startDate, event.target.value)}
+                      />
+                    </div>
                     <div className="pmb-gantt-time" style={{ width }}>
                       {task.startDate && task.dueDate ? (
                         <Bar

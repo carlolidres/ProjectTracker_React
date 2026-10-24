@@ -61,6 +61,13 @@ export interface PmProject {
   sourceKind: "spreadsheet" | "support" | null;
   sourceId: string;
   sourceRecordId: string;
+  baselineLaunchDate: string;
+  forecastLaunchDate: string;
+  riskBufferWorkdays: number;
+  qualityReleaseStatus: "CLEAR" | "BLOCKED" | "PENDING_ASSESSMENT";
+  launchImpact: "NO_IMPACT" | "AT_RISK" | "DELAYED" | "NOT_ASSESSED";
+  launchImpactReasons: string;
+  scheduleVersion: number;
 }
 
 export interface PmMembership {
@@ -84,8 +91,8 @@ export interface PmBoardTask {
   parentTaskId: string | null;
   title: string;
   description: string;
-  status: BoardStatus;
-  priority: BoardPriority;
+  status: string;
+  priority: string;
   startDate: string;
   dueDate: string;
   ownerId: string;
@@ -94,18 +101,22 @@ export interface PmBoardTask {
   updatedBy: string;
   createdAt: string;
   updatedAt: string;
+  baselineFinish: string;
+  actualFinish: string;
+  qualityBlocker: boolean;
+  isLaunch: boolean;
 }
 
 export type BoardSortKey = "priority" | "updated" | "title" | "due";
 
-const STATUS_RANK: Record<BoardStatus, number> = {
+const STATUS_RANK: Record<string, number> = {
   Stuck: 0,
   "Not Started": 1,
   "Working on it": 2,
   Done: 3,
 };
 
-const PRIORITY_RANK: Record<BoardPriority, number> = {
+const PRIORITY_RANK: Record<string, number> = {
   High: 0,
   Medium: 1,
   Low: 2,
@@ -117,9 +128,10 @@ function groupNameKey(name: string): string {
   return value;
 }
 
-/** Working on it → On-going, Done → Done, Not Started and Stuck → Planned. */
-export function groupIdForStatus(status: BoardStatus, groups: Pick<PmGroup, "id" | "name">[]): string | null {
-  const wanted = status === "Working on it" ? "on-going" : status === "Done" ? "done" : "planned";
+/** Working on it → On-going, Done → Done, Not Started and Stuck → Planned. Other labels stay in their group. */
+export function groupIdForStatus(status: string, groups: Pick<PmGroup, "id" | "name">[]): string | null {
+  const wanted = status === "Working on it" ? "on-going" : status === "Done" ? "done" : status === "Not Started" || status === "Stuck" ? "planned" : "";
+  if (!wanted) return null;
   return groups.find((group) => groupNameKey(group.name) === wanted)?.id ?? null;
 }
 
@@ -128,9 +140,9 @@ export function compareBoardTasks(a: PmBoardTask, b: PmBoardTask, sortKey: Board
   if (sortKey === "title") return a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
   if (sortKey === "due") return (a.dueDate || "9999-99-99").localeCompare(b.dueDate || "9999-99-99") || a.id.localeCompare(b.id);
   if (sortKey === "updated") return b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id);
-  const status = STATUS_RANK[a.status] - STATUS_RANK[b.status];
+  const status = (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9);
   if (status) return status;
-  const priority = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+  const priority = (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9);
   if (priority) return priority;
   return a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
 }
@@ -138,8 +150,8 @@ export function compareBoardTasks(a: PmBoardTask, b: PmBoardTask, sortKey: Board
 export interface BoardFilters {
   search: string;
   ownerId: string;
-  status: BoardStatus | "all";
-  priority: BoardPriority | "all";
+  status: string;
+  priority: string;
   groupId: string;
 }
 
@@ -160,8 +172,13 @@ export function resolveProjectAccess(input: {
   if (input.visibility === "invited") return input.projectRole;
   if (input.projectRole) return input.projectRole;
   if (input.workspaceRole === "Owner" || input.workspaceRole === "Admin") return "Owner";
-  if (input.workspaceRole === "Member") return "Editor";
+  if (input.workspaceRole === "Member") return "Commenter";
   return null;
+}
+
+/** Workspace Owner, workspace Admin, or an app admin can change membership. */
+export function canManageWorkspace(role: WorkspaceRole | null, appRole?: string | null): boolean {
+  return role === "Owner" || role === "Admin" || appRole === "admin";
 }
 
 export function canEditBoard(access: ProjectAccess | null): boolean {
@@ -196,6 +213,32 @@ export function daySpan(start: string, due: string): number {
   const a = Date.UTC(ys, (ms ?? 1) - 1, ds ?? 1);
   const b = Date.UTC(ye, (me ?? 1) - 1, de ?? 1);
   return Math.round((b - a) / 86400000) + 1;
+}
+
+export function manilaToday(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+export function formatMonthDayYear(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return match ? `${match[2]}/${match[3]}/${match[1]}` : "";
+}
+
+export function parseMonthDayYear(value: string): string | null {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim());
+  if (!match) return null;
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  const year = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || year < 1900) return null;
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return null;
+  return `${match[3]}-${match[1]}-${match[2]}`;
 }
 
 export function shiftTaskDates(start: string, due: string, days: number): { startDate: string; dueDate: string } {
@@ -424,7 +467,7 @@ export function rescheduleFrom(
   const datesRequired: string[] = [];
   for (const id of order) {
     const task = byId.get(id);
-    if (!task) continue;
+    if (!task || task.status === "Done") continue;
     const incoming = links
       .filter((link) => link.successorId === id)
       .map((link) => ({ predecessor: byId.get(link.predecessorId), relation: link.relation, lagDays: link.lagDays }))

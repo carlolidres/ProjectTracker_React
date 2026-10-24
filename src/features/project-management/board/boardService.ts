@@ -1,12 +1,12 @@
 import type { BoardTaskSeed } from "@/features/project-management/board/boardSourcePlan";
+import { defaultBoardLabels, type BoardLabel } from "@/features/project-management/board/boardLabels";
+import { baselineChangeAllowed } from "@/features/project-management/board/launchSchedule";
 import { listAssignableProfiles } from "@/services/projectManagementService";
 import { logAuditTrail } from "@/services/auditService";
 import { supabase } from "@/lib/supabaseClient";
 import {
   STANDARD_GROUPS,
   groupIdForStatus,
-  type BoardPriority,
-  type BoardStatus,
   type PmBoardTask,
   type PmGroup,
   type PmMembership,
@@ -61,14 +61,14 @@ async function audit(
   });
 }
 
-function asStatus(value: unknown): BoardStatus {
-  if (value === "Working on it" || value === "Done" || value === "Stuck") return value;
-  return "Not Started";
+function asStatus(value: unknown): string {
+  const text = String(value ?? "").trim();
+  return text || "Not Started";
 }
 
-function asPriority(value: unknown): BoardPriority {
-  if (value === "Low" || value === "High") return value;
-  return "Medium";
+function asPriority(value: unknown): string {
+  const text = String(value ?? "").trim();
+  return text || "Medium";
 }
 
 function asWorkspaceRole(value: unknown): WorkspaceRole {
@@ -116,6 +116,13 @@ function mapProject(row: Record<string, unknown>): PmProject {
     sourceKind: row.source_kind === "spreadsheet" || row.source_kind === "support" ? row.source_kind : null,
     sourceId: String(row.source_id ?? ""),
     sourceRecordId: String(row.source_record_id ?? ""),
+    baselineLaunchDate: row.baseline_launch_date ? String(row.baseline_launch_date).slice(0, 10) : "",
+    forecastLaunchDate: row.forecast_launch_date ? String(row.forecast_launch_date).slice(0, 10) : "",
+    riskBufferWorkdays: Number(row.risk_buffer_workdays ?? 2),
+    qualityReleaseStatus: row.quality_release_status === "CLEAR" || row.quality_release_status === "BLOCKED" ? row.quality_release_status : "PENDING_ASSESSMENT",
+    launchImpact: row.launch_impact === "NO_IMPACT" || row.launch_impact === "AT_RISK" || row.launch_impact === "DELAYED" ? row.launch_impact : "NOT_ASSESSED",
+    launchImpactReasons: String(row.launch_impact_reasons ?? ""),
+    scheduleVersion: Number(row.schedule_version ?? 0),
   };
 }
 
@@ -159,22 +166,32 @@ function mapTask(row: Record<string, unknown>): PmBoardTask {
     updatedBy: String(row.updated_by ?? ""),
     createdAt: String(row.created_at ?? ""),
     updatedAt: String(row.updated_at ?? ""),
+    baselineFinish: row.baseline_finish ? String(row.baseline_finish).slice(0, 10) : "",
+    actualFinish: row.actual_finish ? String(row.actual_finish).slice(0, 10) : "",
+    qualityBlocker: row.quality_blocker === true,
+    isLaunch: row.is_launch === true,
   };
 }
 
 export async function listMyWorkspaces(): Promise<PmWorkspace[]> {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError) fail(authError);
+  const userId = authData.user?.id;
+  if (!userId) return [];
   const { data, error } = await supabase
     .from("pm_workspace_members")
-    .select("role, workspace:pm_workspaces(*)");
+    .select("role, workspace:pm_workspaces(*)")
+    .eq("user_id", userId);
   if (error) fail(error);
-  const workspaces: PmWorkspace[] = [];
+  const workspaces = new Map<string, PmWorkspace>();
   for (const row of data ?? []) {
     const record = row as { role?: string; workspace?: Record<string, unknown> | Record<string, unknown>[] | null };
     const workspace = Array.isArray(record.workspace) ? record.workspace[0] : record.workspace;
     if (!workspace) continue;
-    workspaces.push(mapWorkspace(workspace, asWorkspaceRole(record.role)));
+    const mapped = mapWorkspace(workspace, asWorkspaceRole(record.role));
+    if (!workspaces.has(mapped.id)) workspaces.set(mapped.id, mapped);
   }
-  return workspaces.sort((a, b) => a.name.localeCompare(b.name));
+  return [...workspaces.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function createWorkspace(input: {
@@ -267,22 +284,26 @@ export async function addWorkspaceMember(workspaceId: string, userId: string, ro
 }
 
 export async function updateWorkspaceMemberRole(workspaceId: string, userId: string, role: WorkspaceRole, userEmail: string, personName: string) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("pm_workspace_members")
     .update({ role })
     .eq("workspace_id", workspaceId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select("user_id");
   if (error) fail(error);
+  if (!data?.length) throw new Error("Could not change that role. Keep at least one owner, and use an admin or owner account.");
   await audit(userEmail, "update", workspaceId, "N/A", "member role", personName, role, `Set ${personName} to ${role}`);
 }
 
 export async function removeWorkspaceMember(workspaceId: string, userId: string, userEmail: string, personName: string) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("pm_workspace_members")
     .delete()
     .eq("workspace_id", workspaceId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select("user_id");
   if (error) fail(error);
+  if (!data?.length) throw new Error("Could not remove that person. A workspace must keep one owner.");
   await audit(userEmail, "remove", workspaceId, "N/A", "member", personName, "", `Removed ${personName} from the workspace`);
 }
 
@@ -320,6 +341,7 @@ export async function createProject(input: {
     userEmail: input.userEmail,
     quiet: true,
   })));
+  await saveBoardLabels(projectId, defaultBoardLabels(), input.userEmail);
   if (input.seedSamples) await seedSampleTasks(projectId, groups, input.userEmail);
   await audit(
     input.userEmail,
@@ -542,8 +564,8 @@ export interface TaskWrite {
   parentTaskId?: string | null;
   title: string;
   description?: string;
-  status?: BoardStatus;
-  priority?: BoardPriority;
+  status?: string;
+  priority?: string;
   startDate?: string;
   dueDate?: string;
   ownerId?: string;
@@ -588,7 +610,7 @@ export async function updateTask(task: PmBoardTask, patch: Partial<PmBoardTask>,
   const due = patch.dueDate !== undefined ? patch.dueDate : task.dueDate;
   if (!datesAreOrdered(start, due)) throw new Error("The due date cannot be earlier than the start date.");
   const { data: userData } = await supabase.auth.getUser();
-  const payload: Record<string, string | number | null> = { updated_by: userData.user?.id ?? null };
+  const payload: Record<string, string | number | boolean | null> = { updated_by: userData.user?.id ?? null };
   if (patch.title !== undefined) payload.title = patch.title.trim();
   if (patch.description !== undefined) payload.description = patch.description;
   if (patch.groupId !== undefined) payload.group_id = patch.groupId;
@@ -598,6 +620,10 @@ export async function updateTask(task: PmBoardTask, patch: Partial<PmBoardTask>,
   if (patch.dueDate !== undefined) payload.due_date = patch.dueDate || null;
   if (patch.ownerId !== undefined) payload.owner_id = patch.ownerId || null;
   if (patch.sortOrder !== undefined) payload.sort_order = patch.sortOrder;
+  if (patch.baselineFinish !== undefined) payload.baseline_finish = patch.baselineFinish || null;
+  if (patch.actualFinish !== undefined) payload.actual_finish = patch.actualFinish || null;
+  if (patch.qualityBlocker !== undefined) payload.quality_blocker = patch.qualityBlocker;
+  if (patch.isLaunch !== undefined) payload.is_launch = patch.isLaunch;
   const { error } = await supabase.from("pm_board_tasks").update(payload).eq("id", task.id);
   if (error) fail(error);
   if (patch.ownerId) await shareProjectWithAssignee(task.projectId, patch.ownerId);
@@ -613,6 +639,52 @@ export async function deleteTask(task: PmBoardTask, userEmail: string) {
   const { error } = await supabase.from("pm_board_tasks").delete().eq("id", task.id);
   if (error) fail(error);
   await audit(userEmail, "delete", task.id, task.projectId, "task", task.title, "", `Deleted task ${task.title}`);
+}
+
+export async function saveLaunchPlan(
+  project: PmProject,
+  plan: {
+    baselineLaunchDate: string;
+    forecastLaunchDate: string;
+    qualityReleaseStatus: PmProject["qualityReleaseStatus"];
+    launchImpact: PmProject["launchImpact"];
+    launchImpactReasons: string;
+    riskBufferWorkdays: number;
+    rebaseline: boolean;
+  },
+  userEmail: string,
+): Promise<number> {
+  if (!baselineChangeAllowed(plan.baselineLaunchDate, project.baselineLaunchDate, plan.rebaseline)) {
+    throw new Error("The approved launch baseline stays fixed. Use Rebaseline and give a reason.");
+  }
+  const nextVersion = project.scheduleVersion + 1;
+  const { data, error } = await supabase
+    .from("pm_projects")
+    .update({
+      baseline_launch_date: plan.baselineLaunchDate || null,
+      forecast_launch_date: plan.forecastLaunchDate || null,
+      quality_release_status: plan.qualityReleaseStatus,
+      launch_impact: plan.launchImpact,
+      launch_impact_reasons: plan.launchImpactReasons,
+      risk_buffer_workdays: plan.riskBufferWorkdays,
+      schedule_version: nextVersion,
+    })
+    .eq("id", project.id)
+    .eq("schedule_version", project.scheduleVersion)
+    .select("id");
+  if (error) fail(error);
+  if (!data?.length) throw new Error("Someone else updated this schedule. Refresh the board and try again.");
+  await audit(
+    userEmail,
+    plan.rebaseline ? "rebaseline" : "update",
+    project.id,
+    project.id,
+    "launch impact",
+    project.baselineLaunchDate,
+    plan.baselineLaunchDate,
+    plan.launchImpactReasons || `Launch impact ${plan.launchImpact}`,
+  );
+  return nextVersion;
 }
 
 export async function updateProjectSchedule(project: PmProject, settings: ScheduleSettings, userEmail: string) {
@@ -918,4 +990,66 @@ export async function listUpdateMarks(projectIds: string[]): Promise<UpdateMark[
   return [...latest.values()];
 }
 
+export async function listUpdateCounts(projectIds: string[]): Promise<Record<string, number>> {
+  if (projectIds.length === 0) return {};
+  const { data, error } = await supabase.from("pm_task_updates").select("task_id").in("project_id", projectIds);
+  if (error) fail(error);
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const id = String((row as { task_id?: string }).task_id ?? "");
+    if (!id) continue;
+    counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export { listAssignableProfiles };
+
+function mapLabel(row: Record<string, unknown>): BoardLabel {
+  return {
+    id: String(row.label_id ?? ""),
+    kind: row.kind === "priority" ? "priority" : "status",
+    name: String(row.name ?? ""),
+    color: String(row.color ?? "#c4c4c4"),
+    order: Number(row.sort_order ?? 0),
+    active: row.active !== false,
+    retired: row.retired === true,
+    description: String(row.description ?? ""),
+    semantic: String(row.semantic ?? ""),
+  };
+}
+
+export async function listBoardLabels(projectId: string): Promise<BoardLabel[]> {
+  const { data, error } = await supabase.from("pm_board_labels").select("*").eq("project_id", projectId).order("sort_order");
+  if (error) fail(error);
+  if (!data?.length) return defaultBoardLabels();
+  return (data as Record<string, unknown>[]).map(mapLabel);
+}
+
+export async function saveBoardLabels(projectId: string, labels: BoardLabel[], userEmail: string): Promise<void> {
+  const rows = labels.map((label) => ({
+    project_id: projectId,
+    kind: label.kind,
+    label_id: label.id,
+    name: label.name.trim(),
+    color: label.color,
+    sort_order: label.order,
+    active: label.active,
+    retired: label.retired,
+    description: label.description,
+    semantic: label.semantic,
+  }));
+  if (rows.length) {
+    const { error } = await supabase.from("pm_board_labels").upsert(rows, { onConflict: "project_id,kind,label_id" });
+    if (error) fail(error);
+  }
+  const { data: existing, error: readError } = await supabase.from("pm_board_labels").select("kind, label_id").eq("project_id", projectId);
+  if (readError) fail(readError);
+  for (const row of existing ?? []) {
+    const record = row as { kind?: string; label_id?: string };
+    if (labels.some((label) => label.kind === record.kind && label.id === record.label_id)) continue;
+    const { error } = await supabase.from("pm_board_labels").delete().eq("project_id", projectId).eq("kind", record.kind ?? "").eq("label_id", record.label_id ?? "");
+    if (error) fail(error);
+  }
+  await audit(userEmail, "update", projectId, projectId, "labels", "", labels.map((label) => `${label.kind}:${label.name}`).join(", "), "Updated status and priority labels");
+}
