@@ -6,7 +6,7 @@ export interface SidebarNavLeaf {
   label: string;
   href: string;
   roles?: UserRole[];
-  /** Opens a wide popup over the current page instead of navigating. */
+  /** Opens the board in its own window instead of navigating this tab. */
   openInWindow?: boolean;
 }
 

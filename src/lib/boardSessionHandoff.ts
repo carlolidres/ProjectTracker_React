@@ -13,6 +13,23 @@ function supabaseAuthEntries(): Record<string, string> {
 
 export const BOARD_WINDOW_NAME = "project-tracker-board";
 
+/** Opens the signed-in board in its own window. A later click focuses that same window. */
+export function openProjectBoardWindow(): Window | null {
+  stageBoardSessionHandoff();
+  const url = new URL(window.location.href);
+  url.searchParams.set("board", String(Date.now()));
+  url.hash = "/project-boards";
+  const width = Math.max(1100, window.screen.availWidth - 48);
+  const height = Math.max(700, window.screen.availHeight - 48);
+  const opened = window.open(
+    url.toString(),
+    BOARD_WINDOW_NAME,
+    `width=${width},height=${height},left=24,top=24,resizable=yes,scrollbars=yes`,
+  );
+  opened?.focus();
+  return opened;
+}
+
 /** Copies this tab's sign-in so the board window can adopt it before the client starts. */
 export function stageBoardSessionHandoff(fallback?: { key: string; value: string } | null): void {
   const payload = supabaseAuthEntries();

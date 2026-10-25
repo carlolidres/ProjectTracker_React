@@ -4,7 +4,7 @@ import { useAuth } from "@/app/auth-provider";
 import { useDateAdjustment } from "@/app/date-adjustment-provider";
 import { ROLE_LABELS } from "@/lib/constants";
 import { subscribeProjectDataChanged, subscribeSupportDataChanged } from "@/lib/projectDataEvents";
-import { BOARD_WINDOW_NAME, stageBoardSessionHandoff } from "@/lib/boardSessionHandoff";
+import { openProjectBoardWindow } from "@/lib/boardSessionHandoff";
 import { alignBoardFromSource, boardOwnsSourceWriteNow, markBoardSourceWrite, pushTaskToSource } from "@/features/project-management/board/boardSourceSync";
 import { exportBoardTasksToExcel } from "@/services/exportService";
 import { listActiveProjects } from "@/services/projectService";
@@ -1084,13 +1084,7 @@ export function BoardPage() {
               className="pmb-popup-window"
               aria-label="Open in new window"
               title="Open in new window"
-              onClick={() => {
-                stageBoardSessionHandoff();
-                const url = new URL(window.location.href);
-                url.searchParams.set("board", String(Date.now()));
-                url.hash = "/project-boards";
-                if (window.open(url.toString(), BOARD_WINDOW_NAME)) window.dispatchEvent(new Event("pmb-close-popup"));
-              }}
+              onClick={() => { openProjectBoardWindow(); }}
             >
               <LucideIcon name="external-link" size={14} />
             </button>
@@ -1147,13 +1141,7 @@ export function BoardPage() {
                     className="pmb-popup-window"
                     aria-label="Open in new window"
                     title="Open in new window"
-                    onClick={() => {
-                      stageBoardSessionHandoff();
-                      const url = new URL(window.location.href);
-                      url.searchParams.set("board", String(Date.now()));
-                      url.hash = "/project-boards";
-                      if (window.open(url.toString(), BOARD_WINDOW_NAME)) window.dispatchEvent(new Event("pmb-close-popup"));
-                    }}
+                    onClick={() => { openProjectBoardWindow(); }}
                   >
                     <LucideIcon name="external-link" size={14} />
                   </button>

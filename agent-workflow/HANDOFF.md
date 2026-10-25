@@ -1,13 +1,14 @@
 # Current Handoff
 
-Last Updated: `2026-10-24`
+Last Updated: `2026-10-25`
 
 ## Current Status
 
-Sidebar item **Project board** opens a wide popup over the current page. The old Project Management portfolio page is no longer in the sidebar; `#/project-management` returns to the dashboard. That popup shows the workspace rail and the board, and it uses this tab's sign-in. The page heading follows the selected project name. The board is Workspace, then Project, then groups and tasks. It does not list CNF or support projects. Standard groups are Planned, On-going, and Done. Status stays separate: Not Started, Working on it, Done, and Stuck. A private project is visible only to invited project members. Apply migration `20261007213000_pm_workspaces` before the board can save, and `20261008193000_pm_board_dependencies` for Depends on, updates, and files. Both were applied to the Project Tracker database.
+Sidebar item **Project board** opens the board in its own window (`project-tracker-board`) and leaves this tab in place. The old Project Management portfolio page is no longer in the sidebar; `#/project-management` returns to the dashboard. That window shows the workspace rail and the board, and it uses this tab's sign-in. The page heading follows the selected project name. The board is Workspace, then Project, then groups and tasks. It does not list CNF or support projects. Standard groups are Planned, On-going, and Done. Status stays separate: Not Started, Working on it, Done, and Stuck. A private project is visible only to invited project members. Apply migration `20261007213000_pm_workspaces` before the board can save, and `20261008193000_pm_board_dependencies` for Depends on, updates, and files. Both were applied to the Project Tracker database.
 
 ## Recently Completed
 
+- Sidebar **Project board** opens a separate browser window and no longer covers the current page with a popup.
 - Signed-in board users can read and save `pm_board_labels`, `pm_board_columns`, and `pm_board_cell_values`. Apply `20261024153000_pm_board_table_grants`. Row policies still limit each project.
 - Board popovers stay a fixed content size in the new window. The date range fields share the panel, calendar days stay square, and the label editor is two equal columns with names that fit. The rail collapse arrow is centered in its circle. Timeline pills stay compact when the table grows.
 - Status and priority labels are stored on the project. Edit Labels opens a two-column editor. Apply saves names, colors, order, descriptions, and deactivated or retired labels. Tasks keep the label id, so a rename or recolor shows on the table, Kanban, calendar, filters, and task details. A label that tasks still use is retired instead of wiping those tasks. Apply migration `20261017203000_pm_board_labels`.
@@ -60,7 +61,7 @@ Sidebar item **Project board** opens a wide popup over the current page. The old
 
 | Check | Status | Result |
 |---|---|---|
-| `npx tsc --noEmit -p tsconfig.app.json` | PASSED | clean after arrow-key navigation and the launch bar refresh |
+| `npx tsc --noEmit -p tsconfig.app.json` | PASSED | clean after Project board opens in its own window |
 | `npm run test:pm-board` | PASSED | priority follows launch impact and the quality gate |
 | `npm run test:pm-board` | PASSED | launch impact is the project target date, not a task flag |
 | `npm run test:pm-board` | PASSED | board rules still pass |
